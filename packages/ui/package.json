@@ -6,15 +6,15 @@
     "./*": "./src/*.tsx"
   },
   "scripts": {
-    "check": "oxfmt --check . && oxlint --react-plugin src && tsgo --noEmit",
+    "check": "oxfmt --check . && oxlint --react-plugin src && bun run typecheck",
     "format": "oxfmt --write .",
     "lint": "oxlint --react-plugin src",
     "lint:fix": "oxlint --react-plugin --fix src",
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "generate:component": "turbo gen react-component",
-    "typecheck": "tsgo --noEmit",
-    "check-types": "tsgo --noEmit"
+    "typecheck": "tsgo --project tsconfig.json --noEmit",
+    "check-types": "bun run typecheck"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -25,9 +25,8 @@
     "@types/node": "^22.15.3",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
-    "@typescript/native-preview": "^7.0.0-dev.20260309.1",
+    "@typescript/native-preview": "7.0.0-dev.20260311.1",
     "oxfmt": "^0.36.0",
-    "oxlint": "^1.51.0",
-    "typescript": "5.9.2"
+    "oxlint": "^1.51.0"
   }
 }

@@ -1,6 +1,6 @@
 import createDOMPurify from "dompurify";
+import { Defuddle } from "defuddle/node";
 import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
 import {
   clampArray,
   createExcerpt,
@@ -233,7 +233,7 @@ export const scrapeLatestFromHtml = ({
   };
 };
 
-export const extractArticleFromHtml = ({
+export const extractArticleFromHtml = async ({
   html,
   url,
   itemId,
@@ -243,31 +243,34 @@ export const extractArticleFromHtml = ({
   itemId: string;
 }) => {
   const dom = new JSDOM(html, { url });
-  const reader = new Readability(dom.window.document);
-  const article = reader.parse();
   const purifier = createDOMPurify(dom.window as unknown as DomPurifyWindow);
+  const article = await Defuddle(dom, url, { useAsync: false });
   const excerpt =
     createExcerpt(
-      article?.excerpt ??
-        dom.window.document.querySelector("meta[name='description']")?.getAttribute("content") ??
-        dom.window.document
-          .querySelector("meta[property='og:description']")
-          ?.getAttribute("content") ??
-        undefined,
+      article.description ||
+        (dom.window.document.querySelector("meta[name='description']")?.getAttribute("content") ??
+          dom.window.document
+            .querySelector("meta[property='og:description']")
+            ?.getAttribute("content") ??
+          undefined),
       220,
     ) ?? undefined;
   const fallbackTitle =
     cleanText(dom.window.document.querySelector("title")?.textContent ?? undefined) ??
     "Original article";
   const publishedAt = normalizeOptionalDate(
-    dom.window.document
-      .querySelector("meta[property='article:published_time']")
-      ?.getAttribute("content") ??
-      dom.window.document.querySelector("time")?.getAttribute("datetime") ??
-      undefined,
+    article.published ||
+      (dom.window.document
+        .querySelector("meta[property='article:published_time']")
+        ?.getAttribute("content") ??
+        dom.window.document.querySelector("time")?.getAttribute("datetime") ??
+        undefined),
   );
 
-  if (!article?.content) {
+  const contentHtml = article.content ? purifier.sanitize(article.content) : undefined;
+  const contentText = stripHtml(contentHtml ?? "");
+
+  if (!contentText?.trim()) {
     dom.window.close();
 
     return {
@@ -280,19 +283,16 @@ export const extractArticleFromHtml = ({
     };
   }
 
-  const contentHtml = purifier.sanitize(article.content);
-  const readTimeMinutes = Math.max(
-    1,
-    Math.ceil((stripHtml(contentHtml)?.split(/\s+/).length ?? 0) / 220),
-  );
+  const wordCount = article.wordCount || contentText.split(/\s+/).length;
+  const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 220));
 
   dom.window.close();
 
   return {
     itemId,
     url,
-    title: article.title?.trim() || "Untitled article",
-    byline: article.byline?.trim() || undefined,
+    title: cleanText(article.title) || "Untitled article",
+    byline: cleanText(article.author) || undefined,
     publishedAt,
     contentHtml,
     excerpt,

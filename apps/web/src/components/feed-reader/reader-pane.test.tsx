@@ -83,6 +83,24 @@ describe("ReaderPane", () => {
     );
   });
 
+  it("renders the iframe immediately while embed inspection is still loading", () => {
+    render(
+      <ReaderPane
+        item={item}
+        article={article}
+        articleViewMode="site"
+        isLoadingArticle={false}
+        isLoadingEmbed={true}
+        onClose={vi.fn()}
+        onArticleViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTitle("Original article: Original Story").getAttribute("src")).toBe(
+      item.url,
+    );
+  });
+
   it("renders a blocked fallback with actions when embedding is not allowed", () => {
     renderPane({ articleEmbed: blocked });
 

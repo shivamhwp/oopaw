@@ -43,8 +43,8 @@ describe("feed discovery helpers", () => {
     });
   });
 
-  it("extracts sanitized reader content from article html", () => {
-    const result = extractArticleFromHtml({
+  it("extracts sanitized reader content from article html", async () => {
+    const result = await extractArticleFromHtml({
       html: `<!doctype html>
         <html>
           <head>

@@ -1,4 +1,4 @@
-import { ArrowClockwise, Trash } from "@phosphor-icons/react";
+import { Trash } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -9,10 +9,8 @@ type FeedCardProps = {
   items: FeedItem[];
   unreadCount: number;
   newCount: number;
-  isRefreshing: boolean;
   isSelected: boolean;
   onSelect: () => void;
-  onRefresh: () => void;
   onRemove: () => void;
 };
 
@@ -21,10 +19,8 @@ export function FeedCard({
   items,
   unreadCount,
   newCount,
-  isRefreshing,
   isSelected,
   onSelect,
-  onRefresh,
   onRemove,
 }: FeedCardProps) {
   const latestItems = items.slice(0, 4);
@@ -32,7 +28,6 @@ export function FeedCard({
   return (
     <div className="group relative h-[13rem]">
       <Card
-        role="button"
         tabIndex={0}
         onClick={onSelect}
         onKeyDown={(e) => e.key === "Enter" && onSelect()}
@@ -94,19 +89,6 @@ export function FeedCard({
 
       {/* Hover actions */}
       <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-10">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          className="h-6 w-6 rounded-lg bg-card hover:bg-muted border border-border/60"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRefresh();
-          }}
-          aria-label="Refresh feed"
-        >
-          <ArrowClockwise className={cn("size-3", isRefreshing && "animate-spin")} weight="bold" />
-        </Button>
         <Button
           type="button"
           variant="ghost"

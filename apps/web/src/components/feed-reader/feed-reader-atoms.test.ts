@@ -12,6 +12,7 @@ import {
   selectItemAtom,
   showAddFormAtom,
   sidebarAtom,
+  sidebarStorage,
   sidebarSizeAtom,
   sidebarSizeStorage,
   sourceInputAtom,
@@ -19,9 +20,11 @@ import {
 import { createEmptyFeedReaderState, mergeSourceDiscovery } from "@/lib/feed-reader-state";
 import {
   FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY,
+  FEED_READER_SIDEBAR_STORAGE_KEY,
   DEFAULT_FEED_READER_SIDEBAR_SIZE,
   FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
   FEED_READER_STORAGE_KEY,
+  MIN_FEED_READER_SIDEBAR_SIZE,
   type FeedReaderStateV1,
   type DiscoveryResult,
 } from "@/lib/types";
@@ -142,6 +145,72 @@ describe("feed reader atoms", () => {
     );
   });
 
+  it("hydrates valid persisted sidebar state", () => {
+    const persistedSidebar = { mode: "list", sourceId: discovery.source.id } as const;
+    localStorage.setItem(FEED_READER_SIDEBAR_STORAGE_KEY, JSON.stringify(persistedSidebar));
+
+    expect(sidebarStorage.getItem(FEED_READER_SIDEBAR_STORAGE_KEY, { mode: "closed" })).toEqual(
+      persistedSidebar,
+    );
+  });
+
+  it("reads persisted sidebar state on first atom access", async () => {
+    const persistedState = mergeSourceDiscovery(createEmptyFeedReaderState(), discovery);
+    const persistedSidebar = { mode: "list", sourceId: discovery.source.id } as const;
+    localStorage.setItem(FEED_READER_STORAGE_KEY, JSON.stringify(persistedState));
+    localStorage.setItem(FEED_READER_SIDEBAR_STORAGE_KEY, JSON.stringify(persistedSidebar));
+    vi.resetModules();
+
+    const { createStore } = await import("jotai/vanilla");
+    const { sidebarAtom } = await import("@/components/feed-reader/feed-reader-atoms");
+    const store = createStore();
+
+    expect(store.get(sidebarAtom)).toEqual(persistedSidebar);
+  });
+
+  it("falls back when persisted sidebar state is invalid", () => {
+    localStorage.setItem(FEED_READER_SIDEBAR_STORAGE_KEY, JSON.stringify({ mode: "oops" }));
+
+    expect(sidebarStorage.getItem(FEED_READER_SIDEBAR_STORAGE_KEY, { mode: "closed" })).toEqual({
+      mode: "closed",
+    });
+  });
+
+  it("closes a persisted sidebar when the source no longer exists", () => {
+    const store = createStore();
+
+    localStorage.setItem(
+      FEED_READER_SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ mode: "list", sourceId: discovery.source.id }),
+    );
+
+    expect(store.get(sidebarAtom)).toEqual({ mode: "closed" });
+  });
+
+  it("falls back to source list when the persisted reader item is missing", () => {
+    const store = createStore();
+
+    store.set(feedReaderStateAtom, mergeSourceDiscovery(createEmptyFeedReaderState(), discovery));
+    store.set(sidebarAtom, {
+      mode: "reader",
+      sourceId: discovery.source.id,
+      itemId: "missing_item",
+    });
+
+    expect(store.get(sidebarAtom)).toEqual({ mode: "list", sourceId: discovery.source.id });
+  });
+
+  it("persists sidebar state through atomWithStorage", () => {
+    const store = createStore();
+    const persistedSidebar = { mode: "list", sourceId: discovery.source.id } as const;
+
+    store.set(sidebarAtom, persistedSidebar);
+
+    expect(JSON.parse(localStorage.getItem(FEED_READER_SIDEBAR_STORAGE_KEY) ?? "null")).toEqual(
+      persistedSidebar,
+    );
+  });
+
   it("hydrates valid persisted sidebar size", () => {
     localStorage.setItem(FEED_READER_SIDEBAR_SIZE_STORAGE_KEY, JSON.stringify(42));
 
@@ -185,12 +254,37 @@ describe("feed reader atoms", () => {
     );
   });
 
+  it("accepts the smaller reader sidebar width", () => {
+    localStorage.setItem(
+      FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
+      JSON.stringify(MIN_FEED_READER_SIDEBAR_SIZE),
+    );
+
+    expect(
+      sidebarSizeStorage.getItem(
+        FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
+        DEFAULT_FEED_READER_SIDEBAR_SIZE,
+      ),
+    ).toBe(MIN_FEED_READER_SIDEBAR_SIZE);
+  });
+
   it("hydrates valid persisted article view mode", () => {
     localStorage.setItem(FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY, JSON.stringify("reader"));
 
     expect(articleViewModeStorage.getItem(FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY, "site")).toBe(
       "reader",
     );
+  });
+
+  it("reads persisted article view mode on first atom access", async () => {
+    localStorage.setItem(FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY, JSON.stringify("site"));
+    vi.resetModules();
+
+    const { createStore } = await import("jotai/vanilla");
+    const { articleViewModeAtom } = await import("@/components/feed-reader/feed-reader-atoms");
+    const store = createStore();
+
+    expect(store.get(articleViewModeAtom)).toBe("site");
   });
 
   it("defaults article view mode to reader", () => {

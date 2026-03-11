@@ -33,15 +33,16 @@ import {
 } from "@/lib/server/feed";
 import type { ArticleViewMode, FeedItem, SavedSource } from "@/lib/types";
 
+const ARTICLE_EMBED_STALE_TIME_MS = 30 * 60_000;
+const ARTICLE_EMBED_GC_TIME_MS = 24 * 60 * 60_000;
+
 export const shouldFetchReaderArticle = (
   selectedItem: FeedItem | undefined,
   articleViewMode: ArticleViewMode,
 ) => Boolean(selectedItem) && articleViewMode === "reader";
 
-export const shouldInspectArticleEmbed = (
-  selectedItem: FeedItem | undefined,
-  articleViewMode: ArticleViewMode,
-) => Boolean(selectedItem) && articleViewMode === "site";
+export const shouldInspectArticleEmbed = (selectedItem: FeedItem | undefined) =>
+  Boolean(selectedItem);
 
 export function useFeedReader() {
   const queryClient = useQueryClient();
@@ -81,13 +82,14 @@ export function useFeedReader() {
     staleTime: Infinity,
   });
   const articleEmbedQuery = useQuery({
-    queryKey: selectedItem ? queryKeys.articleEmbed(selectedItem.id) : ["article-embed", "empty"],
+    queryKey: selectedItem ? queryKeys.articleEmbed(selectedItem.url) : ["article-embed", "empty"],
     queryFn: () =>
       inspectArticleEmbed({
         data: { itemId: selectedItem!.id, url: selectedItem!.url },
       }),
-    enabled: shouldInspectArticleEmbed(selectedItem, articleViewMode),
-    staleTime: Infinity,
+    enabled: shouldInspectArticleEmbed(selectedItem),
+    staleTime: ARTICLE_EMBED_STALE_TIME_MS,
+    gcTime: ARTICLE_EMBED_GC_TIME_MS,
   });
 
   // ── Add source mutation ──────────────────────────────────────────

@@ -15,36 +15,37 @@ import {
 import {
   articleViewModeSchema,
   FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY,
+  FEED_READER_SIDEBAR_STORAGE_KEY,
   DEFAULT_FEED_READER_SIDEBAR_SIZE,
   FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
   FEED_READER_STORAGE_KEY,
   feedReaderStateV1Schema,
   feedReaderStateSchema,
+  sidebarStateSchema,
   sidebarSizeSchema,
   type DiscoveryResult,
   type FeedReaderState,
   type LoadMoreSourceItemsResult,
   type RefreshResult,
   type ArticleViewMode,
+  type SidebarState,
   type SidebarSize,
 } from "@/lib/types";
 import { getBrowserStorage } from "@/lib/browser-storage";
-
-export type SidebarState =
-  | { mode: "closed" }
-  | { mode: "list"; sourceId: string }
-  | { mode: "reader"; sourceId: string; itemId: string };
 
 const isSidebarSize = (value: unknown): value is SidebarSize =>
   sidebarSizeSchema.safeParse(value).success;
 const isArticleViewMode = (value: unknown): value is ArticleViewMode =>
   articleViewModeSchema.safeParse(value).success;
+const isSidebarState = (value: unknown): value is SidebarState =>
+  sidebarStateSchema.safeParse(value).success;
 
 type StorageSubscription<Value> = (
   key: string,
   callback: (value: Value) => void,
   initialValue: Value,
 ) => (() => void) | undefined;
+type SetAtomAction<Value> = Value | ((value: Value) => Value);
 
 type FeedReaderStorage = {
   getItem: (key: string, initialValue: FeedReaderState) => FeedReaderState;
@@ -106,6 +107,40 @@ export const sidebarSizeStorage = unstable_withStorageValidator(isSidebarSize)(
 export const articleViewModeStorage = unstable_withStorageValidator(isArticleViewMode)(
   createJSONStorage<unknown>(() => browserStringStorage),
 );
+export const sidebarStorage = unstable_withStorageValidator(isSidebarState)(
+  createJSONStorage<unknown>(() => browserStringStorage),
+);
+
+const getSanitizedSidebarState = (sidebar: SidebarState, state: FeedReaderState) => {
+  if (sidebar.mode === "closed") {
+    return sidebar;
+  }
+
+  const sourceExists = state.sources.some((source) => source.id === sidebar.sourceId);
+
+  if (!sourceExists) {
+    return { mode: "closed" } satisfies SidebarState;
+  }
+
+  if (sidebar.mode === "reader") {
+    const itemExists = (state.itemsBySource[sidebar.sourceId] ?? []).some(
+      (item) => item.id === sidebar.itemId,
+    );
+
+    if (!itemExists) {
+      return { mode: "list", sourceId: sidebar.sourceId } satisfies SidebarState;
+    }
+  }
+
+  return sidebar;
+};
+
+const persistedSidebarAtom = atomWithStorage<SidebarState>(
+  FEED_READER_SIDEBAR_STORAGE_KEY,
+  { mode: "closed" },
+  sidebarStorage,
+  { getOnInit: true },
+);
 
 export const feedReaderStateAtom = atomWithStorage<FeedReaderState>(
   FEED_READER_STORAGE_KEY,
@@ -116,7 +151,16 @@ export const feedReaderStateAtom = atomWithStorage<FeedReaderState>(
 
 export const sourceInputAtom = atom("");
 export const showAddFormAtom = atom(false);
-export const sidebarAtom = atom<SidebarState>({ mode: "closed" });
+export const sidebarAtom = atom(
+  (get) => getSanitizedSidebarState(get(persistedSidebarAtom), get(feedReaderStateAtom)),
+  (get, set, nextSidebar: SetAtomAction<SidebarState>) => {
+    const currentSidebar = get(persistedSidebarAtom);
+    const resolvedSidebar =
+      typeof nextSidebar === "function" ? nextSidebar(currentSidebar) : nextSidebar;
+
+    set(persistedSidebarAtom, resolvedSidebar);
+  },
+);
 export const sidebarSizeAtom = atomWithStorage<SidebarSize>(
   FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
   DEFAULT_FEED_READER_SIDEBAR_SIZE,
@@ -243,3 +287,5 @@ export const setSourceErrorAtom = atom(
     set(feedReaderStateAtom, (state) => setSourceError(state, payload.sourceId, payload.message));
   },
 );
+
+export type { SidebarState } from "@/lib/types";

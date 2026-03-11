@@ -18,16 +18,16 @@ const item: FeedItem = {
 describe("useFeedReader query gating", () => {
   it("does not fetch reader content while site mode is active", () => {
     expect(shouldFetchReaderArticle(item, "site")).toBe(false);
-    expect(shouldInspectArticleEmbed(item, "site")).toBe(true);
+    expect(shouldInspectArticleEmbed(item)).toBe(true);
   });
 
-  it("enables reader content only in reader mode", () => {
+  it("enables reader content only in reader mode and still warms embed state", () => {
     expect(shouldFetchReaderArticle(item, "reader")).toBe(true);
-    expect(shouldInspectArticleEmbed(item, "reader")).toBe(false);
+    expect(shouldInspectArticleEmbed(item)).toBe(true);
   });
 
   it("disables both article queries when no item is selected", () => {
     expect(shouldFetchReaderArticle(undefined, "reader")).toBe(false);
-    expect(shouldInspectArticleEmbed(undefined, "site")).toBe(false);
+    expect(shouldInspectArticleEmbed(undefined)).toBe(false);
   });
 });

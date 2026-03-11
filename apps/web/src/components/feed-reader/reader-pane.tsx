@@ -54,6 +54,8 @@ export function ReaderPane({
   if (!item) return null;
 
   const isSiteMode = articleViewMode === "site";
+  const isBlockedFromEmbed = articleEmbed?.canEmbed === false;
+  const siteUrl = articleEmbed?.url === item.url ? (articleEmbed.finalUrl ?? item.url) : item.url;
   const title = article?.title ?? item.title;
   const author = article?.byline ?? item.author;
   const date = formatDate(article?.publishedAt ?? item.publishedAt);
@@ -116,18 +118,19 @@ export function ReaderPane({
       {topNav}
       {isSiteMode ? (
         <>
-          {isLoadingEmbed ? (
-            <div className="reader-site-loading">
-              <SpinnerIcon className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : articleEmbed?.canEmbed ? (
+          {!isBlockedFromEmbed ? (
             <div className="reader-site-frame-shell">
               <iframe
-                key={articleEmbed.finalUrl ?? item.url}
+                key={siteUrl}
                 title={`Original article: ${title}`}
-                src={articleEmbed.finalUrl ?? item.url}
+                src={siteUrl}
                 className="reader-site-frame"
               />
+              {isLoadingEmbed && (
+                <div className="reader-site-loading pointer-events-none absolute inset-0">
+                  <SpinnerIcon className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
           ) : (
             <div className="reader-site-fallback-wrap">

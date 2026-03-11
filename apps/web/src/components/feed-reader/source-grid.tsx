@@ -20,10 +20,8 @@ type SourceSummary = {
 type SourceGridProps = {
   sourceSummaries: SourceSummary[];
   sidebarOpen: boolean;
-  refreshingSourceIds: string[];
   selectedSourceId?: string;
   onOpenFeed: (sourceId: string) => void;
-  onRefreshSource: (sourceId: string) => void;
   onRemoveSource: (sourceId: string) => void;
 };
 
@@ -41,10 +39,8 @@ const clampColumns = (width: number, sidebarOpen: boolean) => {
 export function SourceGrid({
   sourceSummaries,
   sidebarOpen,
-  refreshingSourceIds,
   selectedSourceId,
   onOpenFeed,
-  onRefreshSource,
   onRemoveSource,
 }: SourceGridProps) {
   const scrollElementRef = useRef<HTMLDivElement>(null);
@@ -128,10 +124,8 @@ export function SourceGrid({
                   items={items}
                   unreadCount={unreadCount}
                   newCount={newCount}
-                  isRefreshing={refreshingSourceIds.includes(source.id)}
                   isSelected={selectedSourceId === source.id}
                   onSelect={() => onOpenFeed(source.id)}
-                  onRefresh={() => onRefreshSource(source.id)}
                   onRemove={() => onRemoveSource(source.id)}
                 />
               ))}
