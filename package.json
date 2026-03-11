@@ -3,13 +3,27 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "check": "turbo run check",
     "dev": "turbo run dev",
+    "web": "turbo run dev --filter=web",
+    "dev:web": "turbo run dev --filter=web",
+    "web:dev": "turbo run dev --filter=web",
+    "check:web": "turbo run check --filter=web",
+    "web:check": "turbo run check --filter=web",
+    "format:web": "turbo run format --filter=web",
+    "web:format": "turbo run format --filter=web",
+    "format": "turbo run format",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "lint:web": "turbo run lint --filter=web",
+    "web:lint": "turbo run lint --filter=web",
+    "test:web": "turbo run test --filter=web",
+    "web:test": "turbo run test --filter=web",
+    "typecheck:web": "turbo run typecheck --filter=web",
+    "web:typecheck": "turbo run typecheck --filter=web",
+    "typecheck": "turbo run typecheck",
+    "check-types": "bun run typecheck"
   },
   "devDependencies": {
-    "prettier": "^3.7.4",
     "turbo": "^2.8.14",
     "typescript": "5.9.2"
   },
