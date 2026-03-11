@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { Provider } from "jotai";
-import { PwaRegistration } from "@/components/pwa/pwa-registration";
 import { FeedQueryProvider } from "@/lib/query/client";
 import {
   DEFAULT_THEME,
@@ -40,14 +39,6 @@ export const Route = createRootRoute({
         content: "#2a2629",
         media: "(prefers-color-scheme: dark)",
       },
-      {
-        name: "apple-mobile-web-app-capable",
-        content: "yes",
-      },
-      {
-        name: "apple-mobile-web-app-status-bar-style",
-        content: "black-translucent",
-      },
     ],
     links: [
       {
@@ -71,14 +62,6 @@ export const Route = createRootRoute({
         rel: "icon",
         href: "/oop-logo.svg",
         type: "image/svg+xml",
-      },
-      {
-        rel: "manifest",
-        href: "/manifest.json",
-      },
-      {
-        rel: "apple-touch-icon",
-        href: "/apple-touch-icon.png",
       },
     ],
   }),
@@ -108,7 +91,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Provider>
           <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={THEME_STORAGE_KEY}>
             <FeedQueryProvider>
-              <PwaRegistration />
               {children}
               <Scripts />
             </FeedQueryProvider>
