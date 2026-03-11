@@ -22,6 +22,11 @@ const config = defineConfig({
     VitePWA({
       injectRegister: null,
       registerType: "autoUpdate",
+      workbox: {
+        cleanupOutdatedCaches: true,
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,json,webmanifest}"],
+        navigateFallback: "/",
+      },
       manifest: false,
       includeAssets: [
         "favicon.ico",
@@ -32,10 +37,6 @@ const config = defineConfig({
         "pwa-maskable-512x512.png",
         "manifest.json",
       ],
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,json,webmanifest}"],
-        navigateFallback: "/",
-      },
     }),
     tanstackStart(),
     viteReact(),

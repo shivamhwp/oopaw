@@ -31,6 +31,7 @@ import {
   inspectArticleEmbed,
   loadMoreSourceItems,
 } from "@/lib/server/feed";
+import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import type { ArticleViewMode, FeedItem, SavedSource } from "@/lib/types";
 
 const ARTICLE_EMBED_STALE_TIME_MS = 30 * 60_000;
@@ -43,6 +44,15 @@ export const shouldFetchReaderArticle = (
 
 export const shouldInspectArticleEmbed = (selectedItem: FeedItem | undefined) =>
   Boolean(selectedItem);
+
+const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
+  try {
+    return await load();
+  } catch (error) {
+    recoverFromStaleDeployment(error);
+    throw error;
+  }
+};
 
 export function useFeedReader() {
   const queryClient = useQueryClient();
@@ -75,18 +85,22 @@ export function useFeedReader() {
   const articleQuery = useQuery({
     queryKey: selectedItem ? queryKeys.article(selectedItem.id) : ["article", "empty"],
     queryFn: () =>
-      fetchArticle({
-        data: { itemId: selectedItem!.id, url: selectedItem!.url },
-      }),
+      withStaleDeploymentRecovery(() =>
+        fetchArticle({
+          data: { itemId: selectedItem!.id, url: selectedItem!.url },
+        }),
+      ),
     enabled: shouldFetchReaderArticle(selectedItem, articleViewMode),
     staleTime: Infinity,
   });
   const articleEmbedQuery = useQuery({
     queryKey: selectedItem ? queryKeys.articleEmbed(selectedItem.url) : ["article-embed", "empty"],
     queryFn: () =>
-      inspectArticleEmbed({
-        data: { itemId: selectedItem!.id, url: selectedItem!.url },
-      }),
+      withStaleDeploymentRecovery(() =>
+        inspectArticleEmbed({
+          data: { itemId: selectedItem!.id, url: selectedItem!.url },
+        }),
+      ),
     enabled: shouldInspectArticleEmbed(selectedItem),
     staleTime: ARTICLE_EMBED_STALE_TIME_MS,
     gcTime: ARTICLE_EMBED_GC_TIME_MS,
@@ -94,7 +108,8 @@ export function useFeedReader() {
 
   // ── Add source mutation ──────────────────────────────────────────
   const addSourceMutation = useMutation({
-    mutationFn: (input: string) => discoverSource({ data: { input } }),
+    mutationFn: (input: string) =>
+      withStaleDeploymentRecovery(() => discoverSource({ data: { input } })),
     onSuccess: (discovery) => {
       startTransition(() => {
         addSourceSuccess(discovery);
@@ -104,7 +119,7 @@ export function useFeedReader() {
 
   const loadMoreSourceItemsMutation = useMutation({
     mutationFn: ({ source, pageUrl }: { source: SavedSource; pageUrl: string }) =>
-      loadMoreSourceItems({ data: { source, pageUrl } }),
+      withStaleDeploymentRecovery(() => loadMoreSourceItems({ data: { source, pageUrl } })),
     onSuccess: (result) => {
       startTransition(() => {
         applyLoadMore(result);
