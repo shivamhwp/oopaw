@@ -5,6 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
 import type { ArticleEmbedStatus, FeedItem, ReaderArticle } from "@/lib/types";
 import { cleanup } from "@testing-library/react";
+import { useMediaQuery } from "@/lib/use-media-query";
+
+vi.mock("@/lib/use-media-query", () => ({
+  useMediaQuery: vi.fn(() => false),
+}));
 
 const item: FeedItem = {
   id: "item_1",
@@ -43,6 +48,7 @@ const blocked: ArticleEmbedStatus = {
 
 afterEach(() => {
   cleanup();
+  vi.mocked(useMediaQuery).mockReturnValue(false);
 });
 
 const renderPane = ({
@@ -146,5 +152,27 @@ describe("ReaderPane", () => {
     expect(screen.getByRole("tab", { name: "Site view" }).getAttribute("aria-selected")).toBe(
       "true",
     );
+  });
+
+  it("keeps back and close actions visible on mobile while hiding fullscreen toggle", () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+
+    render(
+      <ReaderPane
+        item={item}
+        article={article}
+        articleViewMode="reader"
+        isLoadingArticle={false}
+        isLoadingEmbed={false}
+        onBack={vi.fn()}
+        onClose={vi.fn()}
+        onToggleFullScreen={vi.fn()}
+        onArticleViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Back to list" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Close reader" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Full screen" })).toBeNull();
   });
 });

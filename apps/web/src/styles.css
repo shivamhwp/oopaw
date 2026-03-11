@@ -30,14 +30,6 @@
   --chart-4: oklch(0.8611 0.0683 328.5143);
   --chart-5: oklch(0.4083 0.036 317.1199);
   --radius: 0.5rem;
-  --sidebar: oklch(0.9881 0 0);
-  --sidebar-foreground: oklch(0.2645 0 0);
-  --sidebar-primary: oklch(0.325 0 0);
-  --sidebar-primary-foreground: oklch(0.9881 0 0);
-  --sidebar-accent: oklch(0.9761 0 0);
-  --sidebar-accent-foreground: oklch(0.325 0 0);
-  --sidebar-border: oklch(0.9401 0 0);
-  --sidebar-ring: oklch(0.7731 0 0);
   --destructive-foreground: oklch(1 0 0);
   --font-sans: "Geist Variable", Geist, ui-sans-serif, sans-serif, system-ui;
   --font-serif: "Geist Variable", Geist, ui-sans-serif, sans-serif, system-ui;
@@ -65,14 +57,6 @@
   --font-sans: "Geist Variable", Geist, ui-sans-serif, sans-serif, system-ui;
   --font-display: "Geist Variable", Geist, ui-sans-serif, sans-serif, system-ui;
   --font-logo: "Micro 5", monospace;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -228,16 +212,20 @@
     @apply max-w-none text-[0.98rem] leading-8 text-foreground/88;
   }
 
+  .reader-article-shell {
+    @apply mx-auto w-full max-w-[52rem];
+  }
+
   .reader-mode-tabs {
-    @apply gap-0;
+    @apply w-full gap-1 md:w-auto md:gap-0;
   }
 
   .reader-topnav {
-    @apply flex items-center justify-between gap-3 border-b border-border/40 bg-background/94 px-5 py-1 backdrop-blur-sm;
+    @apply flex flex-wrap items-start justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-2 backdrop-blur-sm md:flex-nowrap md:items-center md:px-5 md:py-1;
   }
 
   .reader-topnav-back {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-sm transition-colors hover:text-foreground;
+    @apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground shadow-sm transition-colors hover:text-foreground;
   }
 
   .reader-topnav-icon {
@@ -266,6 +254,26 @@
 
   .reader-site-fallback {
     @apply w-full max-w-xl space-y-4 rounded-[1.4rem] border border-border/70 p-5;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .standalone-shell {
+    min-height: 100svh;
   }
 
   .reader-prose h1,
@@ -316,6 +324,12 @@
   }
 }
 
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
 .dark {
   --background: oklch(0.1638 0 0);
   --foreground: oklch(0.9491 0 0);
@@ -342,14 +356,6 @@
   --chart-4: oklch(0.3239 0.0222 326.0759);
   --chart-5: oklch(0.8572 0.0731 326.192);
   --radius: 0.5rem;
-  --sidebar: oklch(0.1957 0 0);
-  --sidebar-foreground: oklch(0.9333 0.0011 197.1378);
-  --sidebar-primary: oklch(0.6372 0.1324 149.0579);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.2717 0.0015 197.0705);
-  --sidebar-accent-foreground: oklch(0.9333 0.0011 197.1378);
-  --sidebar-border: oklch(0.2717 0.0015 197.0705);
-  --sidebar-ring: oklch(0.8457 0.0036 174.4639);
   --font-sans: "Geist Variable", Geist, ui-sans-serif, sans-serif, system-ui;
   --font-serif: "Geist Variable", Geist, ui-sans-serif, sans-serif, system-ui;
   --font-mono: JetBrains Mono, ui-monospace, monospace;

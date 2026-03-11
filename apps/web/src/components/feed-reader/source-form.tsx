@@ -33,16 +33,16 @@ export function SourceForm({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="shivam.ing/blogs or https://example.com/feed.xml"
-        className="w-full rounded-lg border border-border/80 bg-background px-3 py-2 text-xs outline-none placeholder:text-muted-foreground/55 transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+        className="w-full rounded-lg border border-border/80 bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/55 transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10 md:py-2 md:text-xs"
         // eslint-disable-next-line jsx-a11y/no-autofocus
         autoFocus
       />
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="submit"
           size="sm"
-          className="h-7 rounded-full text-xs"
+          className="h-8 rounded-full px-3 text-sm md:h-7 md:px-2.5 md:text-xs"
           disabled={isSubmitting}
         >
           <Plus weight="bold" />
@@ -53,7 +53,7 @@ export function SourceForm({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 rounded-full text-xs"
+            className="h-8 rounded-full px-3 text-sm md:h-7 md:px-2.5 md:text-xs"
             onClick={onCancel}
           >
             Cancel
@@ -63,7 +63,7 @@ export function SourceForm({
           type="button"
           size="icon-sm"
           variant="ghost"
-          className="h-7 w-7 rounded-full ml-auto"
+          className="ml-auto h-8 w-8 rounded-full md:h-7 md:w-7"
           disabled={isRefreshing}
           onClick={onRefreshAll}
           title="Refresh all sources"

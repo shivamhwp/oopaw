@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { FeedCard } from "@/components/feed-reader/feed-card";
 import { useProgressiveWindow } from "@/components/feed-reader/use-progressive-window";
 import type { FeedItem, SavedSource } from "@/lib/types";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 const GRID_PAGE_SIZE = 20;
 const GRID_THRESHOLD_ROWS = 2;
@@ -19,18 +20,18 @@ type SourceSummary = {
 
 type SourceGridProps = {
   sourceSummaries: SourceSummary[];
-  sidebarOpen: boolean;
+  detailPanelOpen: boolean;
   selectedSourceId?: string;
   onOpenFeed: (sourceId: string) => void;
   onRemoveSource: (sourceId: string) => void;
 };
 
-const clampColumns = (width: number, sidebarOpen: boolean) => {
+const clampColumns = (width: number, detailPanelOpen: boolean) => {
   if (width <= 0) {
     return 1;
   }
 
-  const maxColumns = sidebarOpen ? 2 : 4;
+  const maxColumns = detailPanelOpen ? 2 : 4;
   const computedColumns = Math.floor((width + GRID_GAP) / (CARD_WIDTH + GRID_GAP));
 
   return Math.max(1, Math.min(maxColumns, computedColumns));
@@ -38,19 +39,20 @@ const clampColumns = (width: number, sidebarOpen: boolean) => {
 
 export function SourceGrid({
   sourceSummaries,
-  sidebarOpen,
+  detailPanelOpen,
   selectedSourceId,
   onOpenFeed,
   onRemoveSource,
 }: SourceGridProps) {
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const columnCount = clampColumns(containerWidth, sidebarOpen);
+  const columnCount = clampColumns(containerWidth, detailPanelOpen);
   const { visibleCount, reportLastVisibleIndex } = useProgressiveWindow({
     loadedCount: sourceSummaries.length,
     pageSize: GRID_PAGE_SIZE,
     threshold: columnCount * GRID_THRESHOLD_ROWS,
-    identityKey: sourceSummaries.length === 0 ? "empty" : `sidebar:${sidebarOpen}`,
+    identityKey: sourceSummaries.length === 0 ? "empty" : `detail-panel:${detailPanelOpen}`,
     hasRemoteMore: false,
     isFetchingRemoteMore: false,
   });
@@ -74,6 +76,10 @@ export function SourceGrid({
       : Math.min(visibleSourceSummaries.length - 1, (lastVisibleRowIndex + 1) * columnCount - 1);
 
   useEffect(() => {
+    if (isMobile) {
+      return;
+    }
+
     if (!scrollElementRef.current || typeof ResizeObserver === "undefined") {
       return;
     }
@@ -87,11 +93,36 @@ export function SourceGrid({
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     reportLastVisibleIndex(lastVisibleItemIndex);
   }, [lastVisibleItemIndex, reportLastVisibleIndex]);
+
+  if (isMobile) {
+    return (
+      <div
+        ref={scrollElementRef}
+        className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5"
+        data-testid="source-grid-mobile"
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {sourceSummaries.map(({ source, items, unreadCount, newCount }) => (
+            <FeedCard
+              key={source.id}
+              source={source}
+              items={items}
+              unreadCount={unreadCount}
+              newCount={newCount}
+              isSelected={selectedSourceId === source.id}
+              onSelect={() => onOpenFeed(source.id)}
+              onRemove={() => onRemoveSource(source.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={scrollElementRef} className="h-full min-w-0 overflow-y-auto px-6 py-6">

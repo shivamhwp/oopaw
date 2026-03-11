@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ArticleEmbedStatus, ArticleViewMode, FeedItem, ReaderArticle } from "@/lib/types";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 type ReaderPaneProps = {
   item?: FeedItem;
@@ -51,6 +52,8 @@ export function ReaderPane({
   onToggleFullScreen,
   onArticleViewModeChange,
 }: ReaderPaneProps) {
+  const isMobile = useMediaQuery("(max-width: 767px)");
+
   if (!item) return null;
 
   const isSiteMode = articleViewMode === "site";
@@ -63,17 +66,21 @@ export function ReaderPane({
     <Tabs
       value={articleViewMode}
       onValueChange={(value) => onArticleViewModeChange(value as ArticleViewMode)}
-      className="reader-mode-tabs"
+      className="reader-mode-tabs min-w-0"
     >
-      <TabsList aria-label="Article view mode">
-        <TabsTrigger value="site">Site view</TabsTrigger>
-        <TabsTrigger value="reader">Reader mode</TabsTrigger>
+      <TabsList aria-label="Article view mode" className="flex w-full min-w-0 md:w-auto">
+        <TabsTrigger value="site" className="min-w-0 flex-1">
+          Site view
+        </TabsTrigger>
+        <TabsTrigger value="reader" className="min-w-0 flex-1">
+          Reader mode
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   );
   const topNav = (
-    <div className="reader-topnav">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="reader-topnav safe-top">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {onBack ? (
           <button type="button" onClick={onBack} className="reader-topnav-back">
             <ArrowLeft weight="bold" className="size-3" />
@@ -83,9 +90,9 @@ export function ReaderPane({
           <div />
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
         {modeToggle}
-        {onToggleFullScreen && (
+        {onToggleFullScreen && !isMobile && (
           <button
             type="button"
             onClick={onToggleFullScreen}
@@ -165,54 +172,57 @@ export function ReaderPane({
         </>
       ) : (
         <>
-          {/* Header */}
-          <div className="shrink-0 border-b border-border/40 px-5 pb-4 pt-5">
-            <h2
-              className={
-                isFullScreen
-                  ? "font-display text-[2.4rem] leading-tight text-pretty text-foreground"
-                  : "font-display text-[1.85rem] leading-tight text-pretty text-foreground"
-              }
-            >
-              {title}
-            </h2>
+          <div className="safe-top shrink-0 border-b border-border/40 px-4 pb-4 pt-4 md:px-5 md:pt-5">
+            <div className="reader-article-shell">
+              <h2
+                className={
+                  isMobile
+                    ? "font-display text-[1.5rem] leading-tight text-pretty text-foreground"
+                    : isFullScreen
+                      ? "font-display text-[2.4rem] leading-tight text-pretty text-foreground"
+                      : "font-display text-[1.85rem] leading-tight text-pretty text-foreground"
+                }
+              >
+                {title}
+              </h2>
 
-            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-              {author && (
-                <span className="inline-flex items-center gap-1">
-                  <User weight="fill" className="size-3" />
-                  {author}
-                </span>
-              )}
-              {date && (
-                <span className="inline-flex items-center gap-1">
-                  <CalendarDots weight="fill" className="size-3" />
-                  {date}
-                </span>
-              )}
-              {article?.readTimeMinutes && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock weight="fill" className="size-3" />
-                  {article.readTimeMinutes} min read
-                </span>
-              )}
-            </div>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {author && (
+                  <span className="inline-flex items-center gap-1">
+                    <User weight="fill" className="size-3" />
+                    {author}
+                  </span>
+                )}
+                {date && (
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarDots weight="fill" className="size-3" />
+                    {date}
+                  </span>
+                )}
+                {article?.readTimeMinutes && (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock weight="fill" className="size-3" />
+                    {article.readTimeMinutes} min read
+                  </span>
+                )}
+              </div>
 
-            <div className="mt-4">
-              <Button asChild variant="outline" size="sm" className="rounded-full h-7 text-xs">
-                <a href={item.url} target="_blank" rel="noreferrer">
-                  <ArrowSquareOut weight="bold" />
-                  Open original
-                </a>
-              </Button>
+              <div className="mt-4">
+                <Button asChild variant="outline" size="sm" className="h-7 rounded-full text-xs">
+                  <a href={item.url} target="_blank" rel="noreferrer">
+                    <ArrowSquareOut weight="bold" />
+                    Open original
+                  </a>
+                </Button>
+              </div>
             </div>
           </div>
 
           <div
             className={
               isFullScreen
-                ? "flex-1 min-h-0 overflow-y-auto px-8 py-6 max-w-3xl mx-auto w-full"
-                : "flex-1 min-h-0 overflow-y-auto px-5 py-5"
+                ? "safe-bottom flex-1 min-h-0 overflow-y-auto px-5 py-5 md:px-8 md:py-6"
+                : "safe-bottom flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-5 md:py-5"
             }
           >
             {isLoadingArticle ? (
@@ -220,26 +230,30 @@ export function ReaderPane({
                 <SpinnerIcon className="size-5 animate-spin text-muted-foreground" />
               </div>
             ) : article?.contentHtml ? (
-              <article
-                className="reader-prose"
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: article.contentHtml }}
-              />
+              <div className="reader-article-shell">
+                <article
+                  className="reader-prose"
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: article.contentHtml }}
+                />
+              </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-border/70 bg-muted/25 p-5 space-y-3">
-                <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <BookOpenText weight="fill" className="size-3.5" />
-                  Fallback mode
-                </div>
-                <p className="text-sm leading-7 text-muted-foreground">
-                  {article?.fallbackReason ??
-                    "A clean in-app reader could not be generated for this page."}
-                </p>
-                {(article?.excerpt || item.excerpt) && (
-                  <p className="font-display text-xl leading-8 text-foreground">
-                    {article?.excerpt ?? item.excerpt}
+              <div className="reader-article-shell">
+                <div className="space-y-3 rounded-xl border border-dashed border-border/70 bg-muted/25 p-5">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <BookOpenText weight="fill" className="size-3.5" />
+                    Fallback mode
+                  </div>
+                  <p className="text-sm leading-7 text-muted-foreground">
+                    {article?.fallbackReason ??
+                      "A clean in-app reader could not be generated for this page."}
                   </p>
-                )}
+                  {(article?.excerpt || item.excerpt) && (
+                    <p className="font-display text-xl leading-8 text-foreground">
+                      {article?.excerpt ?? item.excerpt}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -6,27 +6,27 @@ import {
   addSourceSuccessAtom,
   articleViewModeAtom,
   articleViewModeStorage,
+  DEFAULT_FEED_READER_PANEL_SIZE,
+  detailPanelAtom,
+  detailPanelSizeAtom,
+  detailPanelSizeStorage,
+  detailPanelStateStorage,
+  FEED_READER_PANEL_SIZE_STORAGE_KEY,
+  FEED_READER_PANEL_STATE_STORAGE_KEY,
   feedReaderStateAtom,
   feedReaderStorage,
+  MIN_FEED_READER_READER_PANEL_SIZE,
   removeSourceAtom,
   selectItemAtom,
   showAddFormAtom,
-  sidebarAtom,
-  sidebarStorage,
-  sidebarSizeAtom,
-  sidebarSizeStorage,
   sourceInputAtom,
-} from "@/components/feed-reader/feed-reader-atoms";
+} from "@/components/feed-reader/store";
 import { createEmptyFeedReaderState, mergeSourceDiscovery } from "@/lib/feed-reader-state";
 import {
   FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY,
-  FEED_READER_SIDEBAR_STORAGE_KEY,
-  DEFAULT_FEED_READER_SIDEBAR_SIZE,
-  FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
-  FEED_READER_STORAGE_KEY,
-  MIN_FEED_READER_SIDEBAR_SIZE,
-  type FeedReaderStateV1,
+  FEED_READER_STATE_STORAGE_KEY,
   type DiscoveryResult,
+  type FeedReaderStateV1,
 } from "@/lib/types";
 
 const discovery: DiscoveryResult = {
@@ -71,7 +71,7 @@ const createMockStorage = () => {
   };
 };
 
-describe("feed reader atoms", () => {
+describe("feed reader store", () => {
   beforeEach(() => {
     vi.stubGlobal("localStorage", createMockStorage());
   });
@@ -82,30 +82,33 @@ describe("feed reader atoms", () => {
 
   it("hydrates valid persisted state", () => {
     const persistedState = mergeSourceDiscovery(createEmptyFeedReaderState(), discovery);
-    localStorage.setItem(FEED_READER_STORAGE_KEY, JSON.stringify(persistedState));
+    localStorage.setItem(FEED_READER_STATE_STORAGE_KEY, JSON.stringify(persistedState));
 
     expect(
-      feedReaderStorage.getItem(FEED_READER_STORAGE_KEY, createEmptyFeedReaderState()),
+      feedReaderStorage.getItem(FEED_READER_STATE_STORAGE_KEY, createEmptyFeedReaderState()),
     ).toEqual(persistedState);
   });
 
   it("reads persisted feed-reader state on first atom access", async () => {
     const persistedState = mergeSourceDiscovery(createEmptyFeedReaderState(), discovery);
-    localStorage.setItem(FEED_READER_STORAGE_KEY, JSON.stringify(persistedState));
+    localStorage.setItem(FEED_READER_STATE_STORAGE_KEY, JSON.stringify(persistedState));
     vi.resetModules();
 
     const { createStore } = await import("jotai/vanilla");
-    const { feedReaderStateAtom } = await import("@/components/feed-reader/feed-reader-atoms");
+    const { feedReaderStateAtom } = await import("@/components/feed-reader/store");
     const store = createStore();
 
     expect(store.get(feedReaderStateAtom)).toEqual(persistedState);
   });
 
   it("falls back when persisted state is invalid", () => {
-    localStorage.setItem(FEED_READER_STORAGE_KEY, JSON.stringify({ version: 999, nope: true }));
+    localStorage.setItem(
+      FEED_READER_STATE_STORAGE_KEY,
+      JSON.stringify({ version: 999, nope: true }),
+    );
 
     expect(
-      feedReaderStorage.getItem(FEED_READER_STORAGE_KEY, createEmptyFeedReaderState()),
+      feedReaderStorage.getItem(FEED_READER_STATE_STORAGE_KEY, createEmptyFeedReaderState()),
     ).toEqual(createEmptyFeedReaderState());
   });
 
@@ -119,10 +122,10 @@ describe("feed reader atoms", () => {
       seenItemIdsBySource: persistedState.seenItemIdsBySource,
       selectedSourceId: persistedState.selectedSourceId,
     };
-    localStorage.setItem(FEED_READER_STORAGE_KEY, JSON.stringify(legacyState));
+    localStorage.setItem(FEED_READER_STATE_STORAGE_KEY, JSON.stringify(legacyState));
 
     expect(
-      feedReaderStorage.getItem(FEED_READER_STORAGE_KEY, createEmptyFeedReaderState()),
+      feedReaderStorage.getItem(FEED_READER_STATE_STORAGE_KEY, createEmptyFeedReaderState()),
     ).toEqual({
       ...persistedState,
       paginationBySource: {
@@ -140,132 +143,132 @@ describe("feed reader atoms", () => {
 
     store.set(feedReaderStateAtom, persistedState);
 
-    expect(JSON.parse(localStorage.getItem(FEED_READER_STORAGE_KEY) ?? "null")).toEqual(
+    expect(JSON.parse(localStorage.getItem(FEED_READER_STATE_STORAGE_KEY) ?? "null")).toEqual(
       persistedState,
     );
   });
 
-  it("hydrates valid persisted sidebar state", () => {
-    const persistedSidebar = { mode: "list", sourceId: discovery.source.id } as const;
-    localStorage.setItem(FEED_READER_SIDEBAR_STORAGE_KEY, JSON.stringify(persistedSidebar));
+  it("hydrates valid persisted detail panel state", () => {
+    const persistedPanel = { mode: "list", sourceId: discovery.source.id } as const;
+    localStorage.setItem(FEED_READER_PANEL_STATE_STORAGE_KEY, JSON.stringify(persistedPanel));
 
-    expect(sidebarStorage.getItem(FEED_READER_SIDEBAR_STORAGE_KEY, { mode: "closed" })).toEqual(
-      persistedSidebar,
-    );
+    expect(
+      detailPanelStateStorage.getItem(FEED_READER_PANEL_STATE_STORAGE_KEY, { mode: "closed" }),
+    ).toEqual(persistedPanel);
   });
 
-  it("reads persisted sidebar state on first atom access", async () => {
+  it("reads persisted detail panel state on first atom access", async () => {
     const persistedState = mergeSourceDiscovery(createEmptyFeedReaderState(), discovery);
-    const persistedSidebar = { mode: "list", sourceId: discovery.source.id } as const;
-    localStorage.setItem(FEED_READER_STORAGE_KEY, JSON.stringify(persistedState));
-    localStorage.setItem(FEED_READER_SIDEBAR_STORAGE_KEY, JSON.stringify(persistedSidebar));
+    const persistedPanel = { mode: "list", sourceId: discovery.source.id } as const;
+    localStorage.setItem(FEED_READER_STATE_STORAGE_KEY, JSON.stringify(persistedState));
+    localStorage.setItem(FEED_READER_PANEL_STATE_STORAGE_KEY, JSON.stringify(persistedPanel));
     vi.resetModules();
 
     const { createStore } = await import("jotai/vanilla");
-    const { sidebarAtom } = await import("@/components/feed-reader/feed-reader-atoms");
+    const { detailPanelAtom } = await import("@/components/feed-reader/store");
     const store = createStore();
 
-    expect(store.get(sidebarAtom)).toEqual(persistedSidebar);
+    expect(store.get(detailPanelAtom)).toEqual(persistedPanel);
   });
 
-  it("falls back when persisted sidebar state is invalid", () => {
-    localStorage.setItem(FEED_READER_SIDEBAR_STORAGE_KEY, JSON.stringify({ mode: "oops" }));
+  it("falls back when persisted detail panel state is invalid", () => {
+    localStorage.setItem(FEED_READER_PANEL_STATE_STORAGE_KEY, JSON.stringify({ mode: "oops" }));
 
-    expect(sidebarStorage.getItem(FEED_READER_SIDEBAR_STORAGE_KEY, { mode: "closed" })).toEqual({
+    expect(
+      detailPanelStateStorage.getItem(FEED_READER_PANEL_STATE_STORAGE_KEY, { mode: "closed" }),
+    ).toEqual({
       mode: "closed",
     });
   });
 
-  it("closes a persisted sidebar when the source no longer exists", () => {
+  it("closes a persisted detail panel when the source no longer exists", () => {
     const store = createStore();
 
     localStorage.setItem(
-      FEED_READER_SIDEBAR_STORAGE_KEY,
+      FEED_READER_PANEL_STATE_STORAGE_KEY,
       JSON.stringify({ mode: "list", sourceId: discovery.source.id }),
     );
 
-    expect(store.get(sidebarAtom)).toEqual({ mode: "closed" });
+    expect(store.get(detailPanelAtom)).toEqual({ mode: "closed" });
   });
 
   it("falls back to source list when the persisted reader item is missing", () => {
     const store = createStore();
 
     store.set(feedReaderStateAtom, mergeSourceDiscovery(createEmptyFeedReaderState(), discovery));
-    store.set(sidebarAtom, {
+    store.set(detailPanelAtom, {
       mode: "reader",
       sourceId: discovery.source.id,
       itemId: "missing_item",
     });
 
-    expect(store.get(sidebarAtom)).toEqual({ mode: "list", sourceId: discovery.source.id });
+    expect(store.get(detailPanelAtom)).toEqual({ mode: "list", sourceId: discovery.source.id });
   });
 
-  it("persists sidebar state through atomWithStorage", () => {
+  it("persists detail panel state through atomWithStorage", () => {
     const store = createStore();
-    const persistedSidebar = { mode: "list", sourceId: discovery.source.id } as const;
+    const persistedPanel = { mode: "list", sourceId: discovery.source.id } as const;
 
-    store.set(sidebarAtom, persistedSidebar);
+    store.set(detailPanelAtom, persistedPanel);
 
-    expect(JSON.parse(localStorage.getItem(FEED_READER_SIDEBAR_STORAGE_KEY) ?? "null")).toEqual(
-      persistedSidebar,
+    expect(JSON.parse(localStorage.getItem(FEED_READER_PANEL_STATE_STORAGE_KEY) ?? "null")).toEqual(
+      persistedPanel,
     );
   });
 
-  it("hydrates valid persisted sidebar size", () => {
-    localStorage.setItem(FEED_READER_SIDEBAR_SIZE_STORAGE_KEY, JSON.stringify(42));
+  it("hydrates valid persisted detail panel size", () => {
+    localStorage.setItem(FEED_READER_PANEL_SIZE_STORAGE_KEY, JSON.stringify(42));
 
     expect(
-      sidebarSizeStorage.getItem(
-        FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
-        DEFAULT_FEED_READER_SIDEBAR_SIZE,
+      detailPanelSizeStorage.getItem(
+        FEED_READER_PANEL_SIZE_STORAGE_KEY,
+        DEFAULT_FEED_READER_PANEL_SIZE,
       ),
     ).toBe(42);
   });
 
-  it("reads persisted sidebar size on first atom access", async () => {
-    localStorage.setItem(FEED_READER_SIDEBAR_SIZE_STORAGE_KEY, JSON.stringify(42));
+  it("reads persisted detail panel size on first atom access", async () => {
+    localStorage.setItem(FEED_READER_PANEL_SIZE_STORAGE_KEY, JSON.stringify(42));
     vi.resetModules();
 
     const { createStore } = await import("jotai/vanilla");
-    const { sidebarSizeAtom } = await import("@/components/feed-reader/feed-reader-atoms");
+    const { detailPanelSizeAtom } = await import("@/components/feed-reader/store");
     const store = createStore();
 
-    expect(store.get(sidebarSizeAtom)).toBe(42);
+    expect(store.get(detailPanelSizeAtom)).toBe(42);
   });
 
-  it("falls back when persisted sidebar size is invalid", () => {
-    localStorage.setItem(FEED_READER_SIDEBAR_SIZE_STORAGE_KEY, JSON.stringify(10));
+  it("falls back when persisted detail panel size is invalid", () => {
+    localStorage.setItem(FEED_READER_PANEL_SIZE_STORAGE_KEY, JSON.stringify(10));
 
     expect(
-      sidebarSizeStorage.getItem(
-        FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
-        DEFAULT_FEED_READER_SIDEBAR_SIZE,
+      detailPanelSizeStorage.getItem(
+        FEED_READER_PANEL_SIZE_STORAGE_KEY,
+        DEFAULT_FEED_READER_PANEL_SIZE,
       ),
-    ).toBe(DEFAULT_FEED_READER_SIDEBAR_SIZE);
+    ).toBe(DEFAULT_FEED_READER_PANEL_SIZE);
   });
 
-  it("persists sidebar size through atomWithStorage", () => {
+  it("persists detail panel size through atomWithStorage", () => {
     const store = createStore();
 
-    store.set(sidebarSizeAtom, 42);
+    store.set(detailPanelSizeAtom, 42);
 
-    expect(JSON.parse(localStorage.getItem(FEED_READER_SIDEBAR_SIZE_STORAGE_KEY) ?? "null")).toBe(
-      42,
-    );
+    expect(JSON.parse(localStorage.getItem(FEED_READER_PANEL_SIZE_STORAGE_KEY) ?? "null")).toBe(42);
   });
 
-  it("accepts the smaller reader sidebar width", () => {
+  it("accepts the smaller reader panel width", () => {
     localStorage.setItem(
-      FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
-      JSON.stringify(MIN_FEED_READER_SIDEBAR_SIZE),
+      FEED_READER_PANEL_SIZE_STORAGE_KEY,
+      JSON.stringify(MIN_FEED_READER_READER_PANEL_SIZE),
     );
 
     expect(
-      sidebarSizeStorage.getItem(
-        FEED_READER_SIDEBAR_SIZE_STORAGE_KEY,
-        DEFAULT_FEED_READER_SIDEBAR_SIZE,
+      detailPanelSizeStorage.getItem(
+        FEED_READER_PANEL_SIZE_STORAGE_KEY,
+        DEFAULT_FEED_READER_PANEL_SIZE,
       ),
-    ).toBe(MIN_FEED_READER_SIDEBAR_SIZE);
+    ).toBe(MIN_FEED_READER_READER_PANEL_SIZE);
   });
 
   it("hydrates valid persisted article view mode", () => {
@@ -281,7 +284,7 @@ describe("feed reader atoms", () => {
     vi.resetModules();
 
     const { createStore } = await import("jotai/vanilla");
-    const { articleViewModeAtom } = await import("@/components/feed-reader/feed-reader-atoms");
+    const { articleViewModeAtom } = await import("@/components/feed-reader/store");
     const store = createStore();
 
     expect(store.get(articleViewModeAtom)).toBe("site");
@@ -312,7 +315,7 @@ describe("feed reader atoms", () => {
 
     expect(store.get(sourceInputAtom)).toBe("");
     expect(store.get(showAddFormAtom)).toBe(false);
-    expect(store.get(sidebarAtom)).toEqual({ mode: "list", sourceId: discovery.source.id });
+    expect(store.get(detailPanelAtom)).toEqual({ mode: "list", sourceId: discovery.source.id });
     expect(store.get(feedReaderStateAtom).selectedSourceId).toBe(discovery.source.id);
   });
 
@@ -320,10 +323,10 @@ describe("feed reader atoms", () => {
     const store = createStore();
 
     store.set(feedReaderStateAtom, mergeSourceDiscovery(createEmptyFeedReaderState(), discovery));
-    store.set(sidebarAtom, { mode: "list", sourceId: discovery.source.id });
+    store.set(detailPanelAtom, { mode: "list", sourceId: discovery.source.id });
     store.set(selectItemAtom, discovery.items[0]!.id);
 
-    expect(store.get(sidebarAtom)).toEqual({
+    expect(store.get(detailPanelAtom)).toEqual({
       mode: "reader",
       sourceId: discovery.source.id,
       itemId: discovery.items[0]!.id,
@@ -331,14 +334,14 @@ describe("feed reader atoms", () => {
     expect(store.get(feedReaderStateAtom).readItemIds).toContain(discovery.items[0]!.id);
   });
 
-  it("closes the sidebar when removing the active source", () => {
+  it("closes the detail panel when removing the active source", () => {
     const store = createStore();
 
     store.set(feedReaderStateAtom, mergeSourceDiscovery(createEmptyFeedReaderState(), discovery));
-    store.set(sidebarAtom, { mode: "list", sourceId: discovery.source.id });
+    store.set(detailPanelAtom, { mode: "list", sourceId: discovery.source.id });
     store.set(removeSourceAtom, discovery.source.id);
 
-    expect(store.get(sidebarAtom)).toEqual({ mode: "closed" });
+    expect(store.get(detailPanelAtom)).toEqual({ mode: "closed" });
     expect(store.get(feedReaderStateAtom).sources).toEqual([]);
   });
 });

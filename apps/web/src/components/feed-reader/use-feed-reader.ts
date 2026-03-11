@@ -6,8 +6,11 @@ import {
   applyLoadMoreSourceItemsAtom,
   applySourceRefreshAtom,
   articleViewModeAtom,
-  backToListAtom,
-  closeSidebarAtom,
+  backToFeedListAtom,
+  closeDetailPanelAtom,
+  detailPanelAtom,
+  detailPanelItemsAtom,
+  detailPanelSourceSummaryAtom,
   feedReaderStateAtom,
   isReaderFullScreenAtom,
   openFeedAtom,
@@ -16,14 +19,11 @@ import {
   selectedItemAtom,
   setSourceErrorAtom,
   showAddFormAtom,
-  sidebarAtom,
-  sidebarItemsAtom,
-  sidebarSourceSummaryAtom,
   sourceInputAtom,
   sourceSummariesAtom,
   toggleReaderFullScreenAtom,
   totalNewAtom,
-} from "@/components/feed-reader/feed-reader-atoms";
+} from "@/components/feed-reader/store";
 import { queryKeys } from "@/lib/query/keys";
 import {
   discoverSource,
@@ -51,25 +51,25 @@ export function useFeedReader() {
   const [sourceInput, setSourceInput] = useAtom(sourceInputAtom);
   const [showAddForm, setShowAddForm] = useAtom(showAddFormAtom);
   const [articleViewMode, setArticleViewMode] = useAtom(articleViewModeAtom);
-  const sidebar = useAtomValue(sidebarAtom);
+  const detailPanel = useAtomValue(detailPanelAtom);
   const isReaderFullScreen = useAtomValue(isReaderFullScreenAtom);
   const sourceSummaries = useAtomValue(sourceSummariesAtom);
-  const sidebarSourceSummary = useAtomValue(sidebarSourceSummaryAtom);
-  const sidebarItems = useAtomValue(sidebarItemsAtom);
+  const detailPanelSourceSummary = useAtomValue(detailPanelSourceSummaryAtom);
+  const detailPanelItems = useAtomValue(detailPanelItemsAtom);
   const selectedItem = useAtomValue(selectedItemAtom);
   const totalNew = useAtomValue(totalNewAtom);
   const openFeed = useSetAtom(openFeedAtom);
   const selectItem = useSetAtom(selectItemAtom);
-  const backToList = useSetAtom(backToListAtom);
-  const closeSidebar = useSetAtom(closeSidebarAtom);
+  const backToFeedList = useSetAtom(backToFeedListAtom);
+  const closeDetailPanel = useSetAtom(closeDetailPanelAtom);
   const toggleReaderFullScreen = useSetAtom(toggleReaderFullScreenAtom);
   const addSourceSuccess = useSetAtom(addSourceSuccessAtom);
   const removeFeedSource = useSetAtom(removeSourceAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const applyRefresh = useSetAtom(applySourceRefreshAtom);
   const setFeedSourceError = useSetAtom(setSourceErrorAtom);
-  const sidebarPagination =
-    sidebar.mode === "closed" ? undefined : state.paginationBySource[sidebar.sourceId];
+  const detailPanelPagination =
+    detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
 
   // ── Article query ────────────────────────────────────────────────
   const articleQuery = useQuery({
@@ -134,11 +134,11 @@ export function useFeedReader() {
   };
 
   const handleBackToList = () => {
-    backToList();
+    backToFeedList();
   };
 
-  const handleCloseSidebar = () => {
-    closeSidebar();
+  const handleCloseDetailPanel = () => {
+    closeDetailPanel();
   };
 
   const handleToggleFullScreen = () => {
@@ -164,7 +164,7 @@ export function useFeedReader() {
     void queryClient.removeQueries({ queryKey: queryKeys.sourceItems(sourceId) });
   };
 
-  const handleLoadMoreSidebarItems = async (sourceId: string) => {
+  const handleLoadMoreDetailPanelItems = async (sourceId: string) => {
     const source = state.sources.find((entry) => entry.id === sourceId);
     const pagination = state.paginationBySource[sourceId];
     const pageUrl = pagination?.nextPageUrl;
@@ -196,19 +196,19 @@ export function useFeedReader() {
     state,
     sourceInput,
     showAddForm,
-    sidebar,
+    detailPanel,
     // Derived
     sourceSummaries,
-    sidebarSourceSummary,
-    sidebarItems,
-    sidebarPagination,
+    detailPanelSourceSummary,
+    detailPanelItems,
+    detailPanelPagination,
     selectedItem,
     articleQuery,
     articleEmbedQuery,
     articleViewMode,
     refreshingSourceIds,
     isRefreshingAll,
-    isLoadingMoreSidebarItems: loadMoreSourceItemsMutation.isPending,
+    isLoadingMoreDetailPanelItems: loadMoreSourceItemsMutation.isPending,
     totalNew,
     addSourceError:
       addSourceMutation.error instanceof Error ? addSourceMutation.error.message : undefined,
@@ -223,11 +223,11 @@ export function useFeedReader() {
     handleOpenFeed,
     handleSelectItem,
     handleBackToList,
-    handleCloseSidebar,
+    handleCloseDetailPanel,
     handleRefreshSource,
     handleRefreshAll,
     handleRemoveSource,
-    handleLoadMoreSidebarItems,
+    handleLoadMoreDetailPanelItems,
     handleToggleFullScreen,
     handleSourceRefresh,
     handleSourceError,

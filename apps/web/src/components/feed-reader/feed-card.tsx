@@ -26,13 +26,13 @@ export function FeedCard({
   const latestItems = items.slice(0, 4);
 
   return (
-    <div className="group relative h-[13rem]">
+    <div className="group relative min-h-[13rem] md:h-[13rem]">
       <Card
         tabIndex={0}
         onClick={onSelect}
         onKeyDown={(e) => e.key === "Enter" && onSelect()}
         className={cn(
-          "h-full cursor-pointer gap-0 py-0 transition-colors duration-150",
+          "h-full cursor-pointer gap-0 py-0 pr-14 transition-colors duration-150 md:pr-0",
           isSelected ? "ring-primary/40 bg-primary/[0.02]" : "hover:bg-muted/30",
         )}
       >
@@ -88,7 +88,7 @@ export function FeedCard({
       </Card>
 
       {/* Hover actions */}
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-10">
+      <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
         <Button
           type="button"
           variant="ghost"
@@ -98,7 +98,7 @@ export function FeedCard({
             e.stopPropagation();
             onRemove();
           }}
-          aria-label="Remove feed"
+          aria-label={`Remove feed ${source.label}`}
         >
           <Trash className="size-3" weight="bold" />
         </Button>

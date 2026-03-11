@@ -37,7 +37,7 @@ export function ItemList({
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="shrink-0 border-b border-border/40 px-5 py-4">
+      <div className="safe-top safe-left safe-right shrink-0 border-b border-border/40 px-4 py-4 md:px-5">
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display truncate text-[1.5rem] leading-tight text-foreground">
@@ -67,7 +67,7 @@ export function ItemList({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="safe-bottom safe-left safe-right min-h-0 flex-1 overflow-y-auto">
         {items.length > 0 ? (
           <>
             <ol>

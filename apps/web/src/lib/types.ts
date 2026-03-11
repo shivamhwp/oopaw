@@ -2,11 +2,6 @@ import { z } from "zod";
 
 export const sourceKindSchema = z.enum(["feed", "scrape"]);
 export const articleViewModeSchema = z.enum(["site", "reader"]);
-export const sidebarStateSchema = z.union([
-  z.object({ mode: z.literal("closed") }),
-  z.object({ mode: z.literal("list"), sourceId: z.string().min(1) }),
-  z.object({ mode: z.literal("reader"), sourceId: z.string().min(1), itemId: z.string().min(1) }),
-]);
 
 export const savedSourceSchema = z.object({
   id: z.string().min(1),
@@ -96,16 +91,6 @@ export const feedReaderStateSchema = z.object({
   paginationBySource: z.record(z.string(), sourcePaginationSchema),
 });
 
-export const MIN_FEED_READER_SIDEBAR_SIZE = 14;
-export const MIN_FEED_READER_SOURCE_SIDEBAR_SIZE = 40;
-export const DEFAULT_FEED_READER_SIDEBAR_SIZE = 50;
-export const MAX_FEED_READER_SIDEBAR_SIZE = 70;
-
-export const sidebarSizeSchema = z
-  .number()
-  .min(MIN_FEED_READER_SIDEBAR_SIZE)
-  .max(MAX_FEED_READER_SIDEBAR_SIZE);
-
 export const discoverSourceInputSchema = z.object({
   input: z.string().min(1),
 });
@@ -134,14 +119,12 @@ export const loadMoreSourceItemsResultSchema = z.object({
 
 export const POLL_INTERVAL_MS = 5 * 60_000;
 export const FEED_READER_STATE_VERSION = 2;
-export const FEED_READER_STORAGE_KEY = "papertrail.feed-reader.state";
-export const FEED_READER_SIDEBAR_STORAGE_KEY = "papertrail.feed-reader.sidebar";
-export const FEED_READER_SIDEBAR_SIZE_STORAGE_KEY = "papertrail.feed-reader.sidebar-size";
+export const FEED_READER_STATE_STORAGE_KEY = "papertrail.feed-reader.state";
 export const FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY = "papertrail.feed-reader.article-view";
+export const FEED_READER_PANEL_OPEN_STORAGE_KEY = "papertrail.feed-reader.panel-open";
 
 export type SourceKind = z.infer<typeof sourceKindSchema>;
 export type ArticleViewMode = z.infer<typeof articleViewModeSchema>;
-export type SidebarState = z.infer<typeof sidebarStateSchema>;
 export type SavedSource = z.infer<typeof savedSourceSchema>;
 export type StoredFeedItem = z.infer<typeof storedFeedItemSchema>;
 export type FeedItem = z.infer<typeof feedItemSchema>;
@@ -152,6 +135,5 @@ export type DiscoveryResult = z.infer<typeof discoveryResultSchema>;
 export type RefreshResult = z.infer<typeof refreshResultSchema>;
 export type FeedReaderStateV1 = z.infer<typeof feedReaderStateV1Schema>;
 export type FeedReaderState = z.infer<typeof feedReaderStateSchema>;
-export type SidebarSize = z.infer<typeof sidebarSizeSchema>;
 export type LoadMoreSourceItemsInput = z.infer<typeof loadMoreSourceItemsInputSchema>;
 export type LoadMoreSourceItemsResult = z.infer<typeof loadMoreSourceItemsResultSchema>;
