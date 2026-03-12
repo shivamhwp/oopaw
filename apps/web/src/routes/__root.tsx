@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { Provider } from "jotai";
 import { FeedQueryProvider } from "@/lib/query/client";
+import { getOneDollarStatsScriptConfig } from "@/lib/analytics/onedollarstats";
 import {
   DEFAULT_THEME,
   THEME_STORAGE_KEY,
@@ -11,6 +12,8 @@ import {
 import { installLocalhostCacheCleanup } from "@/lib/deployment-recovery";
 
 import appCss from "../styles.css?url";
+
+const oneDollarStatsConfig = getOneDollarStatsScriptConfig(import.meta.env);
 
 export const Route = createRootRoute({
   head: () => ({
@@ -87,6 +90,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: getThemeInitScript() }} />
+        {oneDollarStatsConfig ? (
+          <script
+            async
+            data-site-id={oneDollarStatsConfig.siteId}
+            src={oneDollarStatsConfig.scriptSrc}
+          />
+        ) : null}
         <HeadContent />
       </head>
       <body>
