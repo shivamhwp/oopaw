@@ -134,11 +134,13 @@
         transparent 32%
       ),
       var(--background);
+    overflow-x: clip;
   }
 
   body {
     @apply bg-transparent text-foreground antialiased;
     min-height: 100svh;
+    overflow-x: clip;
     font-feature-settings:
       "liga" 1,
       "calt" 1;
@@ -210,6 +212,8 @@
 
   .reader-prose {
     @apply max-w-none text-[0.98rem] leading-8 text-foreground/88;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .reader-article-shell {
@@ -312,15 +316,51 @@
   }
 
   .reader-prose img {
-    @apply my-8 rounded-2xl border border-border/70;
+    @apply my-8 block h-auto max-w-full rounded-2xl border border-border/70;
   }
 
   .reader-prose code {
     @apply rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-[0.88em];
+    overflow-wrap: anywhere;
   }
 
   .reader-prose pre {
     @apply overflow-x-auto rounded-2xl bg-foreground/[0.05] p-4 text-sm;
+  }
+
+  .reader-prose iframe,
+  .reader-prose video,
+  .reader-prose embed,
+  .reader-prose object,
+  .reader-prose svg,
+  .reader-prose canvas {
+    max-width: 100%;
+  }
+
+  .reader-prose iframe,
+  .reader-prose video,
+  .reader-prose embed,
+  .reader-prose object {
+    display: block;
+    width: 100%;
+  }
+
+  .reader-prose figure {
+    max-width: 100%;
+  }
+
+  .reader-prose table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .reader-prose table,
+  .reader-prose th,
+  .reader-prose td {
+    white-space: normal;
   }
 }
 

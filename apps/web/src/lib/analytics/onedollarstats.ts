@@ -1,4 +1,4 @@
-const DEFAULT_ONEDOLLARSTATS_SCRIPT_SRC = "https://onedollarstats.com/tracker.js";
+import type { configure } from "onedollarstats";
 
 function parseBooleanFlag(value: string | undefined): boolean | undefined {
   if (value === undefined) {
@@ -18,37 +18,45 @@ function parseBooleanFlag(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-export type OneDollarStatsScriptConfig = {
-  siteId: string;
-  scriptSrc: string;
-};
+type OneDollarStatsConfig = Parameters<typeof configure>[0];
 
-export function getOneDollarStatsScriptConfig(
+export function getOneDollarStatsConfig(
   env: Pick<
     ImportMetaEnv,
-    "DEV" | "VITE_ONEDOLLARSTATS_SITE_ID" | "VITE_ONEDOLLARSTATS_SCRIPT_SRC" | "VITE_ONEDOLLARSTATS_ENABLED"
+    | "DEV"
+    | "VITE_ONEDOLLARSTATS_ENABLED"
+    | "VITE_ONEDOLLARSTATS_HOSTNAME"
+    | "VITE_ONEDOLLARSTATS_COLLECTOR_URL"
   >,
-): OneDollarStatsScriptConfig | null {
-  const siteId = env.VITE_ONEDOLLARSTATS_SITE_ID?.trim();
-
-  if (!siteId) {
-    return null;
-  }
-
+): OneDollarStatsConfig | null {
   const explicitEnabled = parseBooleanFlag(env.VITE_ONEDOLLARSTATS_ENABLED);
+  const hostname = env.VITE_ONEDOLLARSTATS_HOSTNAME?.trim() || undefined;
+  const collectorUrl = env.VITE_ONEDOLLARSTATS_COLLECTOR_URL?.trim() || undefined;
 
   if (explicitEnabled === false) {
     return null;
   }
 
-  if (env.DEV && explicitEnabled !== true) {
-    return null;
+  const baseConfig = {
+    autocollect: true,
+    hashRouting: false,
+    ...(collectorUrl ? { collectorUrl } : {}),
+  };
+
+  if (env.DEV) {
+    if (explicitEnabled !== true || !hostname) {
+      return null;
+    }
+
+    return {
+      ...baseConfig,
+      devmode: true,
+      hostname,
+    };
   }
 
-  const scriptSrc = env.VITE_ONEDOLLARSTATS_SCRIPT_SRC?.trim() || DEFAULT_ONEDOLLARSTATS_SCRIPT_SRC;
-
   return {
-    siteId,
-    scriptSrc,
+    ...baseConfig,
+    ...(hostname ? { hostname } : {}),
   };
 }

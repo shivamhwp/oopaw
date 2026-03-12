@@ -272,7 +272,8 @@ export function FeedReaderApp() {
                 onClick={() => setShowAddForm((value) => !value)}
               >
                 <Plus weight="bold" />
-                Add feed
+                <span className="min-[420px]:hidden">Add</span>
+                <span className="hidden min-[420px]:inline">Add feed</span>
               </Button>
               <ThemeToggle />
             </div>

@@ -74,9 +74,15 @@ export function ReaderPane({
     <div className="reader-topnav safe-top">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {onBack ? (
-          <button type="button" onClick={onBack} className="reader-topnav-back">
+          <button
+            type="button"
+            onClick={onBack}
+            className="reader-topnav-back"
+            aria-label="Back to list"
+          >
             <ArrowLeft weight="bold" className="size-3" />
-            Back to list
+            <span className="min-[420px]:hidden">Back</span>
+            <span className="hidden min-[420px]:inline">Back to list</span>
           </button>
         ) : (
           <div />

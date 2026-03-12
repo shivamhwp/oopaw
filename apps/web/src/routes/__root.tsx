@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { Provider } from "jotai";
+import { configure as configureOneDollarStats } from "onedollarstats";
 import { FeedQueryProvider } from "@/lib/query/client";
-import { getOneDollarStatsScriptConfig } from "@/lib/analytics/onedollarstats";
+import { getOneDollarStatsConfig } from "@/lib/analytics/onedollarstats";
 import {
   DEFAULT_THEME,
   THEME_STORAGE_KEY,
@@ -13,7 +14,8 @@ import { installLocalhostCacheCleanup } from "@/lib/deployment-recovery";
 
 import appCss from "../styles.css?url";
 
-const oneDollarStatsConfig = getOneDollarStatsScriptConfig(import.meta.env);
+const oneDollarStatsConfig = getOneDollarStatsConfig(import.meta.env);
+let hasConfiguredOneDollarStats = false;
 
 export const Route = createRootRoute({
   head: () => ({
@@ -80,6 +82,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     installLocalhostCacheCleanup();
 
+    if (oneDollarStatsConfig && !hasConfiguredOneDollarStats) {
+      configureOneDollarStats(oneDollarStatsConfig);
+      hasConfiguredOneDollarStats = true;
+    }
+
     if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_REACT_GRAB === "true") {
       void import("react-grab");
       void import("@react-grab/mcp/client");
@@ -90,13 +97,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: getThemeInitScript() }} />
-        {oneDollarStatsConfig ? (
-          <script
-            async
-            data-site-id={oneDollarStatsConfig.siteId}
-            src={oneDollarStatsConfig.scriptSrc}
-          />
-        ) : null}
         <HeadContent />
       </head>
       <body>

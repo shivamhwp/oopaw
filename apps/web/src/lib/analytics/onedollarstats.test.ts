@@ -1,65 +1,68 @@
 import { describe, expect, it } from "vitest";
-import { getOneDollarStatsScriptConfig } from "./onedollarstats";
+import { getOneDollarStatsConfig } from "./onedollarstats";
 
-describe("getOneDollarStatsScriptConfig", () => {
-  it("returns null without a site id", () => {
-    const result = getOneDollarStatsScriptConfig({
+describe("getOneDollarStatsConfig", () => {
+  it("returns config by default in production", () => {
+    const result = getOneDollarStatsConfig({
       DEV: false,
+      VITE_ONEDOLLARSTATS_COLLECTOR_URL: undefined,
       VITE_ONEDOLLARSTATS_ENABLED: undefined,
-      VITE_ONEDOLLARSTATS_SCRIPT_SRC: undefined,
-      VITE_ONEDOLLARSTATS_SITE_ID: undefined,
-    });
-
-    expect(result).toBeNull();
-  });
-
-  it("returns null in development unless explicitly enabled", () => {
-    const result = getOneDollarStatsScriptConfig({
-      DEV: true,
-      VITE_ONEDOLLARSTATS_ENABLED: undefined,
-      VITE_ONEDOLLARSTATS_SCRIPT_SRC: undefined,
-      VITE_ONEDOLLARSTATS_SITE_ID: "site_123",
-    });
-
-    expect(result).toBeNull();
-  });
-
-  it("returns config in production with default script source", () => {
-    const result = getOneDollarStatsScriptConfig({
-      DEV: false,
-      VITE_ONEDOLLARSTATS_ENABLED: undefined,
-      VITE_ONEDOLLARSTATS_SCRIPT_SRC: undefined,
-      VITE_ONEDOLLARSTATS_SITE_ID: "site_123",
+      VITE_ONEDOLLARSTATS_HOSTNAME: undefined,
     });
 
     expect(result).toEqual({
-      siteId: "site_123",
-      scriptSrc: "https://onedollarstats.com/tracker.js",
+      autocollect: true,
+      hashRouting: false,
     });
   });
 
-  it("allows explicit enablement during development", () => {
-    const result = getOneDollarStatsScriptConfig({
-      DEV: true,
-      VITE_ONEDOLLARSTATS_ENABLED: "true",
-      VITE_ONEDOLLARSTATS_SCRIPT_SRC: "https://cdn.example.com/ods.js",
-      VITE_ONEDOLLARSTATS_SITE_ID: "dev_site",
-    });
-
-    expect(result).toEqual({
-      siteId: "dev_site",
-      scriptSrc: "https://cdn.example.com/ods.js",
-    });
-  });
-
-  it("respects explicit disablement", () => {
-    const result = getOneDollarStatsScriptConfig({
+  it("returns null when explicitly disabled", () => {
+    const result = getOneDollarStatsConfig({
       DEV: false,
+      VITE_ONEDOLLARSTATS_COLLECTOR_URL: undefined,
       VITE_ONEDOLLARSTATS_ENABLED: "false",
-      VITE_ONEDOLLARSTATS_SCRIPT_SRC: undefined,
-      VITE_ONEDOLLARSTATS_SITE_ID: "site_123",
+      VITE_ONEDOLLARSTATS_HOSTNAME: undefined,
     });
 
     expect(result).toBeNull();
+  });
+
+  it("returns null in development without explicit enablement", () => {
+    const result = getOneDollarStatsConfig({
+      DEV: true,
+      VITE_ONEDOLLARSTATS_COLLECTOR_URL: undefined,
+      VITE_ONEDOLLARSTATS_ENABLED: undefined,
+      VITE_ONEDOLLARSTATS_HOSTNAME: "example.com",
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null in development without a hostname", () => {
+    const result = getOneDollarStatsConfig({
+      DEV: true,
+      VITE_ONEDOLLARSTATS_COLLECTOR_URL: undefined,
+      VITE_ONEDOLLARSTATS_ENABLED: "true",
+      VITE_ONEDOLLARSTATS_HOSTNAME: undefined,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("returns devmode config when explicitly enabled with a hostname", () => {
+    const result = getOneDollarStatsConfig({
+      DEV: true,
+      VITE_ONEDOLLARSTATS_COLLECTOR_URL: "https://collector.example.com/events",
+      VITE_ONEDOLLARSTATS_ENABLED: "true",
+      VITE_ONEDOLLARSTATS_HOSTNAME: "app.example.com",
+    });
+
+    expect(result).toEqual({
+      autocollect: true,
+      collectorUrl: "https://collector.example.com/events",
+      devmode: true,
+      hashRouting: false,
+      hostname: "app.example.com",
+    });
   });
 });
