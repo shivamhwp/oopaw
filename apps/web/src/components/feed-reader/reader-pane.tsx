@@ -6,23 +6,17 @@ import {
   Clock,
   CornersIn,
   CornersOut,
-  GlobeHemisphereWest,
-  SpinnerIcon,
   User,
   X,
 } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ArticleEmbedStatus, ArticleViewMode, FeedItem, ReaderArticle } from "@/lib/types";
+import type { ArticleViewMode, FeedItem } from "@/lib/types";
+import { stripHtml } from "@/lib/feed/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 type ReaderPaneProps = {
   item?: FeedItem;
-  article?: ReaderArticle;
-  articleEmbed?: ArticleEmbedStatus;
   articleViewMode: ArticleViewMode;
-  isLoadingArticle: boolean;
-  isLoadingEmbed: boolean;
   isFullScreen?: boolean;
   onBack?: () => void;
   onClose?: () => void;
@@ -41,11 +35,7 @@ const formatDate = (value: string | undefined) =>
 
 export function ReaderPane({
   item,
-  article,
-  articleEmbed,
   articleViewMode,
-  isLoadingArticle,
-  isLoadingEmbed,
   isFullScreen = false,
   onBack,
   onClose,
@@ -57,11 +47,13 @@ export function ReaderPane({
   if (!item) return null;
 
   const isSiteMode = articleViewMode === "site";
-  const isBlockedFromEmbed = articleEmbed?.canEmbed === false;
-  const siteUrl = articleEmbed?.url === item.url ? (articleEmbed.finalUrl ?? item.url) : item.url;
-  const title = article?.title ?? item.title;
-  const author = article?.byline ?? item.author;
-  const date = formatDate(article?.publishedAt ?? item.publishedAt);
+  const title = item.title;
+  const author = item.author;
+  const date = formatDate(item.publishedAt);
+  const readerText = item.contentText ?? stripHtml(item.contentHtml);
+  const readTimeMinutes = readerText
+    ? Math.max(1, Math.ceil(readerText.split(/\s+/).length / 220))
+    : undefined;
   const modeToggle = (
     <Tabs
       value={articleViewMode}
@@ -91,6 +83,15 @@ export function ReaderPane({
         )}
       </div>
       <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          className="reader-topnav-icon"
+          aria-label="Open original article"
+        >
+          <ArrowSquareOut weight="bold" className="size-3.5" />
+        </a>
         {modeToggle}
         {onToggleFullScreen && !isMobile && (
           <button
@@ -125,50 +126,17 @@ export function ReaderPane({
       {topNav}
       {isSiteMode ? (
         <>
-          {!isBlockedFromEmbed ? (
-            <div className="reader-site-frame-shell">
-              <iframe
-                key={siteUrl}
-                title={`Original article: ${title}`}
-                src={siteUrl}
-                className="reader-site-frame"
-              />
-              {isLoadingEmbed && (
-                <div className="reader-site-loading pointer-events-none absolute inset-0">
-                  <SpinnerIcon className="size-5 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="reader-site-fallback-wrap">
-              <div className="reader-site-fallback paper-panel ink-ring">
-                <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <GlobeHemisphereWest weight="duotone" className="size-3.5" />
-                  Site preview unavailable
-                </div>
-                <p className="text-sm leading-7 text-muted-foreground">
-                  {articleEmbed?.blockedReason ??
-                    "This site could not be embedded inside the app panel."}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="rounded-full"
-                    onClick={() => onArticleViewModeChange("reader")}
-                  >
-                    Use reader mode
-                  </Button>
-                  <Button asChild variant="outline" size="sm" className="rounded-full">
-                    <a href={item.url} target="_blank" rel="noreferrer">
-                      <ArrowSquareOut weight="bold" />
-                      Open original
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="reader-site-frame-shell">
+            <iframe
+              key={item.url}
+              title={`Original article: ${title}`}
+              src={item.url}
+              className="reader-site-frame"
+            />
+          </div>
+          <div className="border-t border-border/40 px-4 py-3 text-sm text-muted-foreground md:px-5">
+            If this page does not load in the panel, open the original article in a new tab.
+          </div>
         </>
       ) : (
         <>
@@ -199,21 +167,12 @@ export function ReaderPane({
                     {date}
                   </span>
                 )}
-                {article?.readTimeMinutes && (
+                {readTimeMinutes && (
                   <span className="inline-flex items-center gap-1">
                     <Clock weight="fill" className="size-3" />
-                    {article.readTimeMinutes} min read
+                    {readTimeMinutes} min read
                   </span>
                 )}
-              </div>
-
-              <div className="mt-4">
-                <Button asChild variant="outline" size="sm" className="h-7 rounded-full text-xs">
-                  <a href={item.url} target="_blank" rel="noreferrer">
-                    <ArrowSquareOut weight="bold" />
-                    Open original
-                  </a>
-                </Button>
               </div>
             </div>
           </div>
@@ -225,17 +184,17 @@ export function ReaderPane({
                 : "safe-bottom flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-5 md:py-5"
             }
           >
-            {isLoadingArticle ? (
-              <div className="reader-pane-loading">
-                <SpinnerIcon className="size-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : article?.contentHtml ? (
+            {item.contentHtml ? (
               <div className="reader-article-shell">
                 <article
                   className="reader-prose"
                   // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: article.contentHtml }}
+                  dangerouslySetInnerHTML={{ __html: item.contentHtml }}
                 />
+              </div>
+            ) : item.contentText ? (
+              <div className="reader-article-shell">
+                <article className="reader-prose whitespace-pre-wrap">{item.contentText}</article>
               </div>
             ) : (
               <div className="reader-article-shell">
@@ -245,13 +204,11 @@ export function ReaderPane({
                     Fallback mode
                   </div>
                   <p className="text-sm leading-7 text-muted-foreground">
-                    {article?.fallbackReason ??
-                      "A clean in-app reader could not be generated for this page."}
+                    This feed does not include full article content. Open the original page for the
+                    complete story.
                   </p>
-                  {(article?.excerpt || item.excerpt) && (
-                    <p className="font-display text-xl leading-8 text-foreground">
-                      {article?.excerpt ?? item.excerpt}
-                    </p>
+                  {item.excerpt && (
+                    <p className="font-display text-xl leading-8 text-foreground">{item.excerpt}</p>
                   )}
                 </div>
               </div>

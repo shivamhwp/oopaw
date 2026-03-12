@@ -35,7 +35,6 @@ const discovery: DiscoveryResult = {
     label: "Alpha",
     inputUrl: "https://example.com/blog",
     siteUrl: "https://example.com/blog",
-    kind: "feed",
     feedUrl: "https://example.com/feed.xml",
     pollingEnabled: true,
     pollIntervalMs: 300000,
@@ -116,7 +115,10 @@ describe("feed reader store", () => {
     const persistedState = mergeSourceDiscovery(createEmptyFeedReaderState(), discovery);
     const legacyState: FeedReaderStateV1 = {
       version: 1,
-      sources: persistedState.sources,
+      sources: persistedState.sources.map((source) => ({
+        ...source,
+        kind: "feed",
+      })),
       itemsBySource: persistedState.itemsBySource,
       readItemIds: persistedState.readItemIds,
       seenItemIdsBySource: persistedState.seenItemIdsBySource,
@@ -128,6 +130,15 @@ describe("feed reader store", () => {
       feedReaderStorage.getItem(FEED_READER_STATE_STORAGE_KEY, createEmptyFeedReaderState()),
     ).toEqual({
       ...persistedState,
+      itemsBySource: {
+        source_alpha: [
+          {
+            ...persistedState.itemsBySource.source_alpha[0],
+            contentHtml: undefined,
+            contentText: undefined,
+          },
+        ],
+      },
       paginationBySource: {
         source_alpha: {
           loadedPageUrls: ["https://example.com/feed.xml"],

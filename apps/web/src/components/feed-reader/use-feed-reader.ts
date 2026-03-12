@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { startTransition, useState } from "react";
 import {
@@ -25,25 +25,10 @@ import {
   totalNewAtom,
 } from "@/components/feed-reader/store";
 import { queryKeys } from "@/lib/query/keys";
-import {
-  discoverSource,
-  fetchArticle,
-  inspectArticleEmbed,
-  loadMoreSourceItems,
-} from "@/lib/server/feed";
 import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
-import type { ArticleViewMode, FeedItem, SavedSource } from "@/lib/types";
-
-const ARTICLE_EMBED_STALE_TIME_MS = 30 * 60_000;
-const ARTICLE_EMBED_GC_TIME_MS = 24 * 60 * 60_000;
-
-export const shouldFetchReaderArticle = (
-  selectedItem: FeedItem | undefined,
-  articleViewMode: ArticleViewMode,
-) => Boolean(selectedItem) && articleViewMode === "reader";
-
-export const shouldInspectArticleEmbed = (selectedItem: FeedItem | undefined) =>
-  Boolean(selectedItem);
+import { normalizeInputUrl } from "@/lib/feed/utils";
+import { fetchFeedSource, loadMoreFeedItems } from "@/lib/server/feed";
+import { discoveryResultSchema, type SavedSource } from "@/lib/types";
 
 const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
   try {
@@ -53,6 +38,8 @@ const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) =>
     throw error;
   }
 };
+
+const assertDiscoveryResult = (value: unknown) => discoveryResultSchema.parse(value);
 
 export function useFeedReader() {
   const queryClient = useQueryClient();
@@ -81,35 +68,17 @@ export function useFeedReader() {
   const detailPanelPagination =
     detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
 
-  // ── Article query ────────────────────────────────────────────────
-  const articleQuery = useQuery({
-    queryKey: selectedItem ? queryKeys.article(selectedItem.id) : ["article", "empty"],
-    queryFn: () =>
-      withStaleDeploymentRecovery(() =>
-        fetchArticle({
-          data: { itemId: selectedItem!.id, url: selectedItem!.url },
-        }),
-      ),
-    enabled: shouldFetchReaderArticle(selectedItem, articleViewMode),
-    staleTime: Infinity,
-  });
-  const articleEmbedQuery = useQuery({
-    queryKey: selectedItem ? queryKeys.articleEmbed(selectedItem.url) : ["article-embed", "empty"],
-    queryFn: () =>
-      withStaleDeploymentRecovery(() =>
-        inspectArticleEmbed({
-          data: { itemId: selectedItem!.id, url: selectedItem!.url },
-        }),
-      ),
-    enabled: shouldInspectArticleEmbed(selectedItem),
-    staleTime: ARTICLE_EMBED_STALE_TIME_MS,
-    gcTime: ARTICLE_EMBED_GC_TIME_MS,
-  });
-
-  // ── Add source mutation ──────────────────────────────────────────
   const addSourceMutation = useMutation({
-    mutationFn: (input: string) =>
-      withStaleDeploymentRecovery(() => discoverSource({ data: { input } })),
+    mutationFn: async (input: string) =>
+      assertDiscoveryResult(
+        await withStaleDeploymentRecovery(() =>
+          fetchFeedSource({
+            data: {
+              url: normalizeInputUrl(input),
+            },
+          }),
+        ),
+      ),
     onSuccess: (discovery) => {
       startTransition(() => {
         addSourceSuccess(discovery);
@@ -119,7 +88,11 @@ export function useFeedReader() {
 
   const loadMoreSourceItemsMutation = useMutation({
     mutationFn: ({ source, pageUrl }: { source: SavedSource; pageUrl: string }) =>
-      withStaleDeploymentRecovery(() => loadMoreSourceItems({ data: { source, pageUrl } })),
+      withStaleDeploymentRecovery(() =>
+        loadMoreFeedItems({
+          data: { source, pageUrl },
+        }),
+      ),
     onSuccess: (result) => {
       startTransition(() => {
         applyLoadMore(result);
@@ -127,14 +100,12 @@ export function useFeedReader() {
     },
   });
 
-  // ── Refreshing source ids ────────────────────────────────────────
   const refreshingSourceIds = queryClient
     .getQueryCache()
     .findAll({ queryKey: ["source-items"] })
     .filter((query) => query.state.fetchStatus === "fetching")
     .map((query) => String(query.queryKey[1]));
 
-  // ── Handlers ─────────────────────────────────────────────────────
   const handleAddSource = () => {
     if (!sourceInput.trim()) return;
     addSourceMutation.mutate(sourceInput);
@@ -186,7 +157,6 @@ export function useFeedReader() {
 
     if (
       !source ||
-      source.kind !== "feed" ||
       !pageUrl ||
       loadMoreSourceItemsMutation.isPending ||
       pagination.loadedPageUrls.includes(pageUrl)
@@ -197,7 +167,6 @@ export function useFeedReader() {
     await loadMoreSourceItemsMutation.mutateAsync({ source, pageUrl });
   };
 
-  // ── Sync state ───────────────────────────────────────────────────
   const handleSourceRefresh = (result: Parameters<typeof applyRefresh>[0], _sourceId: string) => {
     applyRefresh(result);
   };
@@ -207,19 +176,15 @@ export function useFeedReader() {
   };
 
   return {
-    // State
     state,
     sourceInput,
     showAddForm,
     detailPanel,
-    // Derived
     sourceSummaries,
     detailPanelSourceSummary,
     detailPanelItems,
     detailPanelPagination,
     selectedItem,
-    articleQuery,
-    articleEmbedQuery,
     articleViewMode,
     refreshingSourceIds,
     isRefreshingAll,
@@ -229,11 +194,9 @@ export function useFeedReader() {
       addSourceMutation.error instanceof Error ? addSourceMutation.error.message : undefined,
     isAddingSource: addSourceMutation.isPending,
     isReaderFullScreen,
-    // Setters
     setSourceInput,
     setShowAddForm,
     setArticleViewMode,
-    // Handlers
     handleAddSource,
     handleOpenFeed,
     handleSelectItem,

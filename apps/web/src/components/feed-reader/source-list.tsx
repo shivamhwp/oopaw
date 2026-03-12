@@ -33,7 +33,7 @@ export function SourceList({
     return (
       <div className="px-5 py-8 text-center">
         <p className="text-xs leading-6 text-muted-foreground">
-          Add a feed URL or site URL above to start reading.
+          Add a direct RSS or Atom feed URL above to start reading.
         </p>
       </div>
     );

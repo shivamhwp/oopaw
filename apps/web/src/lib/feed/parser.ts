@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import type { SourceKind, StoredFeedItem } from "@/lib/types";
+import type { FetchedFeedSource, StoredFeedItem } from "@/lib/types";
 import {
   createExcerpt,
   createFeedItemId,
@@ -7,7 +7,6 @@ import {
   normalizeOptionalDate,
   resolveUrl,
   sortItemsNewestFirst,
-  stripHtml,
 } from "@/lib/feed/utils";
 
 const xmlParser = new XMLParser({
@@ -45,9 +44,25 @@ const pickText = (value: unknown): string | undefined => {
     pickText(candidate.text) ??
     pickText(candidate.cdata) ??
     pickText(candidate["#text"]) ??
-    pickText(candidate["content"]) ??
-    pickText(candidate["value"])
+    pickText(candidate.content) ??
+    pickText(candidate.value)
   );
+};
+
+const looksLikeHtml = (value: string | undefined) => Boolean(value && /<[^>]+>/.test(value));
+
+const getFallbackTitleFromUrl = (urlValue: string) => {
+  const url = new URL(urlValue);
+  const slug = url.pathname.split("/").filter(Boolean).at(-1);
+
+  if (!slug) {
+    return url.hostname;
+  }
+
+  return slug
+    .replace(/[-_]+/g, " ")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
 const pickImageUrl = (entry: Record<string, unknown>, baseUrl: string) => {
@@ -70,17 +85,30 @@ const pickImageUrl = (entry: Record<string, unknown>, baseUrl: string) => {
   ];
 
   for (const candidate of candidates) {
-    if (typeof candidate === "string") {
-      const resolved = resolveUrl(candidate, baseUrl);
+    if (typeof candidate !== "string") {
+      continue;
+    }
 
-      if (resolved) {
-        return resolved;
-      }
+    const resolved = resolveUrl(candidate, baseUrl);
+
+    if (resolved) {
+      return resolved;
     }
   }
 
   return undefined;
 };
+
+const resolveFeedContent = (content: string | undefined, treatAsHtml: boolean) =>
+  treatAsHtml
+    ? {
+        contentHtml: content,
+        contentText: undefined,
+      }
+    : {
+        contentHtml: undefined,
+        contentText: content,
+      };
 
 const normalizeRssItems = (sourceId: string, baseUrl: string, items: unknown[]) =>
   sortItemsNewestFirst(
@@ -104,11 +132,18 @@ const normalizeRssItems = (sourceId: string, baseUrl: string, items: unknown[]) 
             normalizeOptionalDate(pickText(item.pubDate)) ??
             normalizeOptionalDate(pickText(item.date)) ??
             normalizeOptionalDate(pickText(item.published));
-          const excerpt = createExcerpt(
-            pickText(item.description) ??
-              pickText(item["content:encoded"]) ??
-              pickText(item.summary),
+          const rawContent = pickText(item["content:encoded"]) ?? pickText(item.description);
+          const content = resolveFeedContent(
+            rawContent,
+            item["content:encoded"] !== undefined || looksLikeHtml(rawContent),
           );
+          const excerpt =
+            createExcerpt(
+              pickText(item.description) ??
+                pickText(item.summary) ??
+                content.contentText ??
+                rawContent,
+            ) ?? createExcerpt(content.contentHtml);
 
           return {
             id: createFeedItemId(sourceId, [pickText(item.guid), url, title, publishedAt]),
@@ -116,6 +151,7 @@ const normalizeRssItems = (sourceId: string, baseUrl: string, items: unknown[]) 
             url,
             title,
             excerpt,
+            ...content,
             publishedAt,
             author: pickText(item.author) ?? pickText(item["dc:creator"]),
             imageUrl: pickImageUrl(item, baseUrl),
@@ -141,19 +177,23 @@ const pickAtomLinkByRel = (value: unknown, baseUrl: string, rel = "alternate") =
       }
     }
 
-    if (typeof link === "object" && link) {
-      const linkRecord = link as Record<string, unknown>;
-      const href = typeof linkRecord.href === "string" ? linkRecord.href : undefined;
-      const candidateRel = typeof linkRecord.rel === "string" ? linkRecord.rel : "alternate";
-      const rels = candidateRel.split(/\s+/);
+    if (typeof link !== "object" || !link) {
+      continue;
+    }
 
-      if (href && rels.includes(rel)) {
-        const resolved = resolveUrl(href, baseUrl);
+    const linkRecord = link as Record<string, unknown>;
+    const href = typeof linkRecord.href === "string" ? linkRecord.href : undefined;
+    const candidateRel = typeof linkRecord.rel === "string" ? linkRecord.rel : "alternate";
+    const rels = candidateRel.split(/\s+/);
 
-        if (resolved) {
-          return resolved;
-        }
-      }
+    if (!href || !rels.includes(rel)) {
+      continue;
+    }
+
+    const resolved = resolveUrl(href, baseUrl);
+
+    if (resolved) {
+      return resolved;
     }
   }
 
@@ -161,6 +201,22 @@ const pickAtomLinkByRel = (value: unknown, baseUrl: string, rel = "alternate") =
 };
 
 const pickAtomLink = (value: unknown, baseUrl: string) => pickAtomLinkByRel(value, baseUrl);
+
+const getAtomContentValue = (value: unknown) => {
+  const content = value as Record<string, unknown> | undefined;
+  const text = pickText(value);
+  const type = typeof content?.type === "string" ? content.type.toLowerCase() : undefined;
+  const treatAsHtml =
+    type === "html" ||
+    type === "xhtml" ||
+    (type === "text/html" && Boolean(text)) ||
+    looksLikeHtml(text);
+
+  return {
+    text,
+    treatAsHtml,
+  };
+};
 
 const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[]) =>
   sortItemsNewestFirst(
@@ -179,7 +235,12 @@ const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[])
           }
 
           const title = pickText(item.title) ?? getFallbackTitleFromUrl(url);
-          const content = pickText(item.content) ?? pickText(item.summary);
+          const contentValue = getAtomContentValue(item.content);
+          const summary = pickText(item.summary);
+          const content =
+            contentValue.text !== undefined
+              ? resolveFeedContent(contentValue.text, contentValue.treatAsHtml)
+              : resolveFeedContent(summary, false);
           const publishedAt =
             normalizeOptionalDate(pickText(item.updated)) ??
             normalizeOptionalDate(pickText(item.published));
@@ -194,7 +255,8 @@ const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[])
             sourceId,
             url,
             title,
-            excerpt: createExcerpt(content),
+            excerpt: createExcerpt(summary ?? content.contentText ?? content.contentHtml),
+            ...content,
             publishedAt,
             author,
             imageUrl: pickImageUrl(item, baseUrl),
@@ -204,78 +266,6 @@ const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[])
     ),
   );
 
-const normalizeJsonFeedItems = (
-  sourceId: string,
-  baseUrl: string,
-  items: Array<Record<string, unknown>>,
-) =>
-  sortItemsNewestFirst(
-    dedupeItems(
-      items
-        .map((item) => {
-          const url =
-            resolveUrl(typeof item.url === "string" ? item.url : undefined, baseUrl) ??
-            resolveUrl(
-              typeof item.external_url === "string" ? item.external_url : undefined,
-              baseUrl,
-            );
-
-          if (!url) {
-            return undefined;
-          }
-
-          const title =
-            (typeof item.title === "string" ? item.title.trim() : undefined) ??
-            getFallbackTitleFromUrl(url);
-          const content =
-            (typeof item.summary === "string" ? item.summary : undefined) ??
-            (typeof item.content_text === "string" ? item.content_text : undefined) ??
-            (typeof item.content_html === "string" ? item.content_html : undefined);
-          const author = asArray<Record<string, unknown>>(
-            item.authors as Array<Record<string, unknown>> | undefined,
-          )
-            .map((candidate) => (typeof candidate?.name === "string" ? candidate.name : undefined))
-            .find(Boolean);
-
-          return {
-            id: createFeedItemId(sourceId, [
-              typeof item.id === "string" ? item.id : undefined,
-              url,
-              title,
-            ]),
-            sourceId,
-            url,
-            title,
-            excerpt: createExcerpt(content),
-            publishedAt:
-              normalizeOptionalDate(
-                typeof item.date_published === "string" ? item.date_published : undefined,
-              ) ??
-              normalizeOptionalDate(
-                typeof item.date_modified === "string" ? item.date_modified : undefined,
-              ),
-            author,
-            imageUrl: resolveUrl(typeof item.image === "string" ? item.image : undefined, baseUrl),
-          } satisfies StoredFeedItem;
-        })
-        .filter((item) => item !== undefined),
-    ),
-  );
-
-const getFallbackTitleFromUrl = (urlValue: string) => {
-  const url = new URL(urlValue);
-  const slug = url.pathname.split("/").filter(Boolean).at(-1);
-
-  if (!slug) {
-    return url.hostname;
-  }
-
-  return slug
-    .replace(/[-_]+/g, " ")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-};
-
 export const looksLikeFeedDocument = (contentType: string, body: string) => {
   const loweredType = contentType.toLowerCase();
   const loweredBody = body.slice(0, 250).toLowerCase();
@@ -284,11 +274,9 @@ export const looksLikeFeedDocument = (contentType: string, body: string) => {
     loweredType.includes("xml") ||
     loweredType.includes("rss") ||
     loweredType.includes("atom") ||
-    loweredType.includes("json") ||
     loweredBody.startsWith("<?xml") ||
     loweredBody.includes("<rss") ||
-    loweredBody.includes("<feed") ||
-    loweredBody.startsWith("{")
+    loweredBody.includes("<feed")
   );
 };
 
@@ -300,39 +288,8 @@ export const parseFeedDocument = ({
   body: string;
   baseUrl: string;
   sourceId: string;
-}) => {
+}): FetchedFeedSource => {
   const trimmed = body.trim();
-
-  if (trimmed.startsWith("{")) {
-    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    const feedUrl =
-      resolveUrl(typeof parsed.feed_url === "string" ? parsed.feed_url : undefined, baseUrl) ??
-      baseUrl;
-    const siteUrl =
-      resolveUrl(
-        typeof parsed.home_page_url === "string" ? parsed.home_page_url : undefined,
-        baseUrl,
-      ) ?? baseUrl;
-
-    return {
-      kind: "feed" as SourceKind,
-      label:
-        (typeof parsed.title === "string" ? parsed.title.trim() : undefined) ??
-        new URL(siteUrl).hostname.replace(/^www\./, ""),
-      siteUrl,
-      feedUrl,
-      nextPageUrl: resolveUrl(
-        typeof parsed.next_url === "string" ? parsed.next_url : undefined,
-        baseUrl,
-      ),
-      items: normalizeJsonFeedItems(
-        sourceId,
-        siteUrl,
-        asArray(parsed.items as Array<Record<string, unknown>> | undefined),
-      ),
-    };
-  }
-
   const parsed = xmlParser.parse(trimmed) as Record<string, unknown>;
 
   if (parsed.rss || parsed["rdf:RDF"]) {
@@ -341,7 +298,7 @@ export const parseFeedDocument = ({
     const siteUrl = resolveUrl(pickText(channel.link), baseUrl) ?? baseUrl;
 
     return {
-      kind: "feed" as SourceKind,
+      sourceId,
       label: pickText(channel.title) ?? new URL(siteUrl).hostname.replace(/^www\./, ""),
       siteUrl,
       feedUrl: baseUrl,
@@ -354,7 +311,7 @@ export const parseFeedDocument = ({
     const siteUrl = pickAtomLink(feed.link, baseUrl) ?? baseUrl;
 
     return {
-      kind: "feed" as SourceKind,
+      sourceId,
       label: pickText(feed.title) ?? new URL(siteUrl).hostname.replace(/^www\./, ""),
       siteUrl,
       feedUrl: baseUrl,
@@ -363,33 +320,7 @@ export const parseFeedDocument = ({
     };
   }
 
-  throw new Error("The feed could not be parsed.");
+  throw new Error(
+    "Paste a direct RSS or Atom feed URL. Homepages and JSON feeds are not supported.",
+  );
 };
-
-export const createFallbackEntryFromArticle = ({
-  sourceId,
-  url,
-  title,
-  excerpt,
-  publishedAt,
-  author,
-  imageUrl,
-}: {
-  sourceId: string;
-  url: string;
-  title: string;
-  excerpt?: string;
-  publishedAt?: string;
-  author?: string;
-  imageUrl?: string;
-}) =>
-  ({
-    id: createFeedItemId(sourceId, [url, title, publishedAt]),
-    sourceId,
-    url,
-    title,
-    excerpt: excerpt ? stripHtml(excerpt) : undefined,
-    publishedAt,
-    author,
-    imageUrl,
-  }) satisfies StoredFeedItem;

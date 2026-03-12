@@ -1,4 +1,5 @@
 const STALE_DEPLOYMENT_SESSION_KEY = "oop.stale-deployment-reload";
+const LOCALHOST_CACHE_CLEANUP_SESSION_KEY = "oop.localhost-cache-cleanup";
 
 const staleDeploymentPatterns = [
   /bad http response code \(404\) was received when fetching the script/i,
@@ -51,6 +52,54 @@ export const recoverFromStaleDeployment = (error: unknown) => {
   window.location.reload();
 
   return true;
+};
+
+export const isLocalDevelopmentHostname = (hostname: string) =>
+  ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
+
+export const cleanupLocalhostCachesOncePerSession = async ({
+  hostname,
+  sessionStorage,
+  serviceWorker,
+  cacheStorage,
+}: {
+  hostname: string;
+  sessionStorage: Pick<Storage, "getItem" | "setItem">;
+  serviceWorker?: Pick<ServiceWorkerContainer, "getRegistrations">;
+  cacheStorage?: Pick<CacheStorage, "keys" | "delete">;
+}) => {
+  if (!isLocalDevelopmentHostname(hostname)) {
+    return false;
+  }
+
+  if (sessionStorage.getItem(LOCALHOST_CACHE_CLEANUP_SESSION_KEY)) {
+    return false;
+  }
+
+  sessionStorage.setItem(LOCALHOST_CACHE_CLEANUP_SESSION_KEY, "1");
+
+  const registrations = serviceWorker ? await serviceWorker.getRegistrations() : [];
+  const cacheKeys = cacheStorage ? await cacheStorage.keys() : [];
+
+  await Promise.allSettled([
+    ...registrations.map((registration) => registration.unregister()),
+    ...cacheKeys.map((cacheKey) => cacheStorage?.delete(cacheKey)),
+  ]);
+
+  return true;
+};
+
+export const installLocalhostCacheCleanup = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  void cleanupLocalhostCachesOncePerSession({
+    hostname: window.location.hostname,
+    sessionStorage: window.sessionStorage,
+    serviceWorker: "serviceWorker" in navigator ? navigator.serviceWorker : undefined,
+    cacheStorage: "caches" in globalThis ? globalThis.caches : undefined,
+  });
 };
 
 export const installStaleDeploymentRecovery = () => {

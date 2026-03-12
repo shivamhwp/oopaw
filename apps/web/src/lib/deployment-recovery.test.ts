@@ -1,7 +1,12 @@
 /** @vitest-environment jsdom */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { isStaleDeploymentError, recoverFromStaleDeployment } from "@/lib/deployment-recovery";
+import {
+  cleanupLocalhostCachesOncePerSession,
+  isLocalDevelopmentHostname,
+  isStaleDeploymentError,
+  recoverFromStaleDeployment,
+} from "@/lib/deployment-recovery";
 
 describe("deployment recovery", () => {
   beforeEach(() => {
@@ -43,5 +48,49 @@ describe("deployment recovery", () => {
       ),
     ).toBe(false);
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("cleans service workers and caches once per session on localhost only", async () => {
+    const unregister = vi.fn().mockResolvedValue(true);
+    const getRegistrations = vi.fn().mockResolvedValue([{ unregister }]);
+    const deleteCache = vi.fn().mockResolvedValue(true);
+    const keys = vi.fn().mockResolvedValue(["workbox-precache-v1"]);
+
+    await expect(
+      cleanupLocalhostCachesOncePerSession({
+        hostname: "localhost",
+        sessionStorage: window.sessionStorage,
+        serviceWorker: { getRegistrations },
+        cacheStorage: { keys, delete: deleteCache },
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      cleanupLocalhostCachesOncePerSession({
+        hostname: "localhost",
+        sessionStorage: window.sessionStorage,
+        serviceWorker: { getRegistrations },
+        cacheStorage: { keys, delete: deleteCache },
+      }),
+    ).resolves.toBe(false);
+    expect(unregister).toHaveBeenCalledTimes(1);
+    expect(deleteCache).toHaveBeenCalledWith("workbox-precache-v1");
+  });
+
+  it("skips localhost cache cleanup for non-local origins", async () => {
+    const getRegistrations = vi.fn();
+    const deleteCache = vi.fn();
+
+    await expect(
+      cleanupLocalhostCachesOncePerSession({
+        hostname: "example.com",
+        sessionStorage: window.sessionStorage,
+        serviceWorker: { getRegistrations },
+        cacheStorage: { keys: vi.fn(), delete: deleteCache },
+      }),
+    ).resolves.toBe(false);
+    expect(isLocalDevelopmentHostname("example.com")).toBe(false);
+    expect(isLocalDevelopmentHostname("localhost")).toBe(true);
+    expect(getRegistrations).not.toHaveBeenCalled();
+    expect(deleteCache).not.toHaveBeenCalled();
   });
 });

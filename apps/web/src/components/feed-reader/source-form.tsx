@@ -32,7 +32,7 @@ export function SourceForm({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="shivam.ing/blogs or https://example.com/feed.xml"
+        placeholder="https://example.com/feed.xml or https://example.com/atom.xml"
         className="w-full rounded-lg border border-border/80 bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/55 transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10 md:py-2 md:text-xs"
         // eslint-disable-next-line jsx-a11y/no-autofocus
         autoFocus

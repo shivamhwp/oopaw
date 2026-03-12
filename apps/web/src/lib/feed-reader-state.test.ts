@@ -21,7 +21,6 @@ const discovery: DiscoveryResult = {
     label: "Alpha",
     inputUrl: "https://example.com/blog",
     siteUrl: "https://example.com/blog",
-    kind: "feed",
     feedUrl: "https://example.com/feed.xml",
     pollingEnabled: true,
     pollIntervalMs: 300000,
@@ -86,7 +85,10 @@ describe("feed reader state", () => {
     const state = mergeSourceDiscovery(createEmptyFeedReaderState(), discovery);
     const legacyState: FeedReaderStateV1 = {
       version: 1,
-      sources: state.sources,
+      sources: state.sources.map((source) => ({
+        ...source,
+        kind: "feed",
+      })),
       itemsBySource: state.itemsBySource,
       readItemIds: state.readItemIds,
       seenItemIdsBySource: state.seenItemIdsBySource,
@@ -95,6 +97,15 @@ describe("feed reader state", () => {
 
     expect(migrateFeedReaderState(legacyState)).toEqual({
       ...state,
+      itemsBySource: {
+        source_alpha: [
+          {
+            ...state.itemsBySource.source_alpha[0],
+            contentHtml: undefined,
+            contentText: undefined,
+          },
+        ],
+      },
       paginationBySource: {
         source_alpha: {
           loadedPageUrls: ["https://example.com/feed.xml"],
@@ -160,5 +171,68 @@ describe("feed reader state", () => {
     expect(refreshed.paginationBySource.source_alpha.nextPageUrl).toBe(
       "https://example.com/feed.xml?page=3",
     );
+  });
+
+  it("drops legacy scrape sources during migration while preserving feed state", () => {
+    const legacyState: FeedReaderStateV1 = {
+      version: 1,
+      sources: [
+        {
+          ...discovery.source,
+          kind: "feed",
+        },
+        {
+          id: "source_scrape",
+          label: "Homepage",
+          inputUrl: "https://example.com",
+          siteUrl: "https://example.com",
+          kind: "scrape",
+          pollingEnabled: true,
+          pollIntervalMs: 300000,
+        },
+      ],
+      itemsBySource: {
+        source_alpha: discovery.items,
+        source_scrape: [
+          {
+            id: "item_scrape",
+            sourceId: "source_scrape",
+            title: "Scraped",
+            url: "https://example.com/posts/scraped",
+          },
+        ],
+      },
+      readItemIds: ["item_old"],
+      seenItemIdsBySource: {
+        source_alpha: ["item_old"],
+        source_scrape: ["item_scrape"],
+      },
+      selectedSourceId: "source_scrape",
+    };
+
+    expect(migrateFeedReaderState(legacyState)).toEqual({
+      version: 3,
+      sources: [discovery.source],
+      itemsBySource: {
+        source_alpha: [
+          {
+            ...discovery.items[0]!,
+            contentHtml: undefined,
+            contentText: undefined,
+          },
+        ],
+      },
+      readItemIds: ["item_old"],
+      seenItemIdsBySource: {
+        source_alpha: ["item_old"],
+      },
+      selectedSourceId: null,
+      paginationBySource: {
+        source_alpha: {
+          loadedPageUrls: ["https://example.com/feed.xml"],
+          nextPageUrl: undefined,
+        },
+      },
+    });
   });
 });

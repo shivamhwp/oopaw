@@ -8,6 +8,7 @@ import {
   ThemeProvider,
   getThemeInitScript,
 } from "@/components/theme-provider";
+import { installLocalhostCacheCleanup } from "@/lib/deployment-recovery";
 
 import appCss from "../styles.css?url";
 
@@ -26,8 +27,7 @@ export const Route = createRootRoute({
       },
       {
         name: "description",
-        content:
-          "Track fresh posts from any RSS feed or site URL and read them in a clean split-pane reader.",
+        content: "Track fresh posts from direct RSS and Atom feeds in a clean split-pane reader.",
       },
       {
         name: "theme-color",
@@ -75,7 +75,9 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    if (import.meta.env.DEV) {
+    installLocalhostCacheCleanup();
+
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_REACT_GRAB === "true") {
       void import("react-grab");
       void import("@react-grab/mcp/client");
     }

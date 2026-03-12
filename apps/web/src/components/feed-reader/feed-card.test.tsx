@@ -11,7 +11,6 @@ const source: SavedSource = {
   inputUrl: "https://example.com",
   siteUrl: "https://example.com",
   feedUrl: "https://example.com/feed.xml",
-  kind: "feed",
   pollingEnabled: true,
   pollIntervalMs: 300000,
 };

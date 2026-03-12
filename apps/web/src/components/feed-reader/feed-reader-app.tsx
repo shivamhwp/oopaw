@@ -137,8 +137,6 @@ export function FeedReaderApp() {
     detailPanelItems,
     detailPanelPagination,
     selectedItem,
-    articleQuery,
-    articleEmbedQuery,
     articleViewMode,
     isRefreshingAll,
     addSourceError,
@@ -218,11 +216,7 @@ export function FeedReaderApp() {
       {detailPanel.mode === "reader" && (
         <ReaderPane
           item={selectedItem}
-          article={articleQuery.data}
-          articleEmbed={articleEmbedQuery.data}
           articleViewMode={articleViewMode}
-          isLoadingArticle={articleQuery.isLoading}
-          isLoadingEmbed={articleEmbedQuery.isLoading}
           isFullScreen={false}
           onBack={handleBackToList}
           onClose={handleCloseDetailPanel}
@@ -362,11 +356,7 @@ export function FeedReaderApp() {
         <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background">
           <ReaderPane
             item={selectedItem}
-            article={articleQuery.data}
-            articleEmbed={articleEmbedQuery.data}
             articleViewMode={articleViewMode}
-            isLoadingArticle={articleQuery.isLoading}
-            isLoadingEmbed={articleEmbedQuery.isLoading}
             isFullScreen={true}
             onBack={handleBackToList}
             onClose={handleCloseDetailPanel}

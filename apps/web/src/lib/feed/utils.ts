@@ -14,7 +14,7 @@ export const normalizeInputUrl = (input: string) => {
   const trimmed = input.trim();
 
   if (!trimmed) {
-    throw new Error("Paste a website URL or feed URL.");
+    throw new Error("Paste a direct RSS or Atom feed URL.");
   }
 
   const withProtocol = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;

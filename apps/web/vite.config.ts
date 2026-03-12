@@ -6,20 +6,26 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
+const enableTanStackDevtools = process.env.TANSTACK_DEVTOOLS === "true";
+
 const config = defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
   },
+  server: {
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  },
   plugins: [
-    devtools(),
-    nitro(),
-    // this is the plugin that enables path aliases
+    ...(enableTanStackDevtools ? [devtools({ eventBusConfig: { enabled: false } })] : []),
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
-    tailwindcss(),
     tanstackStart(),
+    nitro(),
     viteReact(),
+    tailwindcss(),
   ],
 });
 

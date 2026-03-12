@@ -19,6 +19,7 @@ import {
   FEED_READER_PANEL_OPEN_STORAGE_KEY,
   FEED_READER_STATE_STORAGE_KEY,
   feedReaderStateV1Schema,
+  feedReaderStateV2Schema,
   feedReaderStateSchema,
   type ArticleViewMode,
   type DiscoveryResult,
@@ -99,6 +100,12 @@ const getValidatedFeedReaderState = (value: unknown, initialValue: FeedReaderSta
 
   if (parsedLegacyState.success) {
     return migrateFeedReaderState(parsedLegacyState.data);
+  }
+
+  const parsedV2State = feedReaderStateV2Schema.safeParse(value);
+
+  if (parsedV2State.success) {
+    return migrateFeedReaderState(parsedV2State.data);
   }
 
   return initialValue;
