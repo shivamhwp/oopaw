@@ -1,4 +1,4 @@
-import { CalendarDots, Sparkle, User, X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { FeedItem, SavedSource } from "@/lib/types";
@@ -34,123 +34,105 @@ export function ItemList({
   onClose,
 }: ItemListProps) {
   const unreadCount = items.filter((item) => !item.isRead).length;
+  const sourceTitle = source?.label ?? "Posts";
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="safe-top safe-left safe-right shrink-0 border-b border-border/40 px-4 py-4 md:px-5">
-        <div className="min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display truncate text-[1.5rem] leading-tight text-foreground">
-              {source?.label ?? "Posts"}
+      {/* Header */}
+      <div className="safe-top safe-left safe-right shrink-0 px-5 pb-4 pt-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display truncate text-[1.35rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+              {sourceTitle}
             </h2>
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                aria-label="Close"
-              >
-                <X weight="bold" className="size-4.5" />
-              </button>
-            )}
-          </div>
-          {items.length > 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {unreadCount > 0 ? (
-                <>
-                  <span className="font-medium text-primary">{unreadCount}</span> unread ·{" "}
-                </>
-              ) : null}
-              {items.length} posts
+            <p className="mt-1 text-[0.72rem] text-muted-foreground">
+              {unreadCount > 0
+                ? `${unreadCount} unread · ${items.length} total`
+                : `${items.length} ${items.length === 1 ? "post" : "posts"}`}
             </p>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-0.5 shrink-0 rounded-full p-1.5 text-muted-foreground/50 transition-colors hover:bg-muted/50 hover:text-foreground"
+              aria-label="Close"
+            >
+              <X weight="bold" className="size-3.5" />
+            </button>
           )}
         </div>
       </div>
 
+      <div className="mx-5 h-px bg-border/40" />
+
+      {/* List */}
       <div className="safe-bottom safe-left safe-right min-h-0 flex-1 overflow-y-auto">
         {items.length > 0 ? (
           <>
-            <ol>
-              {items.map((item) => (
-                <li key={item.id} className="border-b border-border/30 last:border-0">
-                  <button
-                    type="button"
-                    onClick={() => onSelect(item.id)}
-                    className={cn(
-                      "w-full px-5 py-4 text-left transition-colors",
-                      selectedItemId === item.id ? "bg-primary/[0.05]" : "hover:bg-muted/35",
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 pt-[0.55rem]">
-                        <div
-                          className={cn(
-                            "size-[5px] rounded-full",
-                            !item.isRead ? "bg-primary" : "bg-transparent",
-                          )}
-                        />
-                      </div>
+            <ul>
+              {items.map((item) => {
+                const date = formatDate(item.publishedAt);
+                const isSelected = selectedItemId === item.id;
 
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[0.66rem] text-muted-foreground">
-                          {formatDate(item.publishedAt) && (
-                            <span className="inline-flex items-center gap-1">
-                              <CalendarDots weight="fill" className="size-2.5" />
-                              {formatDate(item.publishedAt)}
-                            </span>
-                          )}
-                          {item.author && (
-                            <span className="inline-flex items-center gap-1">
-                              <User weight="fill" className="size-2.5" />
-                              {item.author}
-                            </span>
-                          )}
-                          {item.isNew && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-accent/55 px-1.5 py-px text-[0.58rem] font-semibold tracking-wider text-accent-foreground uppercase">
-                              <Sparkle weight="fill" className="size-2" />
-                              New
-                            </span>
+                return (
+                  <li key={item.id} className="border-b border-border/25 last:border-0">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(item.id)}
+                      className={cn(
+                        "group w-full px-5 py-3.5 text-left transition-colors",
+                        isSelected ? "bg-primary/[0.04]" : "hover:bg-muted/25",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h3
+                            className={cn(
+                              "font-display text-[0.95rem] leading-snug text-pretty",
+                              item.isRead ? "text-foreground/40" : "text-foreground",
+                            )}
+                          >
+                            {item.title}
+                          </h3>
+
+                          {(date || item.author) && (
+                            <p className="mt-1 text-[0.65rem] text-muted-foreground/55">
+                              {[date, item.author].filter(Boolean).join(" · ")}
+                            </p>
                           )}
                         </div>
 
-                        <h3
-                          className={cn(
-                            "font-display text-[1.15rem] leading-tight text-pretty",
-                            item.isRead ? "text-foreground/60" : "text-foreground",
+                        {/* Unread dot — far right, vertically centered with first line */}
+                        <div className="mt-[0.35rem] size-1.5 shrink-0">
+                          {!item.isRead && (
+                            <span className="block size-1.5 rounded-full bg-primary" />
                           )}
-                        >
-                          {item.title}
-                        </h3>
-
-                        {item.excerpt && (
-                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                            {item.excerpt}
-                          </p>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ol>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
 
             {(hasMore || isLoadingMore) && (
-              <div className="px-5 py-4">
+              <div className="px-5 py-3">
                 <Button
                   type="button"
-                  variant="outline"
-                  className="w-full rounded-full text-xs"
+                  variant="ghost"
+                  className="h-8 w-full text-[0.72rem] text-muted-foreground hover:text-foreground"
                   disabled={!hasMore || isLoadingMore}
                   onClick={onLoadMore}
                 >
-                  {isLoadingMore ? "Loading more..." : "Load more posts"}
+                  {isLoadingMore ? "Loading…" : "Load more"}
                 </Button>
               </div>
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center px-6 py-16 text-center">
-            <p className="text-sm text-muted-foreground">No posts yet. Try refreshing.</p>
+          <div className="flex items-center justify-center px-6 py-16">
+            <p className="text-[0.78rem] text-muted-foreground/50">No posts yet.</p>
           </div>
         )}
       </div>

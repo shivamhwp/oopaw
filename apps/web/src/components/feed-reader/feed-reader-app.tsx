@@ -47,7 +47,6 @@ function ThemeToggle() {
   return (
     <Button
       type="button"
-      variant="secondary"
       size="icon-sm"
       className="h-8 w-8 cursor-pointer md:h-7 md:w-7"
       onClick={() => setTheme(next.value)}
@@ -199,7 +198,7 @@ export function FeedReaderApp() {
   }
 
   const detailPanelContent = (
-    <div className="h-full min-w-0 overflow-hidden border-l border-border/40">
+    <div className="h-full min-w-0 overflow-hidden md:pl-2">
       {detailPanel.mode === "list" && (
         <ItemList
           source={detailPanelSourceSummary?.source}
@@ -267,7 +266,6 @@ export function FeedReaderApp() {
               <Button
                 type="button"
                 size="sm"
-                variant={showAddForm ? "secondary" : "default"}
                 className="h-8 cursor-pointer rounded-full px-3 text-sm md:h-7 md:px-2.5 md:text-xs"
                 onClick={() => setShowAddForm((value) => !value)}
               >
