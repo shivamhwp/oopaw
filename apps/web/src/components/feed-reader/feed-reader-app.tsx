@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { CowIcon, DesktopIcon, MoonIcon, PlusIcon, SpinnerIcon, SunIcon } from "@phosphor-icons/react";
+import {
+  CowIcon,
+  DesktopIcon,
+  MoonIcon,
+  PlusIcon,
+  SpinnerIcon,
+  SunIcon,
+} from "@phosphor-icons/react";
 import { useAtom, useAtomValue } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
 import { ItemList } from "@/components/feed-reader/item-list";

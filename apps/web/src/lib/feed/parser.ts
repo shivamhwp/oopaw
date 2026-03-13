@@ -1,3 +1,4 @@
+import { decode } from "html-entities";
 import { XMLParser } from "fast-xml-parser";
 import type { FetchedFeedSource, StoredFeedItem } from "@/lib/types";
 import {
@@ -50,6 +51,32 @@ const pickText = (value: unknown): string | undefined => {
 };
 
 const looksLikeHtml = (value: string | undefined) => Boolean(value && /<[^>]+>/.test(value));
+
+const trimValue = (value: string | undefined) => {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : undefined;
+};
+
+const normalizeFeedValue = (value: string | undefined, treatAsHtml = false) => {
+  const trimmed = trimValue(value);
+
+  if (!trimmed) {
+    return {
+      value: undefined,
+      treatAsHtml,
+    };
+  }
+
+  const decoded = trimValue(decode(trimmed));
+  const normalizedAsHtml = looksLikeHtml(trimmed) ? trimmed : decoded;
+  const shouldTreatAsHtml = treatAsHtml || looksLikeHtml(trimmed) || looksLikeHtml(decoded);
+
+  return {
+    value: shouldTreatAsHtml ? normalizedAsHtml : decoded,
+    treatAsHtml: shouldTreatAsHtml,
+  };
+};
 
 const getFallbackTitleFromUrl = (urlValue: string) => {
   const url = new URL(urlValue);
@@ -133,16 +160,19 @@ const normalizeRssItems = (sourceId: string, baseUrl: string, items: unknown[]) 
             normalizeOptionalDate(pickText(item.date)) ??
             normalizeOptionalDate(pickText(item.published));
           const rawContent = pickText(item["content:encoded"]) ?? pickText(item.description);
-          const content = resolveFeedContent(
+          const normalizedContent = normalizeFeedValue(
             rawContent,
-            item["content:encoded"] !== undefined || looksLikeHtml(rawContent),
+            item["content:encoded"] !== undefined,
+          );
+          const description = normalizeFeedValue(pickText(item.description));
+          const summary = normalizeFeedValue(pickText(item.summary));
+          const content = resolveFeedContent(
+            normalizedContent.value,
+            normalizedContent.treatAsHtml,
           );
           const excerpt =
             createExcerpt(
-              pickText(item.description) ??
-                pickText(item.summary) ??
-                content.contentText ??
-                rawContent,
+              description.value ?? summary.value ?? content.contentText ?? normalizedContent.value,
             ) ?? createExcerpt(content.contentHtml);
 
           return {
@@ -206,15 +236,14 @@ const getAtomContentValue = (value: unknown) => {
   const content = value as Record<string, unknown> | undefined;
   const text = pickText(value);
   const type = typeof content?.type === "string" ? content.type.toLowerCase() : undefined;
-  const treatAsHtml =
-    type === "html" ||
-    type === "xhtml" ||
-    (type === "text/html" && Boolean(text)) ||
-    looksLikeHtml(text);
+  const normalized = normalizeFeedValue(
+    text,
+    type === "html" || type === "xhtml" || type === "text/html" || type === "application/xhtml+xml",
+  );
 
   return {
-    text,
-    treatAsHtml,
+    text: normalized.value,
+    treatAsHtml: normalized.treatAsHtml,
   };
 };
 
@@ -236,11 +265,11 @@ const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[])
 
           const title = pickText(item.title) ?? getFallbackTitleFromUrl(url);
           const contentValue = getAtomContentValue(item.content);
-          const summary = pickText(item.summary);
+          const summaryValue = getAtomContentValue(item.summary);
           const content =
             contentValue.text !== undefined
               ? resolveFeedContent(contentValue.text, contentValue.treatAsHtml)
-              : resolveFeedContent(summary, false);
+              : resolveFeedContent(summaryValue.text, summaryValue.treatAsHtml);
           const publishedAt =
             normalizeOptionalDate(pickText(item.updated)) ??
             normalizeOptionalDate(pickText(item.published));
@@ -255,7 +284,7 @@ const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[])
             sourceId,
             url,
             title,
-            excerpt: createExcerpt(summary ?? content.contentText ?? content.contentHtml),
+            excerpt: createExcerpt(summaryValue.text ?? content.contentText ?? content.contentHtml),
             ...content,
             publishedAt,
             author,

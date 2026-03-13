@@ -95,12 +95,7 @@ export function ReaderPane({
       </div>
       <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
         <Button asChild variant="ghost" size="sm">
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open original article"
-          >
+          <a href={item.url} target="_blank" rel="noreferrer" aria-label="Open original article">
             <ArrowSquareOutIcon weight="bold" className="size-3.5" />
             <span>Open original</span>
           </a>

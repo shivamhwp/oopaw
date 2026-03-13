@@ -43,13 +43,7 @@ export function ItemList({
           <span>{readCount} read</span>
         </div>
         {onClose && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <XIcon weight="bold" className="size-3.5" />
           </Button>
         )}

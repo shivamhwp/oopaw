@@ -1,5 +1,6 @@
 import { ArrowClockwiseIcon, PlusIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type SourceFormProps = {
   value: string;
@@ -29,11 +30,11 @@ export function SourceForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
-      <input
+      <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="https://example.com/feed.xml or https://example.com/atom.xml"
-        className="w-full rounded-lg border border-border/80 bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/55 transition focus:border-primary/50 focus:ring-2 focus:ring-primary/10 md:py-2 md:text-xs"
+        className="focus:border-primary/50"
         // eslint-disable-next-line jsx-a11y/no-autofocus
         autoFocus
       />
