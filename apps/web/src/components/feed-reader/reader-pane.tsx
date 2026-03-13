@@ -1,14 +1,16 @@
 import {
-  ArrowLeft,
-  ArrowSquareOut,
-  BookOpenText,
-  CalendarDots,
-  Clock,
-  CornersIn,
-  CornersOut,
-  User,
-  X,
+  ArrowLeftIcon,
+  ArrowSquareOutIcon,
+  BookOpenTextIcon,
+  CalendarDotsIcon,
+  ClockIcon,
+  CornersInIcon,
+  CornersOutIcon,
+  GlobeHemisphereWestIcon,
+  UserIcon,
+  XIcon,
 } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ArticleViewMode, FeedItem } from "@/lib/types";
 import { stripHtml } from "@/lib/feed/utils";
@@ -47,6 +49,7 @@ export function ReaderPane({
   if (!item) return null;
 
   const isSiteMode = articleViewMode === "site";
+  const showReaderHeader = isMobile || isFullScreen;
   const title = item.title;
   const author = item.author;
   const date = formatDate(item.publishedAt);
@@ -58,86 +61,92 @@ export function ReaderPane({
     <Tabs
       value={articleViewMode}
       onValueChange={(value) => onArticleViewModeChange(value as ArticleViewMode)}
-      className="reader-mode-tabs min-w-0"
     >
-      <TabsList aria-label="Article view mode" className="flex w-full min-w-0 md:w-auto">
-        <TabsTrigger value="site" className="min-w-0 flex-1">
-          Site view
+      <TabsList aria-label="Article view mode">
+        <TabsTrigger value="site" aria-label="Site view" className="gap-1">
+          <GlobeHemisphereWestIcon weight="duotone" className="size-4" aria-hidden="true" />
+          Site
         </TabsTrigger>
-        <TabsTrigger value="reader" className="min-w-0 flex-1">
-          Reader mode
+        <TabsTrigger value="reader" aria-label="Reader mode" className="gap-1">
+          <BookOpenTextIcon weight="duotone" className="size-4" aria-hidden="true" />
+          Reader
         </TabsTrigger>
       </TabsList>
     </Tabs>
   );
   const topNav = (
-    <div className="reader-topnav safe-top">
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-2 backdrop-blur-sm md:flex-nowrap md:items-center md:px-5 md:py-1 pt-[env(safe-area-inset-top,0px)]">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {onBack ? (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={onBack}
-            className="reader-topnav-back"
             aria-label="Back to list"
           >
-            <ArrowLeft weight="bold" className="size-3" />
+            <ArrowLeftIcon weight="bold" className="size-3" />
             <span className="min-[420px]:hidden">Back</span>
             <span className="hidden min-[420px]:inline">Back to list</span>
-          </button>
+          </Button>
         ) : (
           <div />
         )}
       </div>
       <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noreferrer"
-          className="reader-topnav-icon"
-          aria-label="Open original article"
-        >
-          <ArrowSquareOut weight="bold" className="size-3.5" />
-        </a>
+        <Button asChild variant="ghost" size="sm">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open original article"
+          >
+            <ArrowSquareOutIcon weight="bold" className="size-3.5" />
+            <span>Open original</span>
+          </a>
+        </Button>
         {modeToggle}
         {onToggleFullScreen && !isMobile && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={onToggleFullScreen}
-            className="reader-topnav-icon"
             aria-label={isFullScreen ? "Exit full screen" : "Full screen"}
           >
             {isFullScreen ? (
-              <CornersIn weight="bold" className="size-3.5" />
+              <CornersInIcon weight="bold" className="size-3.5" />
             ) : (
-              <CornersOut weight="bold" className="size-3.5" />
+              <CornersOutIcon weight="bold" className="size-3.5" />
             )}
-          </button>
+          </Button>
         )}
         {onClose && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="reader-topnav-icon"
             aria-label="Close reader"
           >
-            <X weight="bold" className="size-3.5" />
-          </button>
+            <XIcon weight="bold" className="size-3.5" />
+          </Button>
         )}
       </div>
     </div>
   );
 
   return (
-    <div className="relative flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-background">
       {topNav}
       {isSiteMode ? (
         <>
-          <div className="reader-site-frame-shell">
+          <div className="h-full w-full">
             <iframe
               key={item.url}
               title={`Original article: ${title}`}
               src={item.url}
-              className="reader-site-frame"
+              className="h-full w-full border-0 bg-background"
             />
           </div>
           <div className="border-t border-border/40 px-4 py-3 text-sm text-muted-foreground md:px-5">
@@ -146,52 +155,52 @@ export function ReaderPane({
         </>
       ) : (
         <>
-          <div className="safe-top shrink-0 border-b border-border/40 px-4 pb-4 pt-4 md:px-5 md:pt-5">
-            <div className="reader-article-shell">
-              <h2
-                className={
-                  isMobile
-                    ? "font-display text-[1.5rem] leading-tight text-pretty text-foreground"
-                    : isFullScreen
-                      ? "font-display text-[2.4rem] leading-tight text-pretty text-foreground"
-                      : "font-display text-[1.85rem] leading-tight text-pretty text-foreground"
-                }
-              >
-                {title}
-              </h2>
+          {showReaderHeader && (
+            <div className="pt-[env(safe-area-inset-top,0px)] shrink-0 border-b border-border/40 px-4 pb-4 pt-4 md:px-5 md:pt-5">
+              <div className="mx-auto w-full max-w-[52rem]">
+                <h2
+                  className={
+                    isMobile
+                      ? "font-display text-[1.5rem] leading-tight text-pretty text-foreground"
+                      : "font-display text-[2.4rem] leading-tight text-pretty text-foreground"
+                  }
+                >
+                  {title}
+                </h2>
 
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                {author && (
-                  <span className="inline-flex items-center gap-1">
-                    <User weight="fill" className="size-3" />
-                    {author}
-                  </span>
-                )}
-                {date && (
-                  <span className="inline-flex items-center gap-1">
-                    <CalendarDots weight="fill" className="size-3" />
-                    {date}
-                  </span>
-                )}
-                {readTimeMinutes && (
-                  <span className="inline-flex items-center gap-1">
-                    <Clock weight="fill" className="size-3" />
-                    {readTimeMinutes} min read
-                  </span>
-                )}
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  {author && (
+                    <span className="inline-flex items-center gap-1">
+                      <UserIcon weight="fill" className="size-3" />
+                      {author}
+                    </span>
+                  )}
+                  {date && (
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarDotsIcon weight="fill" className="size-3" />
+                      {date}
+                    </span>
+                  )}
+                  {readTimeMinutes && (
+                    <span className="inline-flex items-center gap-1">
+                      <ClockIcon weight="fill" className="size-3" />
+                      {readTimeMinutes} min read
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div
             className={
               isFullScreen
-                ? "safe-bottom flex-1 min-h-0 overflow-y-auto px-5 py-5 md:px-8 md:py-6"
-                : "safe-bottom flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-5 md:py-5"
+                ? "pb-[env(safe-area-inset-bottom,0px)] flex-1 min-h-0 overflow-y-auto px-5 py-5 md:px-8 md:py-6"
+                : "pb-[env(safe-area-inset-bottom,0px)] flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-5 md:py-5"
             }
           >
             {item.contentHtml ? (
-              <div className="reader-article-shell">
+              <div className="mx-auto w-full max-w-[52rem]">
                 <article
                   className="reader-prose"
                   // eslint-disable-next-line react/no-danger
@@ -199,14 +208,14 @@ export function ReaderPane({
                 />
               </div>
             ) : item.contentText ? (
-              <div className="reader-article-shell">
+              <div className="mx-auto w-full max-w-[52rem]">
                 <article className="reader-prose whitespace-pre-wrap">{item.contentText}</article>
               </div>
             ) : (
-              <div className="reader-article-shell">
+              <div className="mx-auto w-full max-w-[52rem]">
                 <div className="space-y-3 rounded-xl border border-dashed border-border/70 bg-muted/25 p-5">
                   <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <BookOpenText weight="fill" className="size-3.5" />
+                    <BookOpenTextIcon weight="fill" className="size-3.5" />
                     Fallback mode
                   </div>
                   <p className="text-sm leading-7 text-muted-foreground">

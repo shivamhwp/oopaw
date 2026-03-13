@@ -1,4 +1,4 @@
-import { ArrowClockwise, Plus } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, PlusIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 
 type SourceFormProps = {
@@ -45,7 +45,7 @@ export function SourceForm({
           className="h-8 rounded-full px-3 text-sm md:h-7 md:px-2.5 md:text-xs"
           disabled={isSubmitting}
         >
-          <Plus weight="bold" />
+          <PlusIcon weight="bold" />
           {isSubmitting ? "Adding…" : "Add feed"}
         </Button>
         {onCancel && (
@@ -68,7 +68,7 @@ export function SourceForm({
           onClick={onRefreshAll}
           title="Refresh all sources"
         >
-          <ArrowClockwise className={isRefreshing ? "animate-spin" : ""} weight="bold" />
+          <ArrowClockwiseIcon className={isRefreshing ? "animate-spin" : ""} weight="bold" />
         </Button>
       </div>
     </form>

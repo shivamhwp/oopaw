@@ -1,4 +1,4 @@
-import { Trash } from "@phosphor-icons/react";
+import { TrashIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -100,7 +100,7 @@ export function FeedCard({
           }}
           aria-label={`Remove feed ${source.label}`}
         >
-          <Trash className="size-3" weight="bold" />
+          <TrashIcon className="size-3" weight="bold" />
         </Button>
       </div>
     </div>

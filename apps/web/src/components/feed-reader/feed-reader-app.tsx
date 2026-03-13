@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Cow, Desktop, Moon, Plus, SpinnerIcon, Sun } from "@phosphor-icons/react";
+import { CowIcon, DesktopIcon, MoonIcon, PlusIcon, SpinnerIcon, SunIcon } from "@phosphor-icons/react";
 import { useAtom, useAtomValue } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
 import { ItemList } from "@/components/feed-reader/item-list";
@@ -29,9 +29,9 @@ const getDetailPanelOpenSize = (detailPanel: DetailPanelState, detailPanelSize: 
   Math.max(detailPanelSize, getDetailPanelMinSize(detailPanel));
 
 const THEME_CYCLE = [
-  { value: "system" as const, label: "System", Icon: Desktop },
-  { value: "light" as const, label: "Light", Icon: Sun },
-  { value: "dark" as const, label: "Dark", Icon: Moon },
+  { value: "system" as const, label: "System", Icon: DesktopIcon },
+  { value: "light" as const, label: "Light", Icon: SunIcon },
+  { value: "dark" as const, label: "Dark", Icon: MoonIcon },
 ];
 
 function ThemeToggle() {
@@ -47,8 +47,8 @@ function ThemeToggle() {
   return (
     <Button
       type="button"
-      size="icon-sm"
-      className="h-8 w-8 cursor-pointer md:h-7 md:w-7"
+      variant="secondary"
+      className="cursor-pointer"
       onClick={() => setTheme(next.value)}
       aria-label={`Switch to ${next.label} theme`}
     >
@@ -113,7 +113,7 @@ function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
               boxShadow: "0 0 0 10px color-mix(in oklab, var(--primary) 6%, transparent)",
             }}
           >
-            <Cow weight="duotone" className={cn(isMobile ? "size-7" : "size-8")} />
+            <CowIcon weight="duotone" className={cn(isMobile ? "size-7" : "size-8")} />
           </div>
           <p className="font-display text-[0.92rem] uppercase tracking-[0.32em] text-foreground/78 md:text-[1.05rem] md:tracking-[0.42em]">
             No feeds yet
@@ -253,8 +253,8 @@ export function FeedReaderApp() {
         />
       ))}
 
-      <div className="standalone-shell flex h-svh flex-col overflow-hidden bg-background">
-        <header className="safe-top safe-left safe-right z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
+      <div className="min-h-svh flex h-svh flex-col overflow-hidden bg-background">
+        <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 md:px-6 md:py-1.5">
             <div className="flex items-baseline gap-2.5">
               <span className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground">
@@ -265,11 +265,10 @@ export function FeedReaderApp() {
             <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-1.5">
               <Button
                 type="button"
-                size="sm"
-                className="h-8 cursor-pointer rounded-full px-3 text-sm md:h-7 md:px-2.5 md:text-xs"
+                className="cursor-pointer rounded-full"
                 onClick={() => setShowAddForm((value) => !value)}
               >
-                <Plus weight="bold" />
+                <PlusIcon weight="bold" />
                 <span className="min-[420px]:hidden">Add</span>
                 <span className="hidden min-[420px]:inline">Add feed</span>
               </Button>
@@ -346,7 +345,7 @@ export function FeedReaderApp() {
       </div>
 
       {isMobile && detailPanelOpen && (
-        <div className="safe-top safe-bottom safe-left safe-right fixed inset-0 z-30 flex flex-col overflow-hidden bg-background">
+        <div className="pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] fixed inset-0 z-30 flex flex-col overflow-hidden bg-background">
           {detailPanelContent}
         </div>
       )}

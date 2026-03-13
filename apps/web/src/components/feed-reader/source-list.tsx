@@ -1,4 +1,4 @@
-import { ArrowClockwise, Trash } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SavedSource } from "@/lib/types";
@@ -97,7 +97,7 @@ export function SourceList({
                   onRefresh(source.id);
                 }}
               >
-                <ArrowClockwise className={isRefreshing ? "animate-spin" : ""} weight="bold" />
+                <ArrowClockwiseIcon className={isRefreshing ? "animate-spin" : ""} weight="bold" />
               </Button>
               <Button
                 type="button"
@@ -110,7 +110,7 @@ export function SourceList({
                   onRemove(source.id);
                 }}
               >
-                <Trash weight="bold" />
+                <TrashIcon weight="bold" />
               </Button>
             </div>
 
