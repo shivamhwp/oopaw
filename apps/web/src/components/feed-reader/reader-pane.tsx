@@ -1,9 +1,12 @@
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   ArrowSquareOutIcon,
   BookOpenTextIcon,
   CalendarDotsIcon,
+  CheckIcon,
   ClockIcon,
+  CopySimpleIcon,
   CornersInIcon,
   CornersOutIcon,
   GlobeHemisphereWestIcon,
@@ -45,6 +48,17 @@ export function ReaderPane({
   onArticleViewModeChange,
 }: ReaderPaneProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const resetCopyStateTimeoutRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (resetCopyStateTimeoutRef.current) {
+        window.clearTimeout(resetCopyStateTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   if (!item) return null;
 
@@ -57,6 +71,26 @@ export function ReaderPane({
   const readTimeMinutes = readerText
     ? Math.max(1, Math.ceil(readerText.split(/\s+/).length / 220))
     : undefined;
+  const resetCopyState = () => {
+    if (resetCopyStateTimeoutRef.current) {
+      window.clearTimeout(resetCopyStateTimeoutRef.current);
+    }
+
+    resetCopyStateTimeoutRef.current = window.setTimeout(() => {
+      setCopyState("idle");
+      resetCopyStateTimeoutRef.current = null;
+    }, 1800);
+  };
+  const handleCopyOriginalUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(item.url);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+
+    resetCopyState();
+  };
   const modeToggle = (
     <Tabs
       value={articleViewMode}
@@ -94,10 +128,38 @@ export function ReaderPane({
         )}
       </div>
       <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
-        <Button asChild variant="ghost" size="sm">
-          <a href={item.url} target="_blank" rel="noreferrer" aria-label="Open original article">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="h-8 w-8 hover:text-primary/80"
+          onClick={handleCopyOriginalUrl}
+          aria-label={
+            copyState === "copied"
+              ? "Original article URL copied"
+              : copyState === "error"
+                ? "Copy original article URL failed"
+                : "Copy original article URL"
+          }
+          title={
+            copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy link"
+          }
+        >
+          {copyState === "copied" ? (
+            <CheckIcon weight="bold" className="size-3.5" />
+          ) : (
+            <CopySimpleIcon weight="bold" className="size-3.5" />
+          )}
+        </Button>
+        <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8 hover:text-primary/80">
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open original article"
+            title="Open original"
+          >
             <ArrowSquareOutIcon weight="bold" className="size-3.5" />
-            <span>Open original</span>
           </a>
         </Button>
         {modeToggle}
@@ -106,6 +168,7 @@ export function ReaderPane({
             type="button"
             variant="ghost"
             size="icon"
+            className="h-8 w-8 hover:text-primary/80"
             onClick={onToggleFullScreen}
             aria-label={isFullScreen ? "Exit full screen" : "Full screen"}
           >
