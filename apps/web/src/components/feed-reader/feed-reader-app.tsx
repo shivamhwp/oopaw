@@ -343,18 +343,18 @@ function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
         <div className="relative z-10 flex max-w-sm flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-500">
           <div
             className={cn(
-              "mb-5 flex items-center justify-center rounded-full text-primary",
-              isMobile ? "size-14" : "size-16",
+              "mb-5 flex items-center justify-center rounded-full text-muted-foreground",
+              isMobile ? "size-16" : "size-18",
             )}
             style={{
-              background: "color-mix(in oklab, var(--primary) 13%, transparent)",
-              boxShadow: "0 0 0 10px color-mix(in oklab, var(--primary) 6%, transparent)",
+              background: "color-mix(in oklab, var(--muted-foreground) 10%, transparent)",
+              boxShadow: "0 0 0 10px color-mix(in oklab, var(--muted-foreground) 5%, transparent)",
             }}
           >
-            <CowIcon weight="duotone" className={cn(isMobile ? "size-7" : "size-8")} />
+            <CowIcon weight="duotone" className={cn(isMobile ? "size-8" : "size-9")} />
           </div>
-          <p className="font-display text-[0.92rem] uppercase tracking-[0.32em] text-foreground/78 md:text-[1.05rem] md:tracking-[0.42em]">
-            No feeds yet
+          <p className="font-display text-[0.92rem] tracking-[0.08em] text-muted-foreground md:text-[1.05rem]">
+            no feeds yet
           </p>
         </div>
       </div>
