@@ -1,6 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useConvexAuth } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import {
   addSourceSuccessAtom,
   applyLoadMoreSourceItemsAtom,
@@ -24,6 +26,8 @@ import {
   toggleReaderFullScreenAtom,
   totalNewAtom,
 } from "@/components/feed-reader/store";
+import { api } from "@/lib/convex";
+import { defaultUserPreferences } from "@/lib/preferences";
 import { queryKeys } from "@/lib/query/keys";
 import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import { normalizeInputUrl } from "@/lib/feed/utils";
@@ -42,12 +46,13 @@ const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) =>
 const assertDiscoveryResult = (value: unknown) => discoveryResultSchema.parse(value);
 
 export function useFeedReader() {
+  const convexAuth = useConvexAuth();
   const queryClient = useQueryClient();
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const state = useAtomValue(feedReaderStateAtom);
   const [sourceInput, setSourceInput] = useAtom(sourceInputAtom);
   const [showAddForm, setShowAddForm] = useAtom(showAddFormAtom);
-  const [articleViewMode, setArticleViewMode] = useAtom(articleViewModeAtom);
+  const [articleViewMode, setLocalArticleViewMode] = useAtom(articleViewModeAtom);
   const detailPanel = useAtomValue(detailPanelAtom);
   const isReaderFullScreen = useAtomValue(isReaderFullScreenAtom);
   const sourceSummaries = useAtomValue(sourceSummariesAtom);
@@ -65,8 +70,33 @@ export function useFeedReader() {
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const applyRefresh = useSetAtom(applySourceRefreshAtom);
   const setFeedSourceError = useSetAtom(setSourceErrorAtom);
+  const previousSignedInRef = useRef(false);
   const detailPanelPagination =
     detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
+  const canReadUserData = convexAuth.isAuthenticated;
+  const preferencesQuery = useQuery(
+    convexQuery(api.preferences.queries.getForCurrentUser, canReadUserData ? {} : "skip"),
+  );
+  const bookmarksQuery = useQuery(
+    convexQuery(api.bookmarks.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
+  );
+  const upsertPreferences = useConvexMutation(api.preferences.mutations.upsertForCurrentUser);
+  const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
+  const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
+  const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
+  const effectivePreferences = preferencesQuery.data ?? defaultUserPreferences;
+  const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
+  const selectedSource =
+    detailPanel.mode === "closed" ? undefined : detailPanelSourceSummary?.source;
+  const bookmarkedUrls = new Set(bookmarksQuery.data?.map((bookmark) => bookmark.url) ?? []);
+
+  useEffect(() => {
+    if (previousSignedInRef.current && !canReadUserData) {
+      setLocalArticleViewMode(defaultUserPreferences.defaultView);
+    }
+
+    previousSignedInRef.current = canReadUserData;
+  }, [canReadUserData, setLocalArticleViewMode]);
 
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) =>
@@ -75,6 +105,7 @@ export function useFeedReader() {
           fetchFeedSource({
             data: {
               url: normalizeInputUrl(input),
+              pollIntervalMs: effectivePollingIntervalMs,
             },
           }),
         ),
@@ -111,11 +142,43 @@ export function useFeedReader() {
     addSourceMutation.mutate(sourceInput);
   };
 
+  const handleSetCurrentArticleViewMode = (mode: typeof articleViewMode) => {
+    setLocalArticleViewMode(mode);
+  };
+
+  const handleSetDefaultArticleViewMode = async (mode: typeof articleViewMode) => {
+    if (!canReadUserData) {
+      setLocalArticleViewMode(mode);
+      return;
+    }
+
+    await preferenceMutation.mutateAsync({
+      pollingIntervalMinutes: effectivePreferences.pollingIntervalMinutes,
+      defaultView: mode,
+    });
+  };
+
+  const handleSetPollingIntervalMinutes = async (pollingIntervalMinutes: number) => {
+    if (
+      !canReadUserData ||
+      !Number.isInteger(pollingIntervalMinutes) ||
+      pollingIntervalMinutes < 1
+    ) {
+      return;
+    }
+
+    await preferenceMutation.mutateAsync({
+      pollingIntervalMinutes,
+      defaultView: effectivePreferences.defaultView,
+    });
+  };
+
   const handleOpenFeed = (sourceId: string) => {
     openFeed(sourceId);
   };
 
   const handleSelectItem = (itemId: string) => {
+    setLocalArticleViewMode(effectivePreferences.defaultView);
     selectItem(itemId);
   };
 
@@ -175,6 +238,22 @@ export function useFeedReader() {
     setFeedSourceError({ sourceId, message });
   };
 
+  const handleToggleBookmark = async () => {
+    if (!canReadUserData || !selectedItem || !selectedSource || bookmarkMutation.isPending) {
+      return;
+    }
+
+    await bookmarkMutation.mutateAsync({
+      url: selectedItem.url,
+      title: selectedItem.title,
+      excerpt: selectedItem.excerpt,
+      imageUrl: selectedItem.imageUrl,
+      sourceLabel: selectedSource.label,
+      sourceSiteUrl: selectedSource.siteUrl,
+      publishedAt: selectedItem.publishedAt,
+    });
+  };
+
   return {
     state,
     sourceInput,
@@ -185,7 +264,14 @@ export function useFeedReader() {
     detailPanelItems,
     detailPanelPagination,
     selectedItem,
+    selectedSource,
     articleViewMode,
+    preferences: effectivePreferences,
+    isPreferencesPending: preferenceMutation.isPending,
+    effectivePollingIntervalMs,
+    isSignedIn: canReadUserData,
+    isBookmarked: selectedItem ? bookmarkedUrls.has(selectedItem.url) : false,
+    isBookmarkPending: bookmarkMutation.isPending,
     refreshingSourceIds,
     isRefreshingAll,
     isLoadingMoreDetailPanelItems: loadMoreSourceItemsMutation.isPending,
@@ -196,7 +282,9 @@ export function useFeedReader() {
     isReaderFullScreen,
     setSourceInput,
     setShowAddForm,
-    setArticleViewMode,
+    setArticleViewMode: handleSetCurrentArticleViewMode,
+    setDefaultArticleViewMode: handleSetDefaultArticleViewMode,
+    setPollingIntervalMinutes: handleSetPollingIntervalMinutes,
     handleAddSource,
     handleOpenFeed,
     handleSelectItem,
@@ -209,5 +297,6 @@ export function useFeedReader() {
     handleToggleFullScreen,
     handleSourceRefresh,
     handleSourceError,
+    handleToggleBookmark,
   };
 }

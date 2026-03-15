@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { useClerk, useUser } from "@clerk/tanstack-react-start";
 import {
   CowIcon,
   DesktopIcon,
+  EyeIcon,
+  EyeSlashIcon,
   MoonIcon,
   PlusIcon,
+  SlidersHorizontalIcon,
   SpinnerIcon,
   SunIcon,
 } from "@phosphor-icons/react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useAtom, useAtomValue } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
+import { toast } from "sonner";
 import { ItemList } from "@/components/feed-reader/item-list";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
 import { SourceForm } from "@/components/feed-reader/source-form";
@@ -22,10 +28,19 @@ import {
 } from "@/components/feed-reader/store";
 import { SourceGrid } from "@/components/feed-reader/source-grid";
 import { SourceSyncController } from "@/components/feed-reader/source-sync-controller";
-import { Button } from "@/components/ui/button";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { useTheme } from "@/components/theme-provider";
 import { useFeedReader } from "@/components/feed-reader/use-feed-reader";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTheme } from "@/components/theme-provider";
+import type { ArticleViewMode } from "@/lib/types";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +55,25 @@ const THEME_CYCLE = [
   { value: "light" as const, label: "Light", Icon: SunIcon },
   { value: "dark" as const, label: "Dark", Icon: MoonIcon },
 ];
+
+const articleViewOptions: ArticleViewMode[] = ["reader", "site"];
+const pollingOptions = [
+  { label: "10", value: 10 },
+  { label: "15", value: 15 },
+  { label: "30", value: 30 },
+  { label: "60", value: 60 },
+];
+
+const getCurrentHref = () =>
+  typeof window === "undefined"
+    ? "/"
+    : `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+const getUserDisplayName = (user: ReturnType<typeof useUser>["user"]) =>
+  user?.fullName ?? user?.firstName ?? user?.username ?? "Profile";
+
+const getUserEmail = (user: ReturnType<typeof useUser>["user"]) =>
+  user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? "";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -61,6 +95,203 @@ function ThemeToggle() {
     >
       <Icon weight="bold" />
     </Button>
+  );
+}
+
+function ProfileMenu({
+  defaultView,
+  isSavingPreferences,
+  pollingIntervalMinutes,
+  onDefaultViewChange,
+  onPollingIntervalMinutesChange,
+}: {
+  defaultView: ArticleViewMode;
+  isSavingPreferences: boolean;
+  pollingIntervalMinutes: number;
+  onDefaultViewChange: (mode: ArticleViewMode) => Promise<void>;
+  onPollingIntervalMinutesChange: (minutes: number) => Promise<void>;
+}) {
+  const clerk = useClerk();
+  const { user } = useUser();
+  const displayName = getUserDisplayName(user);
+  const email = getUserEmail(user);
+  const [isEmailVisible, setIsEmailVisible] = useState(false);
+  const EmailVisibilityIcon = isEmailVisible ? EyeSlashIcon : EyeIcon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="secondary" size="icon" aria-label="Open settings">
+          <SlidersHorizontalIcon weight="bold" />
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-[16rem]">
+        <div className="space-y-1 px-2.5 py-2">
+          <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+          {email ? (
+            <div className="flex items-center gap-1.5">
+              <p
+                className={cn(
+                  "min-w-0 flex-1 truncate text-xs text-muted-foreground transition-all",
+                  !isEmailVisible && "blur-sm",
+                )}
+              >
+                {email}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 rounded-md"
+                onClick={() => setIsEmailVisible((current) => !current)}
+                aria-label={isEmailVisible ? "Hide email" : "Show email"}
+              >
+                <EmailVisibilityIcon weight="bold" className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuLabel>Polling</DropdownMenuLabel>
+        <div className="px-1.5 pb-1">
+          <Tabs
+            value={String(pollingIntervalMinutes)}
+            onValueChange={(value) => void onPollingIntervalMinutesChange(Number(value))}
+            className="gap-0"
+          >
+            <TabsList className="grid h-auto w-full grid-cols-4">
+              {pollingOptions.map((option) => (
+                <TabsTrigger
+                  key={option.value}
+                  value={String(option.value)}
+                  className="w-full min-w-0 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
+                  disabled={isSavingPreferences}
+                >
+                  {option.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuLabel>Article View</DropdownMenuLabel>
+        <div className="px-1.5 pb-1">
+          <Tabs
+            value={defaultView}
+            onValueChange={(value) => void onDefaultViewChange(value as ArticleViewMode)}
+            className="gap-0"
+          >
+            <TabsList className="grid h-auto w-full grid-cols-2">
+              {articleViewOptions.map((view) => (
+                <TabsTrigger
+                  key={view}
+                  value={view}
+                  className="w-full min-w-0 px-3 py-2 text-xs capitalize sm:min-w-0 sm:flex-1"
+                  disabled={isSavingPreferences}
+                >
+                  {view}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <DropdownMenuSeparator />
+
+        <div className="p-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-start rounded-lg"
+            onClick={() => void clerk.signOut({ redirectUrl: "/" })}
+          >
+            Sign out
+          </Button>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+type AppNavbarProps = {
+  isPreferencesPending: boolean;
+  isSignedIn: boolean;
+  onBookmarksClick: () => void;
+  onDefaultViewChange: (mode: ArticleViewMode) => Promise<void>;
+  onPollingIntervalMinutesChange: (minutes: number) => Promise<void>;
+  onSignIn: () => void;
+  pollingIntervalMinutes: number;
+  defaultView: ArticleViewMode;
+  onToggleAddFeed?: () => void;
+};
+
+export function AppNavbar({
+  isPreferencesPending,
+  isSignedIn,
+  onBookmarksClick,
+  onDefaultViewChange,
+  onPollingIntervalMinutesChange,
+  onSignIn,
+  pollingIntervalMinutes,
+  defaultView,
+  onToggleAddFeed,
+}: AppNavbarProps) {
+  return (
+    <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 md:px-6 md:py-1.5">
+        <div className="flex items-baseline gap-2.5">
+          <Link
+            to="/"
+            className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground"
+          >
+            oop
+          </Link>
+        </div>
+
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-1.5">
+          {isSignedIn ? (
+            <Button asChild variant="ghost" className="rounded-full">
+              <Link to="/bookmarks">Bookmarks</Link>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="rounded-full"
+              onClick={onBookmarksClick}
+            >
+              Bookmarks
+            </Button>
+          )}
+          {onToggleAddFeed ? (
+            <Button type="button" className="cursor-pointer rounded-full" onClick={onToggleAddFeed}>
+              <PlusIcon weight="bold" />
+              <span className="min-[420px]:hidden">Add</span>
+              <span className="hidden min-[420px]:inline">Add feed</span>
+            </Button>
+          ) : null}
+          {isSignedIn ? (
+            <ProfileMenu
+              defaultView={defaultView}
+              isSavingPreferences={isPreferencesPending}
+              pollingIntervalMinutes={pollingIntervalMinutes}
+              onDefaultViewChange={onDefaultViewChange}
+              onPollingIntervalMinutesChange={onPollingIntervalMinutesChange}
+            />
+          ) : (
+            <Button type="button" variant="outline" className="rounded-full" onClick={onSignIn}>
+              Sign in
+            </Button>
+          )}
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
   );
 }
 
@@ -131,7 +362,15 @@ function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
   );
 }
 
-export function FeedReaderApp() {
+type FeedReaderAppProps = {
+  authIntent?: "sign-in";
+  authRedirect?: string;
+};
+
+export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) {
+  const clerk = useClerk();
+  const navigate = useNavigate({ from: "/" });
+  const autoOpenAuthKeyRef = useRef<string | null>(null);
   const {
     state,
     sourceInput,
@@ -144,6 +383,11 @@ export function FeedReaderApp() {
     detailPanelPagination,
     selectedItem,
     articleViewMode,
+    preferences,
+    isPreferencesPending,
+    isSignedIn,
+    isBookmarked,
+    isBookmarkPending,
     isRefreshingAll,
     addSourceError,
     isAddingSource,
@@ -151,12 +395,15 @@ export function FeedReaderApp() {
     setSourceInput,
     setShowAddForm,
     setArticleViewMode,
+    setDefaultArticleViewMode,
+    setPollingIntervalMinutes,
     handleAddSource,
     handleOpenFeed,
     handleSelectItem,
     handleBackToList,
     handleCloseDetailPanel,
     handleToggleFullScreen,
+    handleToggleBookmark,
     handleRefreshAll,
     handleRemoveSource,
     handleLoadMoreDetailPanelItems,
@@ -171,9 +418,48 @@ export function FeedReaderApp() {
   const [detailPanelSize, setDetailPanelSize] = useAtom(detailPanelSizeAtom);
   const detailPanelMinSize = getDetailPanelMinSize(detailPanel);
 
+  const openSignInModal = async (redirect = getCurrentHref()) => {
+    await clerk.openSignIn({
+      fallbackRedirectUrl: redirect,
+      forceRedirectUrl: redirect,
+    });
+  };
+
+  const handleBookmarksClick = () => {
+    if (isSignedIn) {
+      void navigate({ to: "/bookmarks" });
+      return;
+    }
+
+    toast.info("Sign in to view your bookmarks.");
+  };
+
   useEffect(() => {
     setIsClientReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!isClientReady || authIntent !== "sign-in") {
+      return;
+    }
+
+    const nextKey = authRedirect ?? "/";
+
+    if (autoOpenAuthKeyRef.current === nextKey) {
+      return;
+    }
+
+    autoOpenAuthKeyRef.current = nextKey;
+    void clerk.openSignIn({
+      fallbackRedirectUrl: nextKey,
+      forceRedirectUrl: nextKey,
+    });
+    void navigate({
+      to: "/",
+      search: {},
+      replace: true,
+    });
+  }, [authIntent, authRedirect, clerk, isClientReady, navigate]);
 
   useEffect(() => {
     if (isMobile) {
@@ -198,7 +484,7 @@ export function FeedReaderApp() {
     }
 
     wasDetailPanelOpenRef.current = detailPanelOpen;
-  }, [isMobile, detailPanel, detailPanelOpen, detailPanelSize, setDetailPanelSize]);
+  }, [detailPanel, detailPanelOpen, detailPanelSize, isMobile, setDetailPanelSize]);
 
   if (shouldShowFeedReaderBootScreen(isClientReady)) {
     return <FeedReaderBootScreen />;
@@ -223,8 +509,12 @@ export function FeedReaderApp() {
         <ReaderPane
           item={selectedItem}
           articleViewMode={articleViewMode}
+          isBookmarked={isBookmarked}
+          isBookmarkPending={isBookmarkPending}
           isFullScreen={false}
           onBack={handleBackToList}
+          onBookmarkToggle={isSignedIn ? handleToggleBookmark : undefined}
+          onRequireSignIn={!isSignedIn ? () => void openSignInModal("/") : undefined}
           onClose={handleCloseDetailPanel}
           onToggleFullScreen={handleToggleFullScreen}
           onArticleViewModeChange={setArticleViewMode}
@@ -261,48 +551,37 @@ export function FeedReaderApp() {
       ))}
 
       <div className="min-h-svh flex h-svh flex-col overflow-hidden bg-background">
-        <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 md:px-6 md:py-1.5">
-            <div className="flex items-baseline gap-2.5">
-              <span className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground">
-                oop
-              </span>
-            </div>
+        <AppNavbar
+          isPreferencesPending={isPreferencesPending}
+          isSignedIn={isSignedIn}
+          onBookmarksClick={handleBookmarksClick}
+          onDefaultViewChange={setDefaultArticleViewMode}
+          onPollingIntervalMinutesChange={setPollingIntervalMinutes}
+          onSignIn={() => void openSignInModal()}
+          pollingIntervalMinutes={preferences.pollingIntervalMinutes}
+          defaultView={preferences.defaultView}
+          onToggleAddFeed={() => setShowAddForm((value) => !value)}
+        />
 
-            <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-1.5">
-              <Button
-                type="button"
-                className="cursor-pointer rounded-full"
-                onClick={() => setShowAddForm((value) => !value)}
-              >
-                <PlusIcon weight="bold" />
-                <span className="min-[420px]:hidden">Add</span>
-                <span className="hidden min-[420px]:inline">Add feed</span>
-              </Button>
-              <ThemeToggle />
-            </div>
+        <div
+          className={cn(
+            "overflow-hidden transition-all duration-200 ease-in-out",
+            showAddForm ? "max-h-40" : "max-h-0",
+          )}
+        >
+          <div className="border-b border-border/30 px-4 pb-4 pt-2 md:px-6">
+            <SourceForm
+              value={sourceInput}
+              error={addSourceError}
+              isSubmitting={isAddingSource}
+              onChange={setSourceInput}
+              onSubmit={handleAddSource}
+              onCancel={() => setShowAddForm(false)}
+              onRefreshAll={handleRefreshAll}
+              isRefreshing={isRefreshingAll}
+            />
           </div>
-
-          <div
-            className={cn(
-              "overflow-hidden transition-all duration-200 ease-in-out",
-              showAddForm ? "max-h-40" : "max-h-0",
-            )}
-          >
-            <div className="border-t border-border/30 px-4 pb-4 pt-2 md:px-6">
-              <SourceForm
-                value={sourceInput}
-                error={addSourceError}
-                isSubmitting={isAddingSource}
-                onChange={setSourceInput}
-                onSubmit={handleAddSource}
-                onCancel={() => setShowAddForm(false)}
-                onRefreshAll={handleRefreshAll}
-                isRefreshing={isRefreshingAll}
-              />
-            </div>
-          </div>
-        </header>
+        </div>
 
         {getFeedReaderLayoutMode(isMobile) === "mobile" ? (
           <div className="flex-1 min-h-0" data-testid="mobile-feed-shell">
@@ -362,8 +641,12 @@ export function FeedReaderApp() {
           <ReaderPane
             item={selectedItem}
             articleViewMode={articleViewMode}
+            isBookmarked={isBookmarked}
+            isBookmarkPending={isBookmarkPending}
             isFullScreen={true}
             onBack={handleBackToList}
+            onBookmarkToggle={isSignedIn ? handleToggleBookmark : undefined}
+            onRequireSignIn={!isSignedIn ? () => void openSignInModal("/") : undefined}
             onClose={handleCloseDetailPanel}
             onToggleFullScreen={handleToggleFullScreen}
             onArticleViewModeChange={setArticleViewMode}

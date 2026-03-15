@@ -27,6 +27,10 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "convex": {
+      "cache": false,
+      "persistent": true
     }
   }
 }

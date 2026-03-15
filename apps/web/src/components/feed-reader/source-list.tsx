@@ -128,7 +128,7 @@ export function SourceList({
                   htmlFor={`poll-${source.id}`}
                   className="text-[0.65rem] text-muted-foreground cursor-pointer"
                 >
-                  Poll every 5 min
+                  Poll every {Math.round(source.pollIntervalMs / 60_000)} min
                 </label>
               </div>
             )}

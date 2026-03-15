@@ -124,6 +124,7 @@ export const feedReaderStateSchema = z.object({
 export const fetchFeedSourceInputSchema = z.object({
   url: z.string().url(),
   sourceId: z.string().min(1).optional(),
+  pollIntervalMs: z.number().int().positive().optional(),
 });
 
 export const refreshFeedSourceInputSchema = z.object({
@@ -136,10 +137,9 @@ export const loadMoreSourceItemsInputSchema = z.object({
   pageUrl: z.string().url(),
 });
 
-export const POLL_INTERVAL_MS = 5 * 60_000;
+export const POLL_INTERVAL_MS = 15 * 60_000;
 export const FEED_READER_STATE_VERSION = 3;
 export const FEED_READER_STATE_STORAGE_KEY = "papertrail.feed-reader.state";
-export const FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY = "papertrail.feed-reader.article-view";
 export const FEED_READER_PANEL_OPEN_STORAGE_KEY = "papertrail.feed-reader.panel-open";
 
 export type ArticleViewMode = z.infer<typeof articleViewModeSchema>;

@@ -1,0 +1,44 @@
+import { v } from "convex/values";
+import { mutation } from "../_generated/server";
+import { requireCurrentUser } from "../lib/auth";
+
+export const toggleForCurrentUser = mutation({
+  args: {
+    url: v.string(),
+    title: v.string(),
+    excerpt: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    sourceLabel: v.optional(v.string()),
+    sourceSiteUrl: v.optional(v.string()),
+    publishedAt: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireCurrentUser(ctx);
+    const existing = await ctx.db
+      .query("bookmarks")
+      .withIndex("by_userId_url", (q) => q.eq("userId", identity.subject).eq("url", args.url))
+      .unique();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+      return { bookmarked: false };
+    }
+
+    const now = Date.now();
+
+    await ctx.db.insert("bookmarks", {
+      userId: identity.subject,
+      url: args.url,
+      title: args.title,
+      excerpt: args.excerpt,
+      imageUrl: args.imageUrl,
+      sourceLabel: args.sourceLabel,
+      sourceSiteUrl: args.sourceSiteUrl,
+      publishedAt: args.publishedAt,
+      bookmarkedAt: now,
+      updatedAt: now,
+    });
+
+    return { bookmarked: true };
+  },
+});

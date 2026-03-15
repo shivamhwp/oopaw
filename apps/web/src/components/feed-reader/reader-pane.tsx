@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   ArrowSquareOutIcon,
+  BookmarkSimpleIcon,
   BookOpenTextIcon,
   CalendarDotsIcon,
   CheckIcon,
@@ -22,8 +23,12 @@ import { useMediaQuery } from "@/lib/use-media-query";
 type ReaderPaneProps = {
   item?: FeedItem;
   articleViewMode: ArticleViewMode;
+  isBookmarked?: boolean;
+  isBookmarkPending?: boolean;
   isFullScreen?: boolean;
   onBack?: () => void;
+  onBookmarkToggle?: () => void;
+  onRequireSignIn?: () => void;
   onClose?: () => void;
   onToggleFullScreen?: () => void;
   onArticleViewModeChange: (mode: ArticleViewMode) => void;
@@ -41,8 +46,12 @@ const formatDate = (value: string | undefined) =>
 export function ReaderPane({
   item,
   articleViewMode,
+  isBookmarked = false,
+  isBookmarkPending = false,
   isFullScreen = false,
   onBack,
+  onBookmarkToggle,
+  onRequireSignIn,
   onClose,
   onToggleFullScreen,
   onArticleViewModeChange,
@@ -161,6 +170,30 @@ export function ReaderPane({
           >
             <ArrowSquareOutIcon weight="bold" className="size-3.5" />
           </a>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="h-8 w-8 hover:text-primary/80"
+          disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
+          onClick={onBookmarkToggle ?? onRequireSignIn}
+          aria-label={
+            onBookmarkToggle
+              ? isBookmarked
+                ? "Remove bookmark"
+                : "Add bookmark"
+              : "Sign in to bookmark"
+          }
+          title={
+            onBookmarkToggle
+              ? isBookmarked
+                ? "Remove bookmark"
+                : "Add bookmark"
+              : "Sign in to bookmark"
+          }
+        >
+          <BookmarkSimpleIcon weight={isBookmarked ? "fill" : "regular"} className="size-3.5" />
         </Button>
         {modeToggle}
         {onToggleFullScreen && !isMobile && (

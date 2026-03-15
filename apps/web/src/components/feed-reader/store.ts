@@ -14,8 +14,6 @@ import {
   setSourceError,
 } from "@/lib/feed-reader-state";
 import {
-  articleViewModeSchema,
-  FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY,
   FEED_READER_PANEL_OPEN_STORAGE_KEY,
   FEED_READER_STATE_STORAGE_KEY,
   feedReaderStateV1Schema,
@@ -72,8 +70,6 @@ type ValidatedStorage<Value> = {
 
 const isDetailPanelSize = (value: unknown): value is DetailPanelSize =>
   detailPanelSizeSchema.safeParse(value).success;
-const isArticleViewMode = (value: unknown): value is ArticleViewMode =>
-  articleViewModeSchema.safeParse(value).success;
 const isDetailPanelState = (value: unknown): value is DetailPanelState =>
   detailPanelStateSchema.safeParse(value).success;
 
@@ -165,9 +161,6 @@ export const feedReaderStorage: FeedReaderStorage = {
 };
 
 export const detailPanelSizeStorage = createValidatedStorage(isDetailPanelSize);
-export const articleViewModeStorage = unstable_withStorageValidator(isArticleViewMode)(
-  createJSONStorage<unknown>(() => browserStringStorage),
-);
 export const detailPanelStateStorage = createValidatedStorage(isDetailPanelState);
 export const detailPanelOpenStorage = unstable_withStorageValidator(
   (value): value is boolean => typeof value === "boolean",
@@ -236,12 +229,7 @@ export const detailPanelSizeAtom = atomWithStorage<DetailPanelSize>(
   detailPanelSizeStorage,
   { getOnInit: true },
 );
-export const articleViewModeAtom = atomWithStorage<ArticleViewMode>(
-  FEED_READER_ARTICLE_VIEW_MODE_STORAGE_KEY,
-  "reader",
-  articleViewModeStorage,
-  { getOnInit: true },
-);
+export const articleViewModeAtom = atom<ArticleViewMode>("reader");
 export const isReaderFullScreenAtom = atom(false);
 
 export const sourceSummariesAtom = atom((get) => {

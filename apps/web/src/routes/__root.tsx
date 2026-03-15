@@ -1,9 +1,12 @@
 import { useEffect } from "react";
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
+import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start";
+import { HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { Provider } from "jotai";
 import { configure as configureOneDollarStats } from "onedollarstats";
-import { FeedQueryProvider } from "@/lib/query/client";
+import { shadcn } from "@clerk/themes";
 import { getOneDollarStatsConfig } from "@/lib/analytics/onedollarstats";
+import { defaultAuthState, fetchClerkAuth } from "@/lib/auth";
 import {
   DEFAULT_THEME,
   THEME_STORAGE_KEY,
@@ -11,13 +14,15 @@ import {
   getThemeInitScript,
 } from "@/components/theme-provider";
 import { installLocalhostCacheCleanup } from "@/lib/deployment-recovery";
+import type { AppRouterContext } from "@/router";
+import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
 
 const oneDollarStatsConfig = getOneDollarStatsConfig(import.meta.env);
 let hasConfiguredOneDollarStats = false;
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<AppRouterContext>()({
   head: () => ({
     meta: [
       {
@@ -75,10 +80,25 @@ export const Route = createRootRoute({
       Page not found.
     </div>
   ),
+  beforeLoad: async (ctx) => {
+    const auth = await fetchClerkAuth();
+
+    if (auth.token) {
+      ctx.context.convexQueryClient.serverHttpClient?.setAuth(auth.token);
+    } else {
+      ctx.context.convexQueryClient.serverHttpClient?.clearAuth();
+    }
+
+    return {
+      auth: auth.isSignedIn ? { isSignedIn: true, userId: auth.userId } : defaultAuthState,
+    };
+  },
   shellComponent: RootDocument,
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const { convexClient } = Route.useRouteContext();
+
   useEffect(() => {
     installLocalhostCacheCleanup();
 
@@ -102,10 +122,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <Provider>
           <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={THEME_STORAGE_KEY}>
-            <FeedQueryProvider>
-              {children}
-              <Scripts />
-            </FeedQueryProvider>
+            <ClerkProvider
+              appearance={{
+                theme: shadcn,
+              }}
+              publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}
+            >
+              <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
+                {children}
+                <Toaster position="bottom-right" />
+                <Scripts />
+              </ConvexProviderWithClerk>
+            </ClerkProvider>
           </ThemeProvider>
         </Provider>
       </body>

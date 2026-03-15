@@ -9,7 +9,7 @@
     "test": "turbo run test",
     "web": "turbo run dev --filter=web",
     "web:build": "turbo run build --filter=web",
-    "dev:web": "turbo run dev --filter=web",
+    "dev:web": "turbo run dev convex --filter=web --parallel",
     "web:dev": "turbo run dev --filter=web",
     "check:web": "turbo run check --filter=web",
     "web:check": "turbo run check --filter=web",

@@ -82,7 +82,11 @@ const loadFeedSource = async ({ url, sourceId }: { url: string; sourceId?: strin
   });
 };
 
-export const fetchFeedSourceResult = async (data: { url: string; sourceId?: string }) => {
+export const fetchFeedSourceResult = async (data: {
+  url: string;
+  sourceId?: string;
+  pollIntervalMs?: number;
+}) => {
   const loaded = await loadFeedSource(data);
   const checkedAt = new Date().toISOString();
 
@@ -94,7 +98,7 @@ export const fetchFeedSourceResult = async (data: { url: string; sourceId?: stri
       siteUrl: loaded.siteUrl,
       feedUrl: loaded.feedUrl,
       pollingEnabled: true,
-      pollIntervalMs: POLL_INTERVAL_MS,
+      pollIntervalMs: data.pollIntervalMs ?? POLL_INTERVAL_MS,
       lastCheckedAt: checkedAt,
     },
     items: loaded.items,
