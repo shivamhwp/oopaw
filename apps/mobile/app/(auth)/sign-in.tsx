@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { Redirect } from "expo-router";
-import { GoogleLogo } from "phosphor-react-native";
+import { GoogleLogoIcon } from "phosphor-react-native";
 import { makeRedirectUri } from "expo-auth-session";
 import { useAuth, useOAuth } from "@clerk/expo";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ export default function SignInScreen() {
         </Text>
         <Button className="mt-8 gap-3" onPress={handleSignIn} loading={isPending}>
           <View className="flex-row items-center gap-3">
-            <GoogleLogo size={20} color="#ffffff" />
+            <GoogleLogoIcon size={20} color="#ffffff" />
             <Text className="text-sm font-semibold text-white">Continue with Google</Text>
           </View>
         </Button>

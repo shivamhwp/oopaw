@@ -16,7 +16,7 @@ export default function FeedScreen() {
     if (source && items.length === 0) {
       void refreshSource(source.sourceId);
     }
-  }, [items.length, refreshSource, source]);
+  }, [items.length, refreshSource, source?.sourceId]);
 
   return (
     <ScrollView

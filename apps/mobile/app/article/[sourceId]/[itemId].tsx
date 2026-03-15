@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dimensions, Linking, ScrollView, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useAuth } from "@clerk/expo";
 import RenderHtml from "react-native-render-html";
 import { WebView } from "react-native-webview";
 import { useMutation, useQuery } from "convex/react";
@@ -17,6 +18,7 @@ import { useFeedData } from "@/providers/feed-provider";
 import { stripHtml } from "@repo/shared/feed/utils";
 
 export default function ArticleScreen() {
+  const { isSignedIn } = useAuth();
   const params = useLocalSearchParams<{
     sourceId: string;
     itemId: string;
@@ -30,7 +32,7 @@ export default function ArticleScreen() {
   }>();
   const { width } = Dimensions.get("window");
   const { preferences, ensureItem, getSource, markRead } = useFeedData();
-  const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, {}) ??
+  const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, isSignedIn ? {} : "skip") ??
     []) as Doc<"bookmarks">[];
   const toggleBookmark = useMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const [item, setItem] = useState<Awaited<ReturnType<typeof ensureItem>>>();
@@ -44,7 +46,7 @@ export default function ArticleScreen() {
       setItem(resolved);
       markRead(params.sourceId, params.itemId);
     })();
-  }, [ensureItem, markRead, params.itemId, params.sourceId]);
+  }, [params.itemId, params.sourceId, ensureItem, markRead]);
 
   const articleUrl = item?.url ?? params.url;
   const fallbackItem = useMemo(

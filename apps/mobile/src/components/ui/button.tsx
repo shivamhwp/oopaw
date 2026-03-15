@@ -1,59 +1,39 @@
-import { cva, type VariantProps } from "class-variance-authority";
 import { Pressable, type PressableProps, ActivityIndicator } from "react-native";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
-const buttonStyles = cva(
-  "flex-row items-center justify-center rounded-full px-4 py-3 active:opacity-90",
-  {
-    variants: {
-      variant: {
-        primary: "bg-accent",
-        secondary: "bg-accentSoft",
-        ghost: "bg-transparent",
-        outline: "border border-line bg-card",
-      },
-      size: {
-        md: "min-h-12",
-        sm: "min-h-10 px-3 py-2",
-        icon: "size-12 px-0 py-0",
-      },
-    },
-    defaultVariants: {
-      variant: "primary",
-      size: "md",
-    },
-  },
-);
+const buttonVariants = {
+  primary: "bg-accent",
+  secondary: "bg-accentSoft",
+  ghost: "bg-transparent",
+  outline: "border border-line bg-card",
+} as const;
 
-const textStyles = cva("text-center font-medium", {
-  variants: {
-    variant: {
-      primary: "text-white",
-      secondary: "text-accent",
-      ghost: "text-ink",
-      outline: "text-ink",
-    },
-    size: {
-      md: "text-sm",
-      sm: "text-sm",
-      icon: "text-sm",
-    },
-  },
-  defaultVariants: {
-    variant: "primary",
-    size: "md",
-  },
-});
+const buttonSizes = {
+  md: "min-h-12",
+  sm: "min-h-10 px-3 py-2",
+  icon: "size-12 px-0 py-0",
+} as const;
 
-type ButtonProps = Omit<PressableProps, "children"> &
-  VariantProps<typeof buttonStyles> & {
-    children?: React.ReactNode;
-    className?: string;
-    textClassName?: string;
-    label?: string;
-    loading?: boolean;
-  };
+const textVariants = {
+  primary: "text-white",
+  secondary: "text-accent",
+  ghost: "text-ink",
+  outline: "text-ink",
+} as const;
+
+type ButtonVariant = keyof typeof buttonVariants;
+type ButtonSize = keyof typeof buttonSizes;
+
+type ButtonProps = Omit<PressableProps, "children"> & {
+  children?: React.ReactNode;
+  className?: string;
+  textClassName?: string;
+  label?: string;
+  loading?: boolean;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+};
 
 export function Button({
   children,
@@ -61,16 +41,18 @@ export function Button({
   disabled,
   label,
   loading,
-  size,
+  size = "md",
   textClassName,
-  variant,
+  variant = "primary",
   ...props
 }: ButtonProps) {
   return (
     <Pressable
       disabled={disabled || loading}
       className={cn(
-        buttonStyles({ size, variant }),
+        "flex-row items-center justify-center rounded-full px-4 py-3 active:opacity-90",
+        buttonVariants[variant],
+        buttonSizes[size],
         (disabled || loading) && "opacity-50",
         className,
       )}
@@ -79,7 +61,9 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variant === "primary" ? "#ffffff" : "#0c7a5a"} />
       ) : typeof children === "string" || label ? (
-        <Text className={cn(textStyles({ size, variant }), textClassName)}>
+        <Text
+          className={cn("text-center font-medium text-sm", textVariants[variant], textClassName)}
+        >
           {children ?? label}
         </Text>
       ) : (

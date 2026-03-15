@@ -186,14 +186,20 @@ export const reconcileLocalFeedCache = (cache: LocalFeedCache, sourceIds: string
   const sources = Object.fromEntries(
     Object.entries(cache.sources).filter(([sourceId]) => validSourceIds.has(sourceId)),
   );
+  const hasSameSourceCount = Object.keys(sources).length === Object.keys(cache.sources).length;
+  const hasSelectedSource =
+    cache.selectedSourceId && validSourceIds.has(cache.selectedSourceId)
+      ? cache.selectedSourceId
+      : null;
+
+  if (hasSameSourceCount && hasSelectedSource === cache.selectedSourceId) {
+    return cache;
+  }
 
   return {
     ...cache,
     sources,
-    selectedSourceId:
-      cache.selectedSourceId && validSourceIds.has(cache.selectedSourceId)
-        ? cache.selectedSourceId
-        : null,
+    selectedSourceId: hasSelectedSource,
   };
 };
 
@@ -295,6 +301,13 @@ export const setSourceError = (cache: LocalFeedCache, sourceId: string, message:
 
 export const markItemRead = (cache: LocalFeedCache, sourceId: string, itemId: string) => {
   const previous = getLocalSourceState(cache, sourceId);
+  const hasReadItem = previous.readItemIds.includes(itemId);
+  const hasSeenItem = previous.seenItemIds.includes(itemId);
+
+  if (hasReadItem && hasSeenItem) {
+    return cache;
+  }
+
   const readItemIds = previous.readItemIds.includes(itemId)
     ? previous.readItemIds
     : [...previous.readItemIds, itemId];

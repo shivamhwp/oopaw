@@ -13,7 +13,6 @@
     "moduleResolution": "Bundler",
     "allowJs": false,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }

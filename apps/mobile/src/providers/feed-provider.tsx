@@ -1,5 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AppState } from "react-native";
 import { useAuth } from "@clerk/expo";
 import { useMutation, useQuery } from "convex/react";
@@ -71,6 +79,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [cache, setCache] = useState<LocalFeedCache>(createEmptyLocalFeedCache());
   const [isCacheReady, setIsCacheReady] = useState(false);
   const cacheRef = useRef(cache);
+  const subscriptionIds = useMemo(
+    () => subscriptions.map((subscription) => subscription.sourceId),
+    [subscriptions],
+  );
 
   cacheRef.current = cache;
 
@@ -132,13 +144,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   }, [cache, isCacheReady, userId]);
 
   useEffect(() => {
-    setCache((current) =>
-      reconcileLocalFeedCache(
-        current,
-        subscriptions.map((subscription) => subscription.sourceId),
-      ),
-    );
-  }, [subscriptions]);
+    setCache((current) => reconcileLocalFeedCache(current, subscriptionIds));
+  }, [subscriptionIds]);
 
   useEffect(() => {
     if (!isSignedIn || !isCacheReady || subscriptions.length === 0) {
@@ -177,33 +184,118 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isCacheReady, isSignedIn, preferences.pollingIntervalMinutes, subscriptions]);
 
-  const refreshSourceById = async (sourceId: string) => {
-    const source = subscriptions.find((subscription) => subscription.sourceId === sourceId);
+  const refreshSourceById = useCallback(
+    async (sourceId: string) => {
+      const source = subscriptions.find((subscription) => subscription.sourceId === sourceId);
 
-    if (!source) {
+      if (!source) {
+        return;
+      }
+
+      try {
+        const result = await refreshDiscoveredFeed({
+          source: {
+            sourceId: source.sourceId,
+            feedUrl: source.feedUrl,
+          },
+          seenItemIds: cacheRef.current.sources[sourceId]?.seenItemIds ?? [],
+        });
+
+        setCache((current) => applySourceRefresh(current, result));
+      } catch (error) {
+        setCache((current) =>
+          setSourceError(
+            current,
+            sourceId,
+            error instanceof Error ? error.message : "This source could not be refreshed.",
+          ),
+        );
+      }
+    },
+    [subscriptions],
+  );
+
+  const addFeed = useCallback(
+    async (inputUrl: string) => {
+      const discovery = await discoverFeed(inputUrl);
+
+      await createSubscription(discovery.source);
+      setCache((current) => mergeSourceDiscovery(current, discovery));
+
+      return discovery.source.sourceId;
+    },
+    [createSubscription],
+  );
+
+  const removeFeedById = useCallback(
+    async (sourceId: string) => {
+      await removeSubscription({ sourceId });
+      setCache((current) => removeSource(current, sourceId));
+    },
+    [removeSubscription],
+  );
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all(
+      subscriptions.map((subscription) => refreshSourceById(subscription.sourceId)),
+    );
+  }, [refreshSourceById, subscriptions]);
+
+  const loadMore = useCallback(async (sourceId: string) => {
+    const pageUrl = cacheRef.current.sources[sourceId]?.pagination?.nextPageUrl;
+
+    if (!pageUrl) {
       return;
     }
 
-    try {
-      const result = await refreshDiscoveredFeed({
-        source: {
-          sourceId: source.sourceId,
-          feedUrl: source.feedUrl,
-        },
-        seenItemIds: cacheRef.current.sources[sourceId]?.seenItemIds ?? [],
-      });
+    const result = await loadMoreDiscoveredFeedItems({ sourceId, pageUrl });
 
-      setCache((current) => applySourceRefresh(current, result));
-    } catch (error) {
-      setCache((current) =>
-        setSourceError(
-          current,
-          sourceId,
-          error instanceof Error ? error.message : "This source could not be refreshed.",
-        ),
+    setCache((current) => applyLoadMoreSourceItems(current, result));
+  }, []);
+
+  const markRead = useCallback((sourceId: string, itemId: string) => {
+    setCache((current) => markItemRead(current, sourceId, itemId));
+  }, []);
+
+  const getSource = useCallback(
+    (sourceId: string) => subscriptions.find((subscription) => subscription.sourceId === sourceId),
+    [subscriptions],
+  );
+
+  const getSourceItemsById = useCallback(
+    (sourceId: string) => getSourceItems(cacheRef.current, sourceId),
+    [],
+  );
+
+  const getItem = useCallback(
+    (sourceId: string, itemId: string) =>
+      getSourceItems(cacheRef.current, sourceId).find((item) => item.id === itemId),
+    [],
+  );
+
+  const ensureItem = useCallback(
+    async (sourceId: string, itemId: string) => {
+      const existing = getSourceItems(cacheRef.current, sourceId).find(
+        (item) => item.id === itemId,
       );
-    }
-  };
+
+      if (existing) {
+        return existing;
+      }
+
+      await refreshSourceById(sourceId);
+
+      return getSourceItems(cacheRef.current, sourceId).find((item) => item.id === itemId);
+    },
+    [refreshSourceById],
+  );
+
+  const updatePreferences = useCallback(
+    async (values: typeof defaultUserPreferences) => {
+      await upsertPreferences(values);
+    },
+    [upsertPreferences],
+  );
 
   const value = useMemo<FeedContextValue>(
     () => ({
@@ -221,68 +313,34 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
           newCount: items.filter((item) => item.isNew).length,
         };
       }),
-      addFeed: async (inputUrl) => {
-        const discovery = await discoverFeed(inputUrl);
-
-        await createSubscription(discovery.source);
-        setCache((current) => mergeSourceDiscovery(current, discovery));
-
-        return discovery.source.sourceId;
-      },
-      removeFeed: async (sourceId) => {
-        await removeSubscription({ sourceId });
-        setCache((current) => removeSource(current, sourceId));
-      },
-      refreshSource: (sourceId) => refreshSourceById(sourceId),
-      refreshAll: async () => {
-        await Promise.all(
-          subscriptions.map((subscription) => refreshSourceById(subscription.sourceId)),
-        );
-      },
-      loadMore: async (sourceId) => {
-        const pageUrl = cacheRef.current.sources[sourceId]?.pagination?.nextPageUrl;
-
-        if (!pageUrl) {
-          return;
-        }
-
-        const result = await loadMoreDiscoveredFeedItems({ sourceId, pageUrl });
-
-        setCache((current) => applyLoadMoreSourceItems(current, result));
-      },
-      markRead: (sourceId, itemId) => {
-        setCache((current) => markItemRead(current, sourceId, itemId));
-      },
-      getSource: (sourceId) =>
-        subscriptions.find((subscription) => subscription.sourceId === sourceId),
-      getSourceItems: (sourceId) => getSourceItems(cacheRef.current, sourceId),
-      getItem: (sourceId, itemId) =>
-        getSourceItems(cacheRef.current, sourceId).find((item) => item.id === itemId),
-      ensureItem: async (sourceId, itemId) => {
-        const existing = getSourceItems(cacheRef.current, sourceId).find(
-          (item) => item.id === itemId,
-        );
-
-        if (existing) {
-          return existing;
-        }
-
-        await refreshSourceById(sourceId);
-
-        return getSourceItems(cacheRef.current, sourceId).find((item) => item.id === itemId);
-      },
-      updatePreferences: async (values) => {
-        await upsertPreferences(values);
-      },
+      addFeed,
+      removeFeed: removeFeedById,
+      refreshSource: refreshSourceById,
+      refreshAll,
+      loadMore,
+      markRead,
+      getSource,
+      getSourceItems: getSourceItemsById,
+      getItem,
+      ensureItem,
+      updatePreferences,
     }),
     [
+      addFeed,
       cache,
-      createSubscription,
+      ensureItem,
+      getItem,
+      getSource,
+      getSourceItemsById,
       isCacheReady,
+      loadMore,
+      markRead,
       preferences,
-      removeSubscription,
+      refreshAll,
+      refreshSourceById,
+      removeFeedById,
       subscriptions,
-      upsertPreferences,
+      updatePreferences,
     ],
   );
 

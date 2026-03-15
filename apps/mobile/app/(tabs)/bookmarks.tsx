@@ -1,5 +1,6 @@
 import { Image, Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
+import { useAuth } from "@clerk/expo";
 import { useQuery } from "convex/react";
 import { BookmarkSimple } from "phosphor-react-native";
 import { Text } from "@/components/ui/text";
@@ -7,7 +8,8 @@ import { api, type Doc } from "@/lib/convex";
 import { createFeedItemId, createSourceId } from "@repo/shared/feed/utils";
 
 export default function BookmarksScreen() {
-  const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, {}) ??
+  const { isSignedIn } = useAuth();
+  const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, isSignedIn ? {} : "skip") ??
     []) as Doc<"bookmarks">[];
 
   return (
