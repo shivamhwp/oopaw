@@ -67,6 +67,7 @@ export function SourceForm({
           size="sm"
           variant="ghost"
           className="h-9 w-full rounded-full px-3 text-sm sm:ml-auto sm:h-7 sm:w-7 sm:px-0 md:text-xs"
+          aria-label="Refresh all feeds"
           disabled={isRefreshing}
           onClick={onRefreshAll}
           title="Refresh all sources"

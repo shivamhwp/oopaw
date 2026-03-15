@@ -112,7 +112,15 @@ export function useFeedReader() {
   );
   const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
-  const removeSubscriptionMutation = useMutation({ mutationFn: removeSubscription });
+  const removeSubscriptionMutation = useMutation({
+    mutationFn: removeSubscription,
+    onSuccess: (_result, { sourceId }) => {
+      startTransition(() => {
+        removeFeedSource(sourceId);
+      });
+      void queryClient.removeQueries({ queryKey: queryKeys.sourceItems(sourceId) });
+    },
+  });
   const effectivePreferences = preferencesQuery.data ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
   const selectedSource =
@@ -339,10 +347,6 @@ export function useFeedReader() {
   };
 
   const handleRemoveSource = async (sourceId: string) => {
-    startTransition(() => {
-      removeFeedSource(sourceId);
-    });
-    void queryClient.removeQueries({ queryKey: queryKeys.sourceItems(sourceId) });
     await removeSubscriptionMutation.mutateAsync({ sourceId });
   };
 

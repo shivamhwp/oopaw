@@ -36,10 +36,24 @@ export function SourceCard({
             </Text>
           </View>
           <View className="flex-row gap-2">
-            <Button variant="ghost" size="icon" className="size-10" onPress={onRefresh}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-10"
+              onPress={onRefresh}
+              accessibilityLabel="Refresh"
+              accessibilityHint="Refresh the source"
+            >
               <ArrowClockwise size={18} color="#211d1a" />
             </Button>
-            <Button variant="ghost" size="icon" className="size-10" onPress={onRemove}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-10"
+              onPress={onRemove}
+              accessibilityLabel="Remove"
+              accessibilityHint="Remove the source"
+            >
               <Trash size={18} color="#bf5f33" />
             </Button>
           </View>

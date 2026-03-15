@@ -21,7 +21,11 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
-    "dev": {
+    "web#dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "mobile#dev": {
       "cache": false,
       "persistent": true
     },

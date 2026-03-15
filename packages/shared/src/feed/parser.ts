@@ -322,16 +322,19 @@ export const parseFeedDocument = ({
   const parsed = xmlParser.parse(trimmed) as Record<string, unknown>;
 
   if (parsed.rss || parsed["rdf:RDF"]) {
+    const isRdfFeed = parsed["rdf:RDF"] !== undefined;
     const rss = (parsed.rss ?? parsed["rdf:RDF"]) as Record<string, unknown>;
     const channel = (rss.channel ?? rss) as Record<string, unknown>;
     const siteUrl = resolveUrl(pickText(channel.link), baseUrl) ?? baseUrl;
+    const feedItems = isRdfFeed ? asArray(rss.item) : asArray(channel.item);
+    const itemsBaseUrl = isRdfFeed ? baseUrl : siteUrl;
 
     return {
       sourceId,
       label: pickText(channel.title) ?? new URL(siteUrl).hostname.replace(/^www\./, ""),
       siteUrl,
       feedUrl: baseUrl,
-      items: normalizeRssItems(sourceId, siteUrl, asArray(channel.item)),
+      items: normalizeRssItems(sourceId, itemsBaseUrl, feedItems),
     };
   }
 

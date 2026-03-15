@@ -10,11 +10,11 @@
     "build:web": "turbo run build --filter=web",
     "check": "turbo run check",
     "convex": "bunx convex dev",
-    "dev": "turbo run dev convex --filter=web --filter=mobile --filter=// --parallel",
-    "dev:mobile": "turbo run dev convex --filter=mobile --filter=// --parallel",
-    "web": "turbo run dev --filter=web",
-    "mobile": "turbo run dev --filter=mobile",
-    "dev:web": "turbo run dev convex --filter=web --filter=// --parallel",
+    "dev": "turbo run convex web#dev mobile#dev --parallel",
+    "dev:mobile": "turbo run convex mobile#dev --parallel",
+    "web": "turbo run web#dev",
+    "mobile": "turbo run mobile#dev",
+    "dev:web": "turbo run convex web#dev --parallel",
     "install:web": "cd apps/web && bun install",
     "format": "turbo run format",
     "format:web": "turbo run format --filter=web",
@@ -29,6 +29,7 @@
     "turbo": "^2.8.14"
   },
   "overrides": {
+    "hermes-compiler": "250829098.0.4",
     "lightningcss": "1.30.1"
   },
   "engines": {

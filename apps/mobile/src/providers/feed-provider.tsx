@@ -81,26 +81,46 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let cancelled = false;
+
     setIsCacheReady(false);
 
     void (async () => {
-      const rawValue = await AsyncStorage.getItem(createStorageKey(userId));
-
-      if (!rawValue) {
-        setCache(createEmptyLocalFeedCache());
-        setIsCacheReady(true);
-        return;
-      }
-
       try {
+        const rawValue = await AsyncStorage.getItem(createStorageKey(userId));
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!rawValue) {
+          setCache(createEmptyLocalFeedCache());
+          return;
+        }
+
         const parsed = localFeedCacheSchema.safeParse(JSON.parse(rawValue));
+
+        if (cancelled) {
+          return;
+        }
+
         setCache(parsed.success ? parsed.data : createEmptyLocalFeedCache());
       } catch {
+        if (cancelled) {
+          return;
+        }
+
         setCache(createEmptyLocalFeedCache());
       } finally {
-        setIsCacheReady(true);
+        if (!cancelled) {
+          setIsCacheReady(true);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   useEffect(() => {

@@ -22,6 +22,10 @@ export const normalizeInputUrl = (input: string) => {
 
   url.hash = "";
 
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`Feed URL must use http or https. Received protocol: ${url.protocol}`);
+  }
+
   return url.toString();
 };
 
@@ -33,6 +37,11 @@ export const resolveUrl = (value: string | undefined, baseUrl: string) => {
   try {
     const url = new URL(value, baseUrl);
     url.hash = "";
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return undefined;
+    }
+
     return url.toString();
   } catch {
     return undefined;

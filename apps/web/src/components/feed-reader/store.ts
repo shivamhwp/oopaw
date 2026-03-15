@@ -176,7 +176,9 @@ const getSanitizedDetailPanelState = (
     return detailPanel;
   }
 
-  const sourceExists = sources.some((source) => source.sourceId === detailPanel.sourceId);
+  const sourceExists =
+    sources.some((source) => source.sourceId === detailPanel.sourceId) ||
+    state.sources[detailPanel.sourceId] !== undefined;
 
   if (!sourceExists) {
     return { mode: "closed" } satisfies DetailPanelState;

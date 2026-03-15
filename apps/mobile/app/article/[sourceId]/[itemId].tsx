@@ -34,6 +34,7 @@ export default function ArticleScreen() {
     []) as Doc<"bookmarks">[];
   const toggleBookmark = useMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const [item, setItem] = useState<Awaited<ReturnType<typeof ensureItem>>>();
+  const [isTogglingBookmark, setIsTogglingBookmark] = useState(false);
   const [mode, setMode] = useState<"reader" | "site">(preferences.defaultView);
   const source = getSource(params.sourceId);
 
@@ -45,12 +46,13 @@ export default function ArticleScreen() {
     })();
   }, [ensureItem, markRead, params.itemId, params.sourceId]);
 
+  const articleUrl = item?.url ?? params.url;
   const fallbackItem = useMemo(
     () =>
       item ?? {
         id: params.itemId,
         sourceId: params.sourceId,
-        url: params.url ?? source?.siteUrl ?? "",
+        url: articleUrl,
         title: params.title ?? "Saved article",
         excerpt: params.excerpt ?? undefined,
         contentHtml: undefined,
@@ -69,12 +71,35 @@ export default function ArticleScreen() {
       params.publishedAt,
       params.sourceId,
       params.title,
-      params.url,
-      source?.siteUrl,
+      articleUrl,
     ],
   );
-  const isBookmarked = bookmarks.some((bookmark) => bookmark.url === fallbackItem.url);
+  const activeMode = mode === "site" && articleUrl ? "site" : "reader";
+  const isBookmarked = articleUrl
+    ? bookmarks.some((bookmark) => bookmark.url === articleUrl)
+    : false;
   const readerText = fallbackItem.contentText ?? stripHtml(fallbackItem.contentHtml);
+  const handleToggleBookmark = async () => {
+    if (isTogglingBookmark || !articleUrl) return;
+
+    setIsTogglingBookmark(true);
+
+    try {
+      await toggleBookmark({
+        sourceId: source?.sourceId,
+        itemId: fallbackItem.id,
+        url: articleUrl,
+        title: fallbackItem.title,
+        excerpt: fallbackItem.excerpt,
+        imageUrl: fallbackItem.imageUrl,
+        sourceLabel: source?.label ?? params.sourceLabel,
+        sourceSiteUrl: source?.siteUrl ?? params.sourceSiteUrl,
+        publishedAt: fallbackItem.publishedAt,
+      });
+    } finally {
+      setIsTogglingBookmark(false);
+    }
+  };
 
   return (
     <View className="flex-1 bg-canvas">
@@ -83,8 +108,8 @@ export default function ArticleScreen() {
         {source?.label ? <Text className="mt-2 text-sm text-muted">{source.label}</Text> : null}
       </View>
 
-      {mode === "site" ? (
-        <WebView source={{ uri: fallbackItem.url }} className="flex-1" />
+      {activeMode === "site" && articleUrl ? (
+        <WebView source={{ uri: articleUrl }} className="flex-1" />
       ) : (
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
           {fallbackItem.contentHtml ? (
@@ -111,19 +136,8 @@ export default function ArticleScreen() {
           <Button
             variant="outline"
             className="flex-1"
-            onPress={() =>
-              void toggleBookmark({
-                sourceId: source?.sourceId,
-                itemId: fallbackItem.id,
-                url: fallbackItem.url,
-                title: fallbackItem.title,
-                excerpt: fallbackItem.excerpt,
-                imageUrl: fallbackItem.imageUrl,
-                sourceLabel: source?.label ?? params.sourceLabel,
-                sourceSiteUrl: source?.siteUrl ?? params.sourceSiteUrl,
-                publishedAt: fallbackItem.publishedAt,
-              })
-            }
+            disabled={isTogglingBookmark || !articleUrl}
+            onPress={() => void handleToggleBookmark()}
           >
             <View className="flex-row items-center justify-center gap-2">
               <BookmarkSimple
@@ -135,28 +149,40 @@ export default function ArticleScreen() {
             </View>
           </Button>
           <Button
-            variant={mode === "reader" ? "primary" : "outline"}
+            variant={activeMode === "reader" ? "primary" : "outline"}
             className="flex-1"
             onPress={() => setMode("reader")}
           >
             <View className="flex-row items-center justify-center gap-2">
-              <BookOpenText size={18} color={mode === "reader" ? "#ffffff" : "#211d1a"} />
+              <BookOpenText size={18} color={activeMode === "reader" ? "#ffffff" : "#211d1a"} />
               <Text
-                className={`text-sm font-medium ${mode === "reader" ? "text-white" : "text-ink"}`}
+                className={`text-sm font-medium ${
+                  activeMode === "reader" ? "text-white" : "text-ink"
+                }`}
               >
                 Reader
               </Text>
             </View>
           </Button>
           <Button
-            variant={mode === "site" ? "primary" : "outline"}
+            variant={activeMode === "site" ? "primary" : "outline"}
             className="flex-1"
-            onPress={() => setMode("site")}
+            disabled={!articleUrl}
+            onPress={() => {
+              if (!articleUrl) return;
+
+              setMode("site");
+            }}
           >
             <View className="flex-row items-center justify-center gap-2">
-              <GlobeHemisphereWest size={18} color={mode === "site" ? "#ffffff" : "#211d1a"} />
+              <GlobeHemisphereWest
+                size={18}
+                color={activeMode === "site" ? "#ffffff" : "#211d1a"}
+              />
               <Text
-                className={`text-sm font-medium ${mode === "site" ? "text-white" : "text-ink"}`}
+                className={`text-sm font-medium ${
+                  activeMode === "site" ? "text-white" : "text-ink"
+                }`}
               >
                 Site
               </Text>
@@ -166,7 +192,12 @@ export default function ArticleScreen() {
         <Button
           variant="ghost"
           className="mt-3 rounded-[22px] border border-line bg-canvas"
-          onPress={() => void Linking.openURL(fallbackItem.url)}
+          disabled={!articleUrl}
+          onPress={() => {
+            if (!articleUrl) return;
+
+            void Linking.openURL(articleUrl);
+          }}
         >
           <View className="flex-row items-center justify-center gap-2">
             <ArrowSquareOut size={18} color="#211d1a" />

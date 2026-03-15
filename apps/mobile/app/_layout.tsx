@@ -8,18 +8,31 @@ import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/expo";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { FeedProvider } from "@/providers/feed-provider";
 import { secureTokenCache } from "@/lib/auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL ?? "");
+const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+let convex: ConvexReactClient | undefined;
+
+if (convexUrl) {
+  convex = new ConvexReactClient(convexUrl);
+}
 
 function LoadingScreen() {
   return (
     <View className="flex-1 items-center justify-center bg-canvas">
       <ActivityIndicator color="#0c7a5a" />
+    </View>
+  );
+}
+
+function MissingConfigScreen({ message }: { message: string }) {
+  return (
+    <View className="flex-1 items-center justify-center bg-canvas px-6">
+      <Text className="text-center text-base text-ink">{message}</Text>
     </View>
   );
 }
@@ -33,6 +46,10 @@ export default function RootLayout() {
         <LoadingScreen />
       </View>
     );
+  }
+
+  if (!convex) {
+    return <MissingConfigScreen message="Missing EXPO_PUBLIC_CONVEX_URL." />;
   }
 
   return (
