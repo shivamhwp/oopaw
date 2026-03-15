@@ -29,6 +29,8 @@ Use filtered commands when you only want the web app:
 ```sh
 bun run dev:web
 bun run web:dev
+bun run install:web
+bun run web:install
 bun run format:web
 bun run web:format
 bun run check:web

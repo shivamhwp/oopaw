@@ -11,6 +11,8 @@
     "web:build": "turbo run build --filter=web",
     "dev:web": "turbo run dev convex --filter=web --parallel",
     "web:dev": "turbo run dev --filter=web",
+    "install:web": "cd apps/web && bun install",
+    "web:install": "cd apps/web && bun install",
     "check:web": "turbo run check --filter=web",
     "web:check": "turbo run check --filter=web",
     "format:web": "turbo run format --filter=web",
