@@ -102,15 +102,27 @@ export function ReaderPane({
   };
   const modeToggle = (
     <Tabs
+      className="w-full md:w-auto"
       value={articleViewMode}
       onValueChange={(value) => onArticleViewModeChange(value as ArticleViewMode)}
     >
-      <TabsList aria-label="Article view mode">
-        <TabsTrigger value="site" aria-label="Site view" className="gap-1">
+      <TabsList
+        aria-label="Article view mode"
+        className="grid h-auto w-full grid-cols-2 md:inline-flex md:w-auto"
+      >
+        <TabsTrigger
+          value="site"
+          aria-label="Site view"
+          className="gap-1 px-3 py-2 text-xs sm:text-sm"
+        >
           <GlobeHemisphereWestIcon weight="duotone" className="size-4" aria-hidden="true" />
           Site
         </TabsTrigger>
-        <TabsTrigger value="reader" aria-label="Reader mode" className="gap-1">
+        <TabsTrigger
+          value="reader"
+          aria-label="Reader mode"
+          className="gap-1 px-3 py-2 text-xs sm:text-sm"
+        >
           <BookOpenTextIcon weight="duotone" className="size-4" aria-hidden="true" />
           Reader
         </TabsTrigger>
@@ -118,13 +130,14 @@ export function ReaderPane({
     </Tabs>
   );
   const topNav = (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-2 backdrop-blur-sm md:flex-nowrap md:items-center md:px-5 md:py-1 pt-[env(safe-area-inset-top,0px)]">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+    <div className="flex flex-col gap-2 border-b border-border/40 bg-background/94 px-3 py-2 pt-[env(safe-area-inset-top,0px)] backdrop-blur-sm sm:px-4 md:flex-row md:items-center md:justify-between md:px-5 md:py-1">
+      <div className="flex min-w-0 items-center justify-between gap-2 md:flex-1 md:justify-start">
         {onBack ? (
           <Button
             type="button"
             variant="ghost"
             size="sm"
+            className="rounded-full"
             onClick={onBack}
             aria-label="Back to list"
           >
@@ -136,93 +149,105 @@ export function ReaderPane({
           <div />
         )}
       </div>
-      <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:flex-nowrap">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="h-8 w-8 hover:text-primary/80"
-          onClick={handleCopyOriginalUrl}
-          aria-label={
-            copyState === "copied"
-              ? "Original article URL copied"
-              : copyState === "error"
-                ? "Copy original article URL failed"
-                : "Copy original article URL"
-          }
-          title={
-            copyState === "copied" ? "Copied" : copyState === "error" ? "Copy failed" : "Copy link"
-          }
-        >
-          {copyState === "copied" ? (
-            <CheckIcon weight="bold" className="size-3.5" />
-          ) : (
-            <CopySimpleIcon weight="bold" className="size-3.5" />
-          )}
-        </Button>
-        <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8 hover:text-primary/80">
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Open original article"
-            title="Open original"
-          >
-            <ArrowSquareOutIcon weight="bold" className="size-3.5" />
-          </a>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="h-8 w-8 hover:text-primary/80"
-          disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
-          onClick={onBookmarkToggle ?? onRequireSignIn}
-          aria-label={
-            onBookmarkToggle
-              ? isBookmarked
-                ? "Remove bookmark"
-                : "Add bookmark"
-              : "Sign in to bookmark"
-          }
-          title={
-            onBookmarkToggle
-              ? isBookmarked
-                ? "Remove bookmark"
-                : "Add bookmark"
-              : "Sign in to bookmark"
-          }
-        >
-          <BookmarkSimpleIcon weight={isBookmarked ? "fill" : "regular"} className="size-3.5" />
-        </Button>
-        {modeToggle}
-        {onToggleFullScreen && !isMobile && (
+      <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end">
+        <div className="order-2 flex flex-wrap items-center justify-end gap-2 md:order-1">
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 hover:text-primary/80"
-            onClick={onToggleFullScreen}
-            aria-label={isFullScreen ? "Exit full screen" : "Full screen"}
+            size="icon-sm"
+            className="h-8 w-8 hover:text-primary/80 sm:h-9 sm:w-9 md:h-8 md:w-8"
+            onClick={handleCopyOriginalUrl}
+            aria-label={
+              copyState === "copied"
+                ? "Original article URL copied"
+                : copyState === "error"
+                  ? "Copy original article URL failed"
+                  : "Copy original article URL"
+            }
+            title={
+              copyState === "copied"
+                ? "Copied"
+                : copyState === "error"
+                  ? "Copy failed"
+                  : "Copy link"
+            }
           >
-            {isFullScreen ? (
-              <CornersInIcon weight="bold" className="size-3.5" />
+            {copyState === "copied" ? (
+              <CheckIcon weight="bold" className="size-3.5" />
             ) : (
-              <CornersOutIcon weight="bold" className="size-3.5" />
+              <CopySimpleIcon weight="bold" className="size-3.5" />
             )}
           </Button>
-        )}
-        {onClose && (
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            className="h-8 w-8 hover:text-primary/80 sm:h-9 sm:w-9 md:h-8 md:w-8"
+          >
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Open original article"
+              title="Open original"
+            >
+              <ArrowSquareOutIcon weight="bold" className="size-3.5" />
+            </a>
+          </Button>
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label="Close reader"
+            size="icon-sm"
+            className="h-8 w-8 hover:text-primary/80 sm:h-9 sm:w-9 md:h-8 md:w-8"
+            disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
+            onClick={onBookmarkToggle ?? onRequireSignIn}
+            aria-label={
+              onBookmarkToggle
+                ? isBookmarked
+                  ? "Remove bookmark"
+                  : "Add bookmark"
+                : "Sign in to bookmark"
+            }
+            title={
+              onBookmarkToggle
+                ? isBookmarked
+                  ? "Remove bookmark"
+                  : "Add bookmark"
+                : "Sign in to bookmark"
+            }
           >
-            <XIcon weight="bold" className="size-3.5" />
+            <BookmarkSimpleIcon weight={isBookmarked ? "fill" : "regular"} className="size-3.5" />
           </Button>
-        )}
+          {onToggleFullScreen && !isMobile && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:text-primary/80"
+              onClick={onToggleFullScreen}
+              aria-label={isFullScreen ? "Exit full screen" : "Full screen"}
+            >
+              {isFullScreen ? (
+                <CornersInIcon weight="bold" className="size-3.5" />
+              ) : (
+                <CornersOutIcon weight="bold" className="size-3.5" />
+              )}
+            </Button>
+          )}
+          {onClose && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9 md:h-8 md:w-8"
+              onClick={onClose}
+              aria-label="Close reader"
+            >
+              <XIcon weight="bold" className="size-3.5" />
+            </Button>
+          )}
+        </div>
+        <div className="order-1 w-full md:order-2 md:w-auto">{modeToggle}</div>
       </div>
     </div>
   );

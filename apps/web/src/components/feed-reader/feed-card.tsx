@@ -26,13 +26,13 @@ export function FeedCard({
   const latestItems = items.slice(0, 4);
 
   return (
-    <div className="group relative min-h-[13rem] md:h-[13rem]">
+    <div className="group relative min-h-[12rem] sm:min-h-[13rem] md:h-[13rem]">
       <Card
         tabIndex={0}
         onClick={onSelect}
         onKeyDown={(e) => e.key === "Enter" && onSelect()}
         className={cn(
-          "h-full cursor-pointer gap-0 py-0 pr-14 transition-colors duration-150 md:pr-0",
+          "h-full cursor-pointer gap-0 py-0 pr-12 transition-colors duration-150 sm:pr-14 md:pr-0",
           isSelected ? "ring-primary/40 bg-primary/[0.02]" : "hover:bg-muted/30",
         )}
       >
@@ -66,8 +66,8 @@ export function FeedCard({
         </CardContent>
 
         {/* Footer — source info */}
-        <CardFooter className="px-4 py-3 flex items-center justify-between gap-2">
-          <div className="min-w-0">
+        <CardFooter className="flex items-start justify-between gap-2 px-4 py-3">
+          <div className="min-w-0 flex-1">
             <CardTitle className="truncate text-[0.85rem]">{source.label}</CardTitle>
             <CardDescription className="truncate text-[0.65rem] mt-0.5">
               {source.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
@@ -88,7 +88,7 @@ export function FeedCard({
       </Card>
 
       {/* Hover actions */}
-      <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+      <div className="absolute right-2.5 top-2.5 z-10 flex gap-1 opacity-100 transition-opacity duration-150 md:right-3 md:top-3 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
         <Button
           type="button"
           variant="ghost"

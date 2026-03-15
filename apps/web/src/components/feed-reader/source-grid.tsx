@@ -109,14 +109,14 @@ export function SourceGrid({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {sourceSummaries.map(({ source, items, unreadCount, newCount }) => (
             <FeedCard
-              key={source.id}
+              key={source.sourceId}
               source={source}
               items={items}
               unreadCount={unreadCount}
               newCount={newCount}
-              isSelected={selectedSourceId === source.id}
-              onSelect={() => onOpenFeed(source.id)}
-              onRemove={() => onRemoveSource(source.id)}
+              isSelected={selectedSourceId === source.sourceId}
+              onSelect={() => onOpenFeed(source.sourceId)}
+              onRemove={() => onRemoveSource(source.sourceId)}
             />
           ))}
         </div>
@@ -150,14 +150,14 @@ export function SourceGrid({
             >
               {rows[virtualRow.index]?.map(({ source, items, unreadCount, newCount }) => (
                 <FeedCard
-                  key={source.id}
+                  key={source.sourceId}
                   source={source}
                   items={items}
                   unreadCount={unreadCount}
                   newCount={newCount}
-                  isSelected={selectedSourceId === source.id}
-                  onSelect={() => onOpenFeed(source.id)}
-                  onRemove={() => onRemoveSource(source.id)}
+                  isSelected={selectedSourceId === source.sourceId}
+                  onSelect={() => onOpenFeed(source.sourceId)}
+                  onRemove={() => onRemoveSource(source.sourceId)}
                 />
               ))}
             </div>

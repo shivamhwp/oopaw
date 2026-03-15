@@ -9,18 +9,27 @@
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",
     "check": "turbo run check",
-    "dev": "turbo run dev",
+    "convex": "bunx convex dev",
+    "dev": "turbo run dev convex --filter=web --filter=mobile --filter=// --parallel",
+    "dev:mobile": "turbo run dev convex --filter=mobile --filter=// --parallel",
     "web": "turbo run dev --filter=web",
-    "dev:web": "turbo run dev convex --filter=web --parallel",
+    "mobile": "turbo run dev --filter=mobile",
+    "dev:web": "turbo run dev convex --filter=web --filter=// --parallel",
     "install:web": "cd apps/web && bun install",
     "format": "turbo run format",
     "format:web": "turbo run format --filter=web",
+    "format:mobile": "turbo run format --filter=mobile",
     "typecheck": "turbo run typecheck",
-    "typecheck:web": "turbo run typecheck --filter=web"
+    "typecheck:web": "turbo run typecheck --filter=web",
+    "typecheck:mobile": "turbo run typecheck --filter=mobile"
   },
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260311.1",
+    "convex": "^1.33.1",
     "turbo": "^2.8.14"
+  },
+  "overrides": {
+    "lightningcss": "1.30.1"
   },
   "engines": {
     "node": ">=18"

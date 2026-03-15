@@ -178,7 +178,10 @@ function BookmarksRoute() {
             const sourceLabel = getBookmarkSourceLabel(bookmark);
 
             return (
-              <div key={bookmark._id} className="group relative min-h-[13rem] md:h-[13rem]">
+              <div
+                key={bookmark._id}
+                className="group relative min-h-[12rem] sm:min-h-[13rem] md:h-[13rem]"
+              >
                 <Card
                   tabIndex={0}
                   onClick={() => handleOpenBookmark(bookmark._id)}
@@ -189,7 +192,7 @@ function BookmarksRoute() {
                     }
                   }}
                   className={cn(
-                    "h-full cursor-pointer gap-0 py-0 pr-14 transition-colors duration-150 md:pr-0",
+                    "h-full cursor-pointer gap-0 py-0 pr-12 transition-colors duration-150 sm:pr-14 md:pr-0",
                     isSelected ? "bg-primary/[0.02] ring-primary/40" : "hover:bg-muted/30",
                   )}
                 >
@@ -209,7 +212,7 @@ function BookmarksRoute() {
                   </CardFooter>
                 </Card>
 
-                <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                <div className="absolute right-2.5 top-2.5 z-10 flex gap-1 opacity-100 transition-opacity duration-150 md:right-3 md:top-3 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                   <Button
                     type="button"
                     variant="ghost"
@@ -258,7 +261,7 @@ function BookmarksRoute() {
 
   return (
     <>
-      <div className="flex h-svh min-h-svh flex-col overflow-hidden bg-background">
+      <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-background">
         <AppNavbar
           isPreferencesPending={isPreferencesPending}
           isSignedIn={isSignedIn}

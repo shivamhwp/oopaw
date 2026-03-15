@@ -9,8 +9,22 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+  feedSubscriptions: defineTable({
+    userId: v.string(),
+    sourceId: v.string(),
+    inputUrl: v.string(),
+    label: v.string(),
+    siteUrl: v.string(),
+    feedUrl: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_sourceId", ["userId", "sourceId"]),
   bookmarks: defineTable({
     userId: v.string(),
+    sourceId: v.optional(v.string()),
+    itemId: v.optional(v.string()),
     url: v.string(),
     title: v.string(),
     excerpt: v.optional(v.string()),

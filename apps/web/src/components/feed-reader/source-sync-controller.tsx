@@ -10,6 +10,8 @@ type SourceSyncControllerProps = {
   initialItems: StoredFeedItem[];
   seenItemIds: string[];
   enabled: boolean;
+  pollingIntervalMs: number;
+  lastCheckedAt?: string;
   onRefresh: (result: RefreshResult) => void;
   onError: (message: string) => void;
 };
@@ -19,18 +21,26 @@ export function SourceSyncController({
   initialItems,
   seenItemIds,
   enabled,
+  pollingIntervalMs,
+  lastCheckedAt,
   onRefresh,
   onError,
 }: SourceSyncControllerProps) {
-  const lastAppliedCheck = useRef(source.lastCheckedAt);
+  const lastAppliedCheck = useRef(lastCheckedAt);
   const lastError = useRef<string | null>(null);
 
   const query = useQuery({
-    queryKey: queryKeys.sourceItems(source.id),
+    queryKey: queryKeys.sourceItems(source.sourceId),
     queryFn: async () => {
       try {
         return await refreshFeedSource({
-          data: { source, seenItemIds },
+          data: {
+            source: {
+              sourceId: source.sourceId,
+              feedUrl: source.feedUrl,
+            },
+            seenItemIds,
+          },
         });
       } catch (error) {
         recoverFromStaleDeployment(error);
@@ -39,16 +49,16 @@ export function SourceSyncController({
     },
     enabled,
     initialData:
-      source.lastCheckedAt && initialItems.length
+      lastCheckedAt && initialItems.length
         ? {
-            sourceId: source.id,
+            sourceId: source.sourceId,
             items: initialItems,
             newCount: 0,
-            checkedAt: source.lastCheckedAt,
+            checkedAt: lastCheckedAt,
           }
         : undefined,
-    initialDataUpdatedAt: source.lastCheckedAt ? Date.parse(source.lastCheckedAt) : undefined,
-    refetchInterval: enabled && source.pollingEnabled ? source.pollIntervalMs : false,
+    initialDataUpdatedAt: lastCheckedAt ? Date.parse(lastCheckedAt) : undefined,
+    refetchInterval: enabled ? pollingIntervalMs : false,
     refetchIntervalInBackground: false,
   });
 

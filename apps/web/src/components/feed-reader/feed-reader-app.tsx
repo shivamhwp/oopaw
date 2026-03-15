@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useClerk, useUser } from "@clerk/tanstack-react-start";
+import { useAuth, useClerk, useUser } from "@clerk/tanstack-react-start";
 import {
   CowIcon,
   DesktopIcon,
@@ -89,7 +89,8 @@ function ThemeToggle() {
     <Button
       type="button"
       variant="secondary"
-      className="cursor-pointer"
+      size="icon"
+      className="cursor-pointer rounded-full"
       onClick={() => setTheme(next.value)}
       aria-label={`Switch to ${next.label} theme`}
     >
@@ -126,7 +127,7 @@ function ProfileMenu({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-[16rem]">
+      <DropdownMenuContent align="end" className="w-[min(16rem,calc(100vw-1rem))]">
         <div className="space-y-1 px-2.5 py-2">
           <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
           {email ? (
@@ -243,33 +244,37 @@ export function AppNavbar({
 }: AppNavbarProps) {
   return (
     <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 md:px-6 md:py-1.5">
+      <div className="flex flex-col gap-2 px-3 py-2 sm:px-4 md:flex-row md:items-center md:justify-between md:px-6 md:py-1.5">
         <div className="flex items-baseline gap-2.5">
           <Link
             to="/"
-            className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground"
+            className="select-none font-logo text-[1.8rem] leading-none tracking-wide text-foreground sm:text-[2.1rem]"
           >
             oop
           </Link>
         </div>
 
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-1.5">
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end md:gap-1.5">
           {isSignedIn ? (
-            <Button asChild variant="ghost" className="rounded-full">
+            <Button asChild variant="ghost" className="min-w-0 flex-1 rounded-full md:flex-none">
               <Link to="/bookmarks">Bookmarks</Link>
             </Button>
           ) : (
             <Button
               type="button"
               variant="ghost"
-              className="rounded-full"
+              className="min-w-0 flex-1 rounded-full md:flex-none"
               onClick={onBookmarksClick}
             >
               Bookmarks
             </Button>
           )}
           {onToggleAddFeed ? (
-            <Button type="button" className="cursor-pointer rounded-full" onClick={onToggleAddFeed}>
+            <Button
+              type="button"
+              className="min-w-0 flex-1 cursor-pointer rounded-full md:flex-none"
+              onClick={onToggleAddFeed}
+            >
               <PlusIcon weight="bold" />
               <span className="min-[420px]:hidden">Add</span>
               <span className="hidden min-[420px]:inline">Add feed</span>
@@ -284,7 +289,12 @@ export function AppNavbar({
               onPollingIntervalMinutesChange={onPollingIntervalMinutesChange}
             />
           ) : (
-            <Button type="button" variant="outline" className="rounded-full" onClick={onSignIn}>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full md:flex-none"
+              onClick={onSignIn}
+            >
               Sign in
             </Button>
           )}
@@ -304,6 +314,16 @@ export function FeedReaderBootScreen() {
       <div role="status" aria-label="Loading feeds" className="text-muted-foreground">
         <SpinnerIcon className="size-5 animate-spin" />
       </div>
+    </div>
+  );
+}
+
+function SignInRequiredScreen({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <div className="flex min-h-svh items-center justify-center bg-background">
+      <Button type="button" variant="secondary" onClick={onSignIn}>
+        Sign in with Google
+      </Button>
     </div>
   );
 }
@@ -368,6 +388,7 @@ type FeedReaderAppProps = {
 };
 
 export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) {
+  const { isLoaded: isClerkLoaded, isSignedIn: hasClerkSession } = useAuth();
   const clerk = useClerk();
   const navigate = useNavigate({ from: "/" });
   const autoOpenAuthKeyRef = useRef<string | null>(null);
@@ -384,7 +405,9 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     selectedItem,
     articleViewMode,
     preferences,
+    effectivePollingIntervalMs,
     isPreferencesPending,
+    isAuthLoading,
     isSignedIn,
     isBookmarked,
     isBookmarkPending,
@@ -426,7 +449,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
   };
 
   const handleBookmarksClick = () => {
-    if (isSignedIn) {
+    if (hasClerkSession) {
       void navigate({ to: "/bookmarks" });
       return;
     }
@@ -439,7 +462,16 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
   }, []);
 
   useEffect(() => {
-    if (!isClientReady || authIntent !== "sign-in") {
+    if (!isClientReady || !isClerkLoaded || authIntent !== "sign-in") {
+      return;
+    }
+
+    if (hasClerkSession) {
+      void navigate({
+        to: "/",
+        search: {},
+        replace: true,
+      });
       return;
     }
 
@@ -459,7 +491,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
       search: {},
       replace: true,
     });
-  }, [authIntent, authRedirect, clerk, isClientReady, navigate]);
+  }, [authIntent, authRedirect, clerk, hasClerkSession, isClerkLoaded, isClientReady, navigate]);
 
   useEffect(() => {
     if (isMobile) {
@@ -486,7 +518,11 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     wasDetailPanelOpenRef.current = detailPanelOpen;
   }, [detailPanel, detailPanelOpen, detailPanelSize, isMobile, setDetailPanelSize]);
 
-  if (shouldShowFeedReaderBootScreen(isClientReady)) {
+  if (
+    shouldShowFeedReaderBootScreen(isClientReady) ||
+    !isClerkLoaded ||
+    (hasClerkSession && isAuthLoading)
+  ) {
     return <FeedReaderBootScreen />;
   }
 
@@ -536,24 +572,30 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
       <EmptyFeedState isMobile={isMobile} />
     );
 
+  if (!hasClerkSession) {
+    return <SignInRequiredScreen onSignIn={() => void openSignInModal("/")} />;
+  }
+
   return (
     <>
-      {state.sources.map((source) => (
+      {sourceSummaries.map(({ source }) => (
         <SourceSyncController
-          key={source.id}
+          key={source.sourceId}
           source={source}
-          initialItems={state.itemsBySource[source.id] ?? []}
-          seenItemIds={state.seenItemIdsBySource[source.id] ?? []}
+          initialItems={state.sources[source.sourceId]?.items ?? []}
+          seenItemIds={state.sources[source.sourceId]?.seenItemIds ?? []}
           enabled={true}
-          onRefresh={(result) => handleSourceRefresh(result, source.id)}
-          onError={(message) => handleSourceError(source.id, message)}
+          pollingIntervalMs={effectivePollingIntervalMs}
+          lastCheckedAt={state.sources[source.sourceId]?.lastCheckedAt}
+          onRefresh={(result) => handleSourceRefresh(result, source.sourceId)}
+          onError={(message) => handleSourceError(source.sourceId, message)}
         />
       ))}
 
-      <div className="min-h-svh flex h-svh flex-col overflow-hidden bg-background">
+      <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-background">
         <AppNavbar
           isPreferencesPending={isPreferencesPending}
-          isSignedIn={isSignedIn}
+          isSignedIn={hasClerkSession}
           onBookmarksClick={handleBookmarksClick}
           onDefaultViewChange={setDefaultArticleViewMode}
           onPollingIntervalMinutesChange={setPollingIntervalMinutes}
@@ -566,7 +608,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
         <div
           className={cn(
             "overflow-hidden transition-all duration-200 ease-in-out",
-            showAddForm ? "max-h-40" : "max-h-0",
+            showAddForm ? "max-h-52 md:max-h-40" : "max-h-0",
           )}
         >
           <div className="border-b border-border/30 px-4 pb-4 pt-2 md:px-6">

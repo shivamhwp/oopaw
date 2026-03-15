@@ -24,6 +24,7 @@ const formatDate = (value: string | undefined) =>
     : null;
 
 export function ItemList({
+  source,
   items,
   selectedItemId,
   hasMore = false,
@@ -32,18 +33,36 @@ export function ItemList({
   onLoadMore,
   onClose,
 }: ItemListProps) {
+  const sourceHost = source?.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
   const unreadCount = items.filter((item) => !item.isRead).length;
   const readCount = items.length - unreadCount;
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-2 backdrop-blur-sm md:flex-nowrap md:items-center md:px-5 md:py-1">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>{unreadCount} unread</span>
-          <span>{readCount} read</span>
+      <div className="flex items-start justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-3 backdrop-blur-sm md:items-center md:px-5 md:py-1.5">
+        <div className="min-w-0 flex-1">
+          {source ? (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">{source.label}</p>
+              {sourceHost ? (
+                <p className="truncate text-[0.68rem] text-muted-foreground">{sourceHost}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>{unreadCount} unread</span>
+            <span>{readCount} read</span>
+          </div>
         </div>
         {onClose && (
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <XIcon weight="bold" className="size-3.5" />
           </Button>
         )}

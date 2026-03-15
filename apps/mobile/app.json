@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "oop",
+    "slug": "oop-mobile",
+    "scheme": "oop-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.t3s.oop.mobile"
+    },
+    "android": {
+      "package": "com.t3s.oop.mobile"
+    }
+  }
+}

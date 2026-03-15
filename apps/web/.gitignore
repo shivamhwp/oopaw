@@ -13,3 +13,6 @@ count.txt
 .test-artifacts
 __unconfig*
 todos.json
+
+.env.local  
+.env.production

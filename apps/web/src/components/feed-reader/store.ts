@@ -4,28 +4,29 @@ import { z } from "zod";
 import {
   applyLoadMoreSourceItems,
   applySourceRefresh,
-  createEmptyFeedReaderState,
+  getLocalFeedCacheForUser,
   getSourceItems,
   markItemRead,
-  migrateFeedReaderState,
   mergeSourceDiscovery,
   removeSource,
+  setLocalFeedCacheForUser,
   setSelectedSource,
   setSourceError,
 } from "@/lib/feed-reader-state";
+import { getBrowserStorage } from "@/lib/browser-storage";
 import {
   FEED_READER_PANEL_OPEN_STORAGE_KEY,
-  FEED_READER_STATE_STORAGE_KEY,
-  feedReaderStateV1Schema,
-  feedReaderStateV2Schema,
-  feedReaderStateSchema,
-  type ArticleViewMode,
   type DiscoveryResult,
   type FeedReaderState,
   type LoadMoreSourceItemsResult,
   type RefreshResult,
+  type SavedSource,
 } from "@/lib/types";
-import { getBrowserStorage } from "@/lib/browser-storage";
+import {
+  LOCAL_FEED_CACHE_STORAGE_KEY,
+  localFeedCacheStorageSchema,
+  type LocalFeedCacheStorage,
+} from "@repo/shared/feed/types";
 
 export const FEED_READER_PANEL_STATE_STORAGE_KEY = "papertrail.feed-reader.panel";
 export const FEED_READER_PANEL_SIZE_STORAGE_KEY = "papertrail.feed-reader.panel-size";
@@ -55,13 +56,6 @@ type StorageSubscription<Value> = (
 ) => (() => void) | undefined;
 type SetAtomAction<Value> = Value | ((value: Value) => Value);
 
-type FeedReaderStorage = {
-  getItem: (key: string, initialValue: FeedReaderState) => FeedReaderState;
-  setItem: (key: string, value: FeedReaderState) => void;
-  removeItem: (key: string) => void;
-  subscribe?: StorageSubscription<FeedReaderState>;
-};
-
 type ValidatedStorage<Value> = {
   getItem: (key: string, initialValue: Value) => Value;
   setItem: (key: string, value: Value) => void;
@@ -84,28 +78,6 @@ const browserStringStorage = {
 };
 
 const baseJsonStorage = createJSONStorage<unknown>(() => browserStringStorage);
-
-const getValidatedFeedReaderState = (value: unknown, initialValue: FeedReaderState) => {
-  const parsedState = feedReaderStateSchema.safeParse(value);
-
-  if (parsedState.success) {
-    return parsedState.data;
-  }
-
-  const parsedLegacyState = feedReaderStateV1Schema.safeParse(value);
-
-  if (parsedLegacyState.success) {
-    return migrateFeedReaderState(parsedLegacyState.data);
-  }
-
-  const parsedV2State = feedReaderStateV2Schema.safeParse(value);
-
-  if (parsedV2State.success) {
-    return migrateFeedReaderState(parsedV2State.data);
-  }
-
-  return initialValue;
-};
 
 const getStoredJsonValue = (key: string) => {
   const rawValue = browserStringStorage.getItem(key);
@@ -141,23 +113,39 @@ const createValidatedStorage = <Value>(
   },
 });
 
-export const feedReaderStorage: FeedReaderStorage = {
-  getItem: (key, initialValue) =>
-    getValidatedFeedReaderState(baseJsonStorage.getItem(key, initialValue), initialValue),
-  setItem: (key, value) => {
+const feedReaderStorage = {
+  getItem: (key: string, initialValue: LocalFeedCacheStorage) => {
+    const value = baseJsonStorage.getItem(key, initialValue);
+    const parsed = localFeedCacheStorageSchema.safeParse(value);
+
+    return parsed.success ? parsed.data : initialValue;
+  },
+  setItem: (key: string, value: LocalFeedCacheStorage) => {
     baseJsonStorage.setItem(key, value);
   },
-  removeItem: (key) => {
+  removeItem: (key: string) => {
     baseJsonStorage.removeItem(key);
   },
   subscribe: baseJsonStorage.subscribe
-    ? (key, callback, initialValue) =>
+    ? (
+        key: string,
+        callback: (value: LocalFeedCacheStorage) => void,
+        initialValue: LocalFeedCacheStorage,
+      ) =>
         baseJsonStorage.subscribe?.(
           key,
-          (value) => callback(getValidatedFeedReaderState(value, initialValue)),
+          (value) => {
+            const parsed = localFeedCacheStorageSchema.safeParse(value);
+            callback(parsed.success ? parsed.data : initialValue);
+          },
           initialValue,
         )
     : undefined,
+} satisfies {
+  getItem: (key: string, initialValue: LocalFeedCacheStorage) => LocalFeedCacheStorage;
+  setItem: (key: string, value: LocalFeedCacheStorage) => void;
+  removeItem: (key: string) => void;
+  subscribe?: StorageSubscription<LocalFeedCacheStorage>;
 };
 
 export const detailPanelSizeStorage = createValidatedStorage(isDetailPanelSize);
@@ -166,19 +154,36 @@ export const detailPanelOpenStorage = unstable_withStorageValidator(
   (value): value is boolean => typeof value === "boolean",
 )(createJSONStorage<unknown>(() => browserStringStorage));
 
-const getSanitizedDetailPanelState = (detailPanel: DetailPanelState, state: FeedReaderState) => {
+export const currentUserIdAtom = atom<string | null>(null);
+export const feedSubscriptionsAtom = atom<SavedSource[]>([]);
+
+const persistedFeedCacheStorageAtom = atomWithStorage<LocalFeedCacheStorage>(
+  LOCAL_FEED_CACHE_STORAGE_KEY,
+  {
+    version: 1,
+    users: {},
+  },
+  feedReaderStorage,
+  { getOnInit: true },
+);
+
+const getSanitizedDetailPanelState = (
+  detailPanel: DetailPanelState,
+  sources: SavedSource[],
+  state: FeedReaderState,
+) => {
   if (detailPanel.mode === "closed") {
     return detailPanel;
   }
 
-  const sourceExists = state.sources.some((source) => source.id === detailPanel.sourceId);
+  const sourceExists = sources.some((source) => source.sourceId === detailPanel.sourceId);
 
   if (!sourceExists) {
     return { mode: "closed" } satisfies DetailPanelState;
   }
 
   if (detailPanel.mode === "reader") {
-    const itemExists = (state.itemsBySource[detailPanel.sourceId] ?? []).some(
+    const itemExists = (state.sources[detailPanel.sourceId]?.items ?? []).some(
       (item) => item.id === detailPanel.itemId,
     );
 
@@ -197,11 +202,16 @@ const persistedDetailPanelAtom = atomWithStorage<DetailPanelState>(
   { getOnInit: true },
 );
 
-export const feedReaderStateAtom = atomWithStorage<FeedReaderState>(
-  FEED_READER_STATE_STORAGE_KEY,
-  createEmptyFeedReaderState(),
-  feedReaderStorage,
-  { getOnInit: true },
+export const feedReaderStateAtom = atom(
+  (get) => getLocalFeedCacheForUser(get(persistedFeedCacheStorageAtom), get(currentUserIdAtom)),
+  (get, set, nextState: SetAtomAction<FeedReaderState>) => {
+    const current = get(feedReaderStateAtom);
+    const resolved = typeof nextState === "function" ? nextState(current) : nextState;
+
+    set(persistedFeedCacheStorageAtom, (storage) =>
+      setLocalFeedCacheForUser(storage, get(currentUserIdAtom), resolved),
+    );
+  },
 );
 
 export const sourceInputAtom = atom("");
@@ -213,7 +223,12 @@ export const detailPanelOpenAtom = atomWithStorage<boolean>(
   { getOnInit: true },
 );
 export const detailPanelAtom = atom(
-  (get) => getSanitizedDetailPanelState(get(persistedDetailPanelAtom), get(feedReaderStateAtom)),
+  (get) =>
+    getSanitizedDetailPanelState(
+      get(persistedDetailPanelAtom),
+      get(feedSubscriptionsAtom),
+      get(feedReaderStateAtom),
+    ),
   (get, set, nextDetailPanel: SetAtomAction<DetailPanelState>) => {
     const currentDetailPanel = get(persistedDetailPanelAtom);
     const resolvedDetailPanel =
@@ -229,14 +244,15 @@ export const detailPanelSizeAtom = atomWithStorage<DetailPanelSize>(
   detailPanelSizeStorage,
   { getOnInit: true },
 );
-export const articleViewModeAtom = atom<ArticleViewMode>("reader");
+export const articleViewModeAtom = atom<"reader" | "site">("reader");
 export const isReaderFullScreenAtom = atom(false);
 
 export const sourceSummariesAtom = atom((get) => {
+  const subscriptions = get(feedSubscriptionsAtom);
   const state = get(feedReaderStateAtom);
 
-  return state.sources.map((source) => {
-    const items = getSourceItems(state, source.id);
+  return subscriptions.map((source) => {
+    const items = getSourceItems(state, source.sourceId);
 
     return {
       source,
@@ -255,7 +271,9 @@ export const detailPanelSourceSummaryAtom = atom((get) => {
     return undefined;
   }
 
-  return get(sourceSummariesAtom).find((summary) => summary.source.id === detailPanel.sourceId);
+  return get(sourceSummariesAtom).find(
+    (summary) => summary.source.sourceId === detailPanel.sourceId,
+  );
 });
 
 export const detailPanelItemsAtom = atom((get) => get(detailPanelSourceSummaryAtom)?.items ?? []);
@@ -314,7 +332,7 @@ export const addSourceSuccessAtom = atom(null, (_get, set, discovery: DiscoveryR
   set(feedReaderStateAtom, (state) => mergeSourceDiscovery(state, discovery));
   set(sourceInputAtom, "");
   set(showAddFormAtom, false);
-  set(detailPanelAtom, { mode: "list", sourceId: discovery.source.id });
+  set(detailPanelAtom, { mode: "list", sourceId: discovery.source.sourceId });
 });
 
 export const removeSourceAtom = atom(null, (get, set, sourceId: string) => {

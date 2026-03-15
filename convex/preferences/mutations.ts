@@ -14,10 +14,6 @@ export const upsertForCurrentUser = mutation({
       throw new Error("Polling interval must be a positive integer.");
     }
 
-    if (!["reader", "site"].includes(args.defaultView)) {
-      throw new Error("Invalid default view.");
-    }
-
     const existing = await ctx.db
       .query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", identity.subject))

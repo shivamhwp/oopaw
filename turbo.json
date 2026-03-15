@@ -25,7 +25,7 @@
       "cache": false,
       "persistent": true
     },
-    "convex": {
+    "//#convex": {
       "cache": false,
       "persistent": true
     }

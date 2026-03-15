@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConvexAuth } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { startTransition, useEffect, useRef, useState } from "react";
+import { useUser } from "@clerk/tanstack-react-start";
 import {
   addSourceSuccessAtom,
   applyLoadMoreSourceItemsAtom,
@@ -10,10 +11,12 @@ import {
   articleViewModeAtom,
   backToFeedListAtom,
   closeDetailPanelAtom,
+  currentUserIdAtom,
   detailPanelAtom,
   detailPanelItemsAtom,
   detailPanelSourceSummaryAtom,
   feedReaderStateAtom,
+  feedSubscriptionsAtom,
   isReaderFullScreenAtom,
   openFeedAtom,
   removeSourceAtom,
@@ -30,9 +33,16 @@ import { api } from "@/lib/convex";
 import { defaultUserPreferences } from "@/lib/preferences";
 import { queryKeys } from "@/lib/query/keys";
 import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
+import {
+  extractLegacyFeedSubscriptions,
+  migrateLegacyFeedReaderState,
+  parseLegacyFeedReaderState,
+  reconcileLocalFeedCache,
+} from "@/lib/feed-reader-state";
 import { normalizeInputUrl } from "@/lib/feed/utils";
+import { getBrowserStorage } from "@/lib/browser-storage";
 import { fetchFeedSource, loadMoreFeedItems } from "@/lib/server/feed";
-import { discoveryResultSchema, type SavedSource } from "@/lib/types";
+import { discoveryResultSchema, FEED_READER_STATE_STORAGE_KEY } from "@/lib/types";
 
 const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
   try {
@@ -47,6 +57,7 @@ const assertDiscoveryResult = (value: unknown) => discoveryResultSchema.parse(va
 
 export function useFeedReader() {
   const convexAuth = useConvexAuth();
+  const { user } = useUser();
   const queryClient = useQueryClient();
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const state = useAtomValue(feedReaderStateAtom);
@@ -70,20 +81,38 @@ export function useFeedReader() {
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const applyRefresh = useSetAtom(applySourceRefreshAtom);
   const setFeedSourceError = useSetAtom(setSourceErrorAtom);
+  const setCurrentUserId = useSetAtom(currentUserIdAtom);
+  const setFeedSubscriptions = useSetAtom(feedSubscriptionsAtom);
+  const setFeedReaderState = useSetAtom(feedReaderStateAtom);
   const previousSignedInRef = useRef(false);
+  const isMigrationInFlightRef = useRef(false);
   const detailPanelPagination =
-    detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
+    detailPanel.mode === "closed" ? undefined : state.sources[detailPanel.sourceId]?.pagination;
   const canReadUserData = convexAuth.isAuthenticated;
+  const userId = canReadUserData ? (user?.id ?? null) : null;
   const preferencesQuery = useQuery(
     convexQuery(api.preferences.queries.getForCurrentUser, canReadUserData ? {} : "skip"),
+  );
+  const subscriptionsQuery = useQuery(
+    convexQuery(api.feedSubscriptions.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
   );
   const bookmarksQuery = useQuery(
     convexQuery(api.bookmarks.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
   );
   const upsertPreferences = useConvexMutation(api.preferences.mutations.upsertForCurrentUser);
   const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
+  const createSubscription = useConvexMutation(
+    api.feedSubscriptions.mutations.createForCurrentUser,
+  );
+  const removeSubscription = useConvexMutation(
+    api.feedSubscriptions.mutations.removeForCurrentUser,
+  );
+  const importSubscriptions = useConvexMutation(
+    api.feedSubscriptions.mutations.importForCurrentUser,
+  );
   const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
+  const removeSubscriptionMutation = useMutation({ mutationFn: removeSubscription });
   const effectivePreferences = preferencesQuery.data ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
   const selectedSource =
@@ -91,25 +120,123 @@ export function useFeedReader() {
   const bookmarkedUrls = new Set(bookmarksQuery.data?.map((bookmark) => bookmark.url) ?? []);
 
   useEffect(() => {
+    setCurrentUserId(userId);
+
+    return () => {
+      setCurrentUserId(null);
+    };
+  }, [setCurrentUserId, userId]);
+
+  useEffect(() => {
+    setFeedSubscriptions(subscriptionsQuery.data ?? []);
+  }, [setFeedSubscriptions, subscriptionsQuery.data]);
+
+  useEffect(() => {
+    if (!subscriptionsQuery.data) {
+      return;
+    }
+
+    startTransition(() => {
+      setFeedReaderState((current) =>
+        reconcileLocalFeedCache(
+          current,
+          subscriptionsQuery.data.map((subscription) => subscription.sourceId),
+        ),
+      );
+    });
+  }, [setFeedReaderState, subscriptionsQuery.data]);
+
+  useEffect(() => {
     if (previousSignedInRef.current && !canReadUserData) {
       setLocalArticleViewMode(defaultUserPreferences.defaultView);
+      setFeedSubscriptions([]);
     }
 
     previousSignedInRef.current = canReadUserData;
-  }, [canReadUserData, setLocalArticleViewMode]);
+  }, [canReadUserData, setFeedSubscriptions, setLocalArticleViewMode]);
+
+  useEffect(() => {
+    if (
+      !canReadUserData ||
+      !userId ||
+      subscriptionsQuery.isPending ||
+      isMigrationInFlightRef.current ||
+      Object.keys(state.sources).length > 0
+    ) {
+      return;
+    }
+
+    const browserStorage = getBrowserStorage();
+    const rawValue = browserStorage?.getItem(FEED_READER_STATE_STORAGE_KEY);
+
+    if (!rawValue) {
+      return;
+    }
+
+    let parsedValue: unknown;
+
+    try {
+      parsedValue = JSON.parse(rawValue);
+    } catch {
+      return;
+    }
+
+    const legacyState = parseLegacyFeedReaderState(parsedValue);
+
+    if (!legacyState) {
+      return;
+    }
+
+    const migratedState = migrateLegacyFeedReaderState(legacyState);
+    const legacySubscriptions = extractLegacyFeedSubscriptions(legacyState);
+
+    isMigrationInFlightRef.current = true;
+
+    void (async () => {
+      try {
+        if (legacySubscriptions.length > 0) {
+          await importSubscriptions({
+            subscriptions: legacySubscriptions,
+          });
+        }
+
+        startTransition(() => {
+          setFeedReaderState(migratedState);
+        });
+        browserStorage?.removeItem(FEED_READER_STATE_STORAGE_KEY);
+      } finally {
+        isMigrationInFlightRef.current = false;
+      }
+    })();
+  }, [
+    canReadUserData,
+    importSubscriptions,
+    setFeedReaderState,
+    state.sources,
+    subscriptionsQuery.isPending,
+    userId,
+  ]);
 
   const addSourceMutation = useMutation({
-    mutationFn: async (input: string) =>
-      assertDiscoveryResult(
+    mutationFn: async (input: string) => {
+      if (!canReadUserData) {
+        throw new Error("Authentication required.");
+      }
+
+      const discovery = assertDiscoveryResult(
         await withStaleDeploymentRecovery(() =>
           fetchFeedSource({
             data: {
               url: normalizeInputUrl(input),
-              pollIntervalMs: effectivePollingIntervalMs,
             },
           }),
         ),
-      ),
+      );
+
+      await createSubscription(discovery.source);
+
+      return discovery;
+    },
     onSuccess: (discovery) => {
       startTransition(() => {
         addSourceSuccess(discovery);
@@ -118,10 +245,10 @@ export function useFeedReader() {
   });
 
   const loadMoreSourceItemsMutation = useMutation({
-    mutationFn: ({ source, pageUrl }: { source: SavedSource; pageUrl: string }) =>
+    mutationFn: ({ sourceId, pageUrl }: { sourceId: string; pageUrl: string }) =>
       withStaleDeploymentRecovery(() =>
         loadMoreFeedItems({
-          data: { source, pageUrl },
+          data: { sourceId, pageUrl },
         }),
       ),
     onSuccess: (result) => {
@@ -138,7 +265,10 @@ export function useFeedReader() {
     .map((query) => String(query.queryKey[1]));
 
   const handleAddSource = () => {
-    if (!sourceInput.trim()) return;
+    if (!sourceInput.trim()) {
+      return;
+    }
+
     addSourceMutation.mutate(sourceInput);
   };
 
@@ -208,18 +338,19 @@ export function useFeedReader() {
     }
   };
 
-  const handleRemoveSource = (sourceId: string) => {
-    removeFeedSource(sourceId);
+  const handleRemoveSource = async (sourceId: string) => {
+    startTransition(() => {
+      removeFeedSource(sourceId);
+    });
     void queryClient.removeQueries({ queryKey: queryKeys.sourceItems(sourceId) });
+    await removeSubscriptionMutation.mutateAsync({ sourceId });
   };
 
   const handleLoadMoreDetailPanelItems = async (sourceId: string) => {
-    const source = state.sources.find((entry) => entry.id === sourceId);
-    const pagination = state.paginationBySource[sourceId];
+    const pagination = state.sources[sourceId]?.pagination;
     const pageUrl = pagination?.nextPageUrl;
 
     if (
-      !source ||
       !pageUrl ||
       loadMoreSourceItemsMutation.isPending ||
       pagination.loadedPageUrls.includes(pageUrl)
@@ -227,7 +358,7 @@ export function useFeedReader() {
       return;
     }
 
-    await loadMoreSourceItemsMutation.mutateAsync({ source, pageUrl });
+    await loadMoreSourceItemsMutation.mutateAsync({ sourceId, pageUrl });
   };
 
   const handleSourceRefresh = (result: Parameters<typeof applyRefresh>[0], _sourceId: string) => {
@@ -244,6 +375,8 @@ export function useFeedReader() {
     }
 
     await bookmarkMutation.mutateAsync({
+      sourceId: selectedSource.sourceId,
+      itemId: selectedItem.id,
       url: selectedItem.url,
       title: selectedItem.title,
       excerpt: selectedItem.excerpt,
@@ -269,6 +402,7 @@ export function useFeedReader() {
     preferences: effectivePreferences,
     isPreferencesPending: preferenceMutation.isPending,
     effectivePollingIntervalMs,
+    isAuthLoading: convexAuth.isLoading,
     isSignedIn: canReadUserData,
     isBookmarked: selectedItem ? bookmarkedUrls.has(selectedItem.url) : false,
     isBookmarkPending: bookmarkMutation.isPending,

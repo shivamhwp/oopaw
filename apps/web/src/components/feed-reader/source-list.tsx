@@ -15,7 +15,6 @@ type SourceListProps = {
   selectedSourceId: string | null;
   refreshingSourceIds: string[];
   onSelect: (sourceId: string) => void;
-  onTogglePolling: (sourceId: string, enabled: boolean) => void;
   onRefresh: (sourceId: string) => void;
   onRemove: (sourceId: string) => void;
 };
@@ -25,7 +24,6 @@ export function SourceList({
   selectedSourceId,
   refreshingSourceIds,
   onSelect,
-  onTogglePolling,
   onRefresh,
   onRemove,
 }: SourceListProps) {
@@ -42,14 +40,17 @@ export function SourceList({
   return (
     <nav className="py-1">
       {items.map(({ source, unreadCount, newCount }) => {
-        const isSelected = source.id === selectedSourceId;
-        const isRefreshing = refreshingSourceIds.includes(source.id);
+        const isSelected = source.sourceId === selectedSourceId;
+        const isRefreshing = refreshingSourceIds.includes(source.sourceId);
 
         return (
-          <div key={source.id} className={cn("group relative", isSelected && "bg-primary/[0.05]")}>
+          <div
+            key={source.sourceId}
+            className={cn("group relative", isSelected && "bg-primary/[0.05]")}
+          >
             <button
               type="button"
-              onClick={() => onSelect(source.id)}
+              onClick={() => onSelect(source.sourceId)}
               className={cn(
                 "w-full px-4 py-2.5 text-left flex items-center gap-3 transition-colors",
                 isSelected
@@ -94,7 +95,7 @@ export function SourceList({
                 aria-label={`Refresh ${source.label}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRefresh(source.id);
+                  onRefresh(source.sourceId);
                 }}
               >
                 <ArrowClockwiseIcon className={isRefreshing ? "animate-spin" : ""} weight="bold" />
@@ -107,37 +108,12 @@ export function SourceList({
                 aria-label={`Remove ${source.label}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRemove(source.id);
+                  onRemove(source.sourceId);
                 }}
               >
                 <TrashIcon weight="bold" />
               </Button>
             </div>
-
-            {/* Polling toggle (show only on selected) */}
-            {isSelected && (
-              <div className="px-4 pb-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={`poll-${source.id}`}
-                  className="size-3 rounded border-border accent-primary"
-                  checked={source.pollingEnabled}
-                  onChange={(e) => onTogglePolling(source.id, e.target.checked)}
-                />
-                <label
-                  htmlFor={`poll-${source.id}`}
-                  className="text-[0.65rem] text-muted-foreground cursor-pointer"
-                >
-                  Poll every {Math.round(source.pollIntervalMs / 60_000)} min
-                </label>
-              </div>
-            )}
-
-            {source.lastError && isSelected && (
-              <p className="px-4 pb-2 text-[0.65rem] text-destructive truncate">
-                {source.lastError}
-              </p>
-            )}
 
             {newCount > 0 && (
               <div className="mx-4 mb-2 text-[0.65rem] text-accent-foreground font-medium">

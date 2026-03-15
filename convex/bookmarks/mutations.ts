@@ -4,6 +4,8 @@ import { requireCurrentUser } from "../lib/auth";
 
 export const toggleForCurrentUser = mutation({
   args: {
+    sourceId: v.optional(v.string()),
+    itemId: v.optional(v.string()),
     url: v.string(),
     title: v.string(),
     excerpt: v.optional(v.string()),
@@ -28,6 +30,8 @@ export const toggleForCurrentUser = mutation({
 
     await ctx.db.insert("bookmarks", {
       userId: identity.subject,
+      sourceId: args.sourceId,
+      itemId: args.itemId,
       url: args.url,
       title: args.title,
       excerpt: args.excerpt,
