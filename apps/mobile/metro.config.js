@@ -3,4 +3,6 @@ const { withNativewind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
-module.exports = withNativewind(config);
+module.exports = withNativewind(config, {
+  inlineVariables: false,
+});

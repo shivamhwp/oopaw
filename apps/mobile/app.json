@@ -4,6 +4,7 @@
     "slug": "oop-mobile",
     "scheme": "oop-mobile",
     "version": "1.0.0",
+    "jsEngine": "hermes",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "plugins": [
