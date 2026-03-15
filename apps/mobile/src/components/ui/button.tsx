@@ -1,5 +1,6 @@
 import { Pressable, type PressableProps, ActivityIndicator } from "react-native";
 import { Text } from "@/components/ui/text";
+import { useColors } from "@/constants/color";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = {
@@ -46,6 +47,8 @@ export function Button({
   variant = "primary",
   ...props
 }: ButtonProps) {
+  const colors = useColors();
+
   return (
     <Pressable
       disabled={disabled || loading}
@@ -59,7 +62,9 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "primary" ? "#ffffff" : "#0c7a5a"} />
+        <ActivityIndicator
+          color={variant === "primary" ? colors.primaryForeground : colors.primary}
+        />
       ) : typeof children === "string" || label ? (
         <Text
           className={cn("text-center font-medium text-sm", textVariants[variant], textClassName)}

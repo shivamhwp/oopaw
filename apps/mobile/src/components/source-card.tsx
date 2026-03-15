@@ -3,6 +3,7 @@ import { Trash, ArrowClockwise } from "phosphor-react-native";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
+import { useColors } from "@/constants/color";
 import { cn } from "@/lib/utils";
 import type { FeedItem, FeedSubscription } from "@repo/shared/feed/types";
 
@@ -25,6 +26,8 @@ export function SourceCard({
   onRefresh,
   onRemove,
 }: SourceCardProps) {
+  const colors = useColors();
+
   return (
     <Pressable onPress={onPress}>
       <Card className="gap-3">
@@ -44,7 +47,7 @@ export function SourceCard({
               accessibilityLabel="Refresh"
               accessibilityHint="Refresh the source"
             >
-              <ArrowClockwise size={18} color="#211d1a" />
+              <ArrowClockwise size={18} color={colors.foreground} />
             </Button>
             <Button
               variant="ghost"
@@ -54,7 +57,7 @@ export function SourceCard({
               accessibilityLabel="Remove"
               accessibilityHint="Remove the source"
             >
-              <Trash size={18} color="#bf5f33" />
+              <Trash size={18} color={colors.destructive} />
             </Button>
           </View>
         </View>

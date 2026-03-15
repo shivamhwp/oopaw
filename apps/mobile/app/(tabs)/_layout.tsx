@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { Text } from "@/components/ui/text";
+import { useColors } from "@/constants/color";
 import { useFeedData } from "@/providers/feed-provider";
 import { normalizeInputUrl } from "@repo/shared/feed/utils";
 
 export default function TabsLayout() {
   const { isSignedIn } = useAuth();
   const clerk = useClerk();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const { addFeed, preferences, updatePreferences } = useFeedData();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -46,17 +48,18 @@ export default function TabsLayout() {
     <>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: "#0c7a5a",
-          tabBarInactiveTintColor: "#8a7b6a",
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.mutedForeground,
           tabBarStyle: {
-            backgroundColor: "#fff9f1",
-            borderTopColor: "#ded2c3",
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
             height: 68 + insets.bottom,
             paddingBottom: insets.bottom + 10,
           },
-          headerStyle: { backgroundColor: "#f6f1e9" },
+          headerStyle: { backgroundColor: colors.background },
           headerShadowVisible: false,
-          headerTintColor: "#211d1a",
+          headerTintColor: colors.foreground,
+          sceneStyle: { backgroundColor: colors.background },
         }}
       >
         <Tabs.Screen
@@ -71,7 +74,7 @@ export default function TabsLayout() {
                 className="mr-2 size-10"
                 onPress={() => setIsSettingsOpen(true)}
               >
-                <SlidersHorizontal size={20} color="#211d1a" />
+                <SlidersHorizontal size={20} color={colors.foreground} />
               </Button>
             ),
           }}
@@ -97,7 +100,7 @@ export default function TabsLayout() {
           size="icon"
           onPress={() => setIsAddOpen(true)}
         >
-          <Plus size={26} color="#ffffff" weight="bold" />
+          <Plus size={26} color={colors.primaryForeground} weight="bold" />
         </Button>
       </View>
 
@@ -162,7 +165,7 @@ export default function TabsLayout() {
           onPress={() => void clerk.signOut()}
         >
           <View className="flex-row items-center gap-3">
-            <SignOut size={18} color="#211d1a" />
+            <SignOut size={18} color={colors.foreground} />
             <Text className="text-sm font-medium">Sign out</Text>
           </View>
         </Button>

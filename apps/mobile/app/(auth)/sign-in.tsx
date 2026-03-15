@@ -5,9 +5,11 @@ import { GoogleLogoIcon } from "phosphor-react-native";
 import { makeRedirectUri } from "expo-auth-session";
 import { useAuth, useOAuth } from "@clerk/expo";
 import { Button } from "@/components/ui/button";
+import { useColors } from "@/constants/color";
 import { Text } from "@/components/ui/text";
 
 export default function SignInScreen() {
+  const colors = useColors();
   const { isSignedIn } = useAuth();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function SignInScreen() {
         </Text>
         <Button className="mt-8 gap-3" onPress={handleSignIn} loading={isPending}>
           <View className="flex-row items-center gap-3">
-            <GoogleLogoIcon size={20} color="#ffffff" />
+            <GoogleLogoIcon size={20} color={colors.primaryForeground} />
             <Text className="text-sm font-semibold text-white">Continue with Google</Text>
           </View>
         </Button>

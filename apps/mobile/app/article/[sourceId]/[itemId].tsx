@@ -12,12 +12,14 @@ import {
   GlobeHemisphereWest,
 } from "phosphor-react-native";
 import { Button } from "@/components/ui/button";
+import { useColors } from "@/constants/color";
 import { Text } from "@/components/ui/text";
 import { api, type Doc } from "@/lib/convex";
 import { useFeedData } from "@/providers/feed-provider";
 import { stripHtml } from "@repo/shared/feed/utils";
 
 export default function ArticleScreen() {
+  const colors = useColors();
   const { isSignedIn } = useAuth();
   const params = useLocalSearchParams<{
     sourceId: string;
@@ -144,7 +146,7 @@ export default function ArticleScreen() {
             <View className="flex-row items-center justify-center gap-2">
               <BookmarkSimple
                 size={18}
-                color="#211d1a"
+                color={colors.foreground}
                 weight={isBookmarked ? "fill" : "regular"}
               />
               <Text className="text-sm font-medium">Bookmark</Text>
@@ -156,7 +158,10 @@ export default function ArticleScreen() {
             onPress={() => setMode("reader")}
           >
             <View className="flex-row items-center justify-center gap-2">
-              <BookOpenText size={18} color={activeMode === "reader" ? "#ffffff" : "#211d1a"} />
+              <BookOpenText
+                size={18}
+                color={activeMode === "reader" ? colors.primaryForeground : colors.foreground}
+              />
               <Text
                 className={`text-sm font-medium ${
                   activeMode === "reader" ? "text-white" : "text-ink"
@@ -179,7 +184,7 @@ export default function ArticleScreen() {
             <View className="flex-row items-center justify-center gap-2">
               <GlobeHemisphereWest
                 size={18}
-                color={activeMode === "site" ? "#ffffff" : "#211d1a"}
+                color={activeMode === "site" ? colors.primaryForeground : colors.foreground}
               />
               <Text
                 className={`text-sm font-medium ${
@@ -202,7 +207,7 @@ export default function ArticleScreen() {
           }}
         >
           <View className="flex-row items-center justify-center gap-2">
-            <ArrowSquareOut size={18} color="#211d1a" />
+            <ArrowSquareOut size={18} color={colors.foreground} />
             <Text className="text-sm font-medium">Open original</Text>
           </View>
         </Button>

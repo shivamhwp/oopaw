@@ -1,15 +1,160 @@
-@import "nativewind/theme";
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-canvas: #f6f1e9;
-  --color-ink: #211d1a;
-  --color-line: #ded2c3;
-  --color-card: #fff9f1;
-  --color-muted: #8a7b6a;
-  --color-accent: #0c7a5a;
-  --color-accentSoft: #d9efe7;
-  --color-warn: #bf5f33;
+@layer base {
+  :root {
+    --background: 249 249 249;
+    --foreground: 32 32 32;
+    --card: 252 252 252;
+    --card-foreground: 32 32 32;
+    --popover: 252 252 252;
+    --popover-foreground: 32 32 32;
+    --primary: 82 69 86;
+    --primary-foreground: 255 255 255;
+    --secondary: 231 183 228;
+    --secondary-foreground: 64 42 70;
+    --muted: 239 239 239;
+    --muted-foreground: 100 100 100;
+    --accent: 232 232 232;
+    --accent-foreground: 32 32 32;
+    --destructive: 147 82 179;
+    --destructive-foreground: 255 255 255;
+    --border: 216 216 216;
+    --input: 216 216 216;
+    --ring: 82 69 86;
+
+    --android-background: 249 249 249;
+    --android-foreground: 32 32 32;
+    --android-card: 252 252 252;
+    --android-card-foreground: 32 32 32;
+    --android-popover: 252 252 252;
+    --android-popover-foreground: 32 32 32;
+    --android-primary: 82 69 86;
+    --android-primary-foreground: 255 255 255;
+    --android-secondary: 231 183 228;
+    --android-secondary-foreground: 64 42 70;
+    --android-muted: 239 239 239;
+    --android-muted-foreground: 100 100 100;
+    --android-accent: 232 232 232;
+    --android-accent-foreground: 32 32 32;
+    --android-destructive: 147 82 179;
+    --android-destructive-foreground: 255 255 255;
+    --android-border: 216 216 216;
+    --android-input: 216 216 216;
+    --android-ring: 82 69 86;
+
+    --web-background: 249 249 249;
+    --web-foreground: 32 32 32;
+    --web-card: 252 252 252;
+    --web-card-foreground: 32 32 32;
+    --web-popover: 252 252 252;
+    --web-popover-foreground: 32 32 32;
+    --web-primary: 82 69 86;
+    --web-primary-foreground: 255 255 255;
+    --web-secondary: 231 183 228;
+    --web-secondary-foreground: 64 42 70;
+    --web-muted: 239 239 239;
+    --web-muted-foreground: 100 100 100;
+    --web-accent: 232 232 232;
+    --web-accent-foreground: 32 32 32;
+    --web-destructive: 147 82 179;
+    --web-destructive-foreground: 255 255 255;
+    --web-border: 216 216 216;
+    --web-input: 216 216 216;
+    --web-ring: 82 69 86;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 14 14 14;
+      --foreground: 238 238 238;
+      --card: 25 25 25;
+      --card-foreground: 238 238 238;
+      --popover: 25 25 25;
+      --popover-foreground: 238 238 238;
+      --primary: 233 192 234;
+      --primary-foreground: 25 32 19;
+      --secondary: 50 42 50;
+      --secondary-foreground: 233 192 234;
+      --muted: 32 32 32;
+      --muted-foreground: 180 180 180;
+      --accent: 42 42 42;
+      --accent-foreground: 238 238 238;
+      --destructive: 186 38 38;
+      --destructive-foreground: 255 255 255;
+      --border: 28 25 27;
+      --input: 72 72 72;
+      --ring: 233 192 234;
+
+      --android-background: 14 14 14;
+      --android-foreground: 238 238 238;
+      --android-card: 25 25 25;
+      --android-card-foreground: 238 238 238;
+      --android-popover: 25 25 25;
+      --android-popover-foreground: 238 238 238;
+      --android-primary: 233 192 234;
+      --android-primary-foreground: 25 32 19;
+      --android-secondary: 50 42 50;
+      --android-secondary-foreground: 233 192 234;
+      --android-muted: 32 32 32;
+      --android-muted-foreground: 180 180 180;
+      --android-accent: 42 42 42;
+      --android-accent-foreground: 238 238 238;
+      --android-destructive: 186 38 38;
+      --android-destructive-foreground: 255 255 255;
+      --android-border: 28 25 27;
+      --android-input: 72 72 72;
+      --android-ring: 233 192 234;
+
+      --web-background: 14 14 14;
+      --web-foreground: 238 238 238;
+      --web-card: 25 25 25;
+      --web-card-foreground: 238 238 238;
+      --web-popover: 25 25 25;
+      --web-popover-foreground: 238 238 238;
+      --web-primary: 233 192 234;
+      --web-primary-foreground: 25 32 19;
+      --web-secondary: 50 42 50;
+      --web-secondary-foreground: 233 192 234;
+      --web-muted: 32 32 32;
+      --web-muted-foreground: 180 180 180;
+      --web-accent: 42 42 42;
+      --web-accent-foreground: 238 238 238;
+      --web-destructive: 186 38 38;
+      --web-destructive-foreground: 255 255 255;
+      --web-border: 28 25 27;
+      --web-input: 72 72 72;
+      --web-ring: 233 192 234;
+    }
+  }
+}
+
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+  --color-card: rgb(var(--card));
+  --color-card-foreground: rgb(var(--card-foreground));
+  --color-popover: rgb(var(--popover));
+  --color-popover-foreground: rgb(var(--popover-foreground));
+  --color-primary: rgb(var(--primary));
+  --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-secondary: rgb(var(--secondary));
+  --color-secondary-foreground: rgb(var(--secondary-foreground));
+  --color-muted: rgb(var(--muted));
+  --color-muted-foreground: rgb(var(--muted-foreground));
+  --color-accent: rgb(var(--accent));
+  --color-accent-foreground: rgb(var(--accent-foreground));
+  --color-destructive: rgb(var(--destructive));
+  --color-destructive-foreground: rgb(var(--destructive-foreground));
+  --color-border: rgb(var(--border));
+  --color-input: rgb(var(--input));
+  --color-ring: rgb(var(--ring));
+
+  /* Backwards-compatible aliases used across the current mobile UI. */
+  --color-canvas: rgb(var(--background));
+  --color-ink: rgb(var(--foreground));
+  --color-line: rgb(var(--border));
+  --color-accentSoft: rgb(var(--secondary));
+  --color-warn: rgb(var(--destructive));
 }

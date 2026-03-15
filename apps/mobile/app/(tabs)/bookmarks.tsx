@@ -3,11 +3,13 @@ import { router } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import { useQuery } from "convex/react";
 import { BookmarkSimple } from "phosphor-react-native";
+import { useColors } from "@/constants/color";
 import { Text } from "@/components/ui/text";
 import { api, type Doc } from "@/lib/convex";
 import { createFeedItemId, createSourceId } from "@repo/shared/feed/utils";
 
 export default function BookmarksScreen() {
+  const colors = useColors();
   const { isSignedIn } = useAuth();
   const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, isSignedIn ? {} : "skip") ??
     []) as Doc<"bookmarks">[];
@@ -19,7 +21,7 @@ export default function BookmarksScreen() {
     >
       {bookmarks.length === 0 ? (
         <View className="items-center rounded-[34px] border border-dashed border-line bg-card px-6 py-10">
-          <BookmarkSimple size={32} color="#8a7b6a" weight="duotone" />
+          <BookmarkSimple size={32} color={colors.mutedForeground} weight="duotone" />
           <Text className="mt-4 text-xl font-semibold">No bookmarks yet.</Text>
           <Text className="mt-2 text-center text-base leading-7 text-muted">
             Save articles from the reader and they will appear here on every device.

@@ -22,6 +22,7 @@
     "expo-linking": "^55.0.7",
     "expo-router": "^55.0.5",
     "expo-secure-store": "^55.0.8",
+    "expo-system-ui": "^55.0.9",
     "expo-web-browser": "^55.0.9",
     "nativewind": "^5.0.0-preview.3",
     "phosphor-react-native": "^3.0.3",
