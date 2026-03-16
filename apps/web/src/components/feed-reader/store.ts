@@ -12,6 +12,8 @@ import {
   removeSource,
   setSelectedSource,
   setSourceError,
+  syncSourcesFromConvex,
+  type ConvexSubscription,
 } from "@/lib/feed-reader-state";
 import {
   FEED_READER_PANEL_OPEN_STORAGE_KEY,
@@ -342,6 +344,13 @@ export const setSourceErrorAtom = atom(
   null,
   (_get, set, payload: { sourceId: string; message: string }) => {
     set(feedReaderStateAtom, (state) => setSourceError(state, payload.sourceId, payload.message));
+  },
+);
+
+export const syncSourcesFromConvexAtom = atom(
+  null,
+  (_get, set, subscriptions: ConvexSubscription[]) => {
+    set(feedReaderStateAtom, (state) => syncSourcesFromConvex(state, subscriptions));
   },
 );
 

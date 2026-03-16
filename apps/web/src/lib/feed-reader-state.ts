@@ -282,6 +282,62 @@ export const removeSource = (state: FeedReaderState, sourceId: string) => {
   };
 };
 
+export type ConvexSubscription = {
+  id: string;
+  label: string;
+  inputUrl: string;
+  siteUrl: string;
+  feedUrl: string;
+  pollingEnabled: boolean;
+  pollIntervalMs: number;
+};
+
+export const syncSourcesFromConvex = (
+  state: FeedReaderState,
+  subscriptions: ConvexSubscription[],
+): FeedReaderState => {
+  const validSourceIds = new Set(subscriptions.map((s) => s.id));
+
+  const sources = subscriptions.map((sub) => ({
+    id: sub.id,
+    label: sub.label,
+    inputUrl: sub.inputUrl,
+    siteUrl: sub.siteUrl,
+    feedUrl: sub.feedUrl,
+    pollingEnabled: sub.pollingEnabled,
+    pollIntervalMs: sub.pollIntervalMs,
+    lastCheckedAt: state.sources.find((s) => s.id === sub.id)?.lastCheckedAt,
+    lastError: state.sources.find((s) => s.id === sub.id)?.lastError,
+  }));
+
+  const itemsBySource = Object.fromEntries(
+    Object.entries(state.itemsBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
+  );
+  const seenItemIdsBySource = Object.fromEntries(
+    Object.entries(state.seenItemIdsBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
+  );
+  const paginationBySource = Object.fromEntries(
+    Object.entries(state.paginationBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
+  );
+  const readItemIds = state.readItemIds.filter((id) =>
+    Object.values(itemsBySource).some((items) => items.some((item) => item.id === id)),
+  );
+  const selectedSourceId =
+    state.selectedSourceId && validSourceIds.has(state.selectedSourceId)
+      ? state.selectedSourceId
+      : (sources[0]?.id ?? null);
+
+  return {
+    ...state,
+    sources,
+    itemsBySource,
+    seenItemIdsBySource,
+    readItemIds,
+    paginationBySource,
+    selectedSourceId,
+  };
+};
+
 export const getSourceItems = (state: FeedReaderState, sourceId: string): FeedItem[] => {
   const readIds = new Set(state.readItemIds);
   const seenIds = new Set(state.seenItemIdsBySource[sourceId] ?? []);

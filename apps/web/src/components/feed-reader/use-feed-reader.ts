@@ -23,6 +23,7 @@ import {
   showAddFormAtom,
   sourceInputAtom,
   sourceSummariesAtom,
+  syncSourcesFromConvexAtom,
   toggleReaderFullScreenAtom,
   totalNewAtom,
 } from "@/components/feed-reader/store";
@@ -67,6 +68,7 @@ export function useFeedReader() {
   const toggleReaderFullScreen = useSetAtom(toggleReaderFullScreenAtom);
   const addSourceSuccess = useSetAtom(addSourceSuccessAtom);
   const removeFeedSource = useSetAtom(removeSourceAtom);
+  const syncSourcesFromConvex = useSetAtom(syncSourcesFromConvexAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const applyRefresh = useSetAtom(applySourceRefreshAtom);
   const setFeedSourceError = useSetAtom(setSourceErrorAtom);
@@ -80,7 +82,15 @@ export function useFeedReader() {
   const bookmarksQuery = useQuery(
     convexQuery(api.bookmarks.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
   );
+  const feedSubscriptionsQuery = useQuery({
+    ...convexQuery(api.feedSubscriptions.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   const upsertPreferences = useConvexMutation(api.preferences.mutations.upsertForCurrentUser);
+  const addFeedSubscription = useConvexMutation(api.feedSubscriptions.mutations.addForCurrentUser);
+  const removeFeedSubscription = useConvexMutation(
+    api.feedSubscriptions.mutations.removeForCurrentUser,
+  );
   const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
@@ -98,6 +108,11 @@ export function useFeedReader() {
     previousSignedInRef.current = canReadUserData;
   }, [canReadUserData, setLocalArticleViewMode]);
 
+  useEffect(() => {
+    if (!canReadUserData || !feedSubscriptionsQuery.data) return;
+    syncSourcesFromConvex(feedSubscriptionsQuery.data);
+  }, [canReadUserData, feedSubscriptionsQuery.data, syncSourcesFromConvex]);
+
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) =>
       assertDiscoveryResult(
@@ -110,10 +125,21 @@ export function useFeedReader() {
           }),
         ),
       ),
-    onSuccess: (discovery) => {
+    onSuccess: async (discovery) => {
       startTransition(() => {
         addSourceSuccess(discovery);
       });
+      if (canReadUserData) {
+        await addFeedSubscription({
+          sourceId: discovery.source.id,
+          label: discovery.source.label,
+          inputUrl: discovery.source.inputUrl,
+          siteUrl: discovery.source.siteUrl,
+          feedUrl: discovery.source.feedUrl,
+          pollingEnabled: discovery.source.pollingEnabled,
+          pollIntervalMs: discovery.source.pollIntervalMs,
+        });
+      }
     },
   });
 
@@ -208,9 +234,12 @@ export function useFeedReader() {
     }
   };
 
-  const handleRemoveSource = (sourceId: string) => {
+  const handleRemoveSource = async (sourceId: string) => {
     removeFeedSource(sourceId);
     void queryClient.removeQueries({ queryKey: queryKeys.sourceItems(sourceId) });
+    if (canReadUserData) {
+      await removeFeedSubscription({ sourceId });
+    }
   };
 
   const handleLoadMoreDetailPanelItems = async (sourceId: string) => {

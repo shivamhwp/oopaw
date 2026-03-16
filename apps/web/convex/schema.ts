@@ -2,6 +2,20 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  feedSubscriptions: defineTable({
+    userId: v.string(),
+    sourceId: v.string(),
+    label: v.string(),
+    inputUrl: v.string(),
+    siteUrl: v.string(),
+    feedUrl: v.string(),
+    pollingEnabled: v.boolean(),
+    pollIntervalMs: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_sourceId", ["userId", "sourceId"]),
   userPreferences: defineTable({
     userId: v.string(),
     pollingIntervalMinutes: v.number(),
