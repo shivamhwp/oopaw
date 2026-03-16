@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Redirect } from "expo-router";
-import { GoogleLogoIcon } from "phosphor-react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { makeRedirectUri } from "expo-auth-session";
-import { useAuth, useOAuth } from "@clerk/expo";
-import { Button } from "@/components/ui/button";
-import { useColors } from "@/constants/color";
-import { Text } from "@/components/ui/text";
+import { useAuth, useSSO } from "@clerk/expo";
+import { Button } from "@/components/button";
+import { useColors } from "@/theme";
 
 export default function SignInScreen() {
   const colors = useColors();
   const { isSignedIn } = useAuth();
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+  const { startSSOFlow } = useSSO();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
@@ -24,7 +23,8 @@ export default function SignInScreen() {
     setIsPending(true);
 
     try {
-      const { createdSessionId, setActive } = await startOAuthFlow({
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy: "oauth_google",
         redirectUrl: makeRedirectUri({ scheme: "oop-mobile" }),
       });
 
@@ -39,28 +39,43 @@ export default function SignInScreen() {
   };
 
   return (
-    <View className="flex-1 items-center justify-center bg-canvas px-6">
-      <View className="w-full max-w-sm rounded-[28px] border border-line bg-card px-6 py-8">
-        <Text className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-          Mobile Reader
-        </Text>
-        <Text className="mt-4 text-4xl font-semibold leading-tight text-card-foreground">
-          Sign in with Google to load your feeds.
-        </Text>
-        <Text className="mt-4 text-base leading-7 text-muted-foreground">
-          Subscriptions, bookmarks, and preferences sync through Convex. Articles and read state
-          stay local on this device.
-        </Text>
-        <Button className="mt-8 gap-3" onPress={handleSignIn} loading={isPending}>
-          <View className="flex-row items-center gap-3">
-            <GoogleLogoIcon size={20} color={colors.primaryForeground} />
-            <Text className="text-sm font-semibold text-primary-foreground">
-              Continue with Google
-            </Text>
-          </View>
-        </Button>
-        {error ? <Text className="mt-4 text-sm text-warn">{error}</Text> : null}
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Button style={styles.button} onPress={handleSignIn} loading={isPending}>
+        <View style={styles.buttonContent}>
+          <Ionicons name="logo-google" size={20} color={colors.primaryForeground} />
+          <Text style={[styles.buttonLabel, { color: colors.primaryForeground }]}>
+            Sign in with Google
+          </Text>
+        </View>
+      </Button>
+      {error ? <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text> : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  button: {
+    width: "100%",
+    maxWidth: 320,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  error: {
+    marginTop: 16,
+    fontSize: 14,
+    textAlign: "center",
+  },
+});

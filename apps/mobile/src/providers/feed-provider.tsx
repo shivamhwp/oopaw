@@ -41,6 +41,7 @@ const createStorageKey = (userId: string) => `papertrail.mobile.feed-cache.${use
 type FeedContextValue = {
   cache: LocalFeedCache;
   isCacheReady: boolean;
+  isConvexAuthLoading: boolean;
   subscriptions: FeedSubscription[];
   preferences: typeof defaultUserPreferences;
   sourceSummaries: Array<{
@@ -66,7 +67,7 @@ const FeedContext = createContext<FeedContextValue | null>(null);
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { isSignedIn, userId } = useAuth();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading: isConvexAuthLoading } = useConvexAuth();
   const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
   const subscriptions = (useQuery(
     api.feedSubscriptions.queries.listForCurrentUser,
@@ -219,6 +220,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   const addFeed = useCallback(
     async (inputUrl: string) => {
+      if (!canRunAuthenticatedQueries) {
+        throw new Error("Not authenticated.");
+      }
+
       const discovery = await discoverFeed(inputUrl);
 
       await createSubscription(discovery.source);
@@ -226,15 +231,19 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
       return discovery.source.sourceId;
     },
-    [createSubscription],
+    [canRunAuthenticatedQueries, createSubscription],
   );
 
   const removeFeedById = useCallback(
     async (sourceId: string) => {
+      if (!canRunAuthenticatedQueries) {
+        throw new Error("Not authenticated.");
+      }
+
       await removeSubscription({ sourceId });
       setCache((current) => removeSource(current, sourceId));
     },
-    [removeSubscription],
+    [canRunAuthenticatedQueries, removeSubscription],
   );
 
   const refreshAll = useCallback(async () => {
@@ -294,15 +303,20 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   const updatePreferences = useCallback(
     async (values: typeof defaultUserPreferences) => {
+      if (!canRunAuthenticatedQueries) {
+        throw new Error("Not authenticated.");
+      }
+
       await upsertPreferences(values);
     },
-    [upsertPreferences],
+    [canRunAuthenticatedQueries, upsertPreferences],
   );
 
   const value = useMemo<FeedContextValue>(
     () => ({
       cache,
       isCacheReady,
+      isConvexAuthLoading,
       subscriptions,
       preferences,
       sourceSummaries: subscriptions.map((source) => {
@@ -335,6 +349,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       getSource,
       getSourceItemsById,
       isCacheReady,
+      isConvexAuthLoading,
       loadMore,
       markRead,
       preferences,

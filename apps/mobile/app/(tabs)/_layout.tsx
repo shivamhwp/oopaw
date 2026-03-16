@@ -1,25 +1,27 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs, router } from "expo-router";
-import { BookmarkSimple, House, Plus, SlidersHorizontal, SignOut } from "phosphor-react-native";
-import { useAuth, useClerk } from "@clerk/expo";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
+import { useConvexAuth, useMutation } from "convex/react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sheet } from "@/components/ui/sheet";
-import { Text } from "@/components/ui/text";
-import { useColors } from "@/constants/color";
-import { useFeedData } from "@/providers/feed-provider";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/button";
+import { Input } from "@/components/input";
+import { Sheet } from "@/components/sheet";
+import { useColors } from "@/theme";
+import { api } from "@/lib/convex";
 import { normalizeInputUrl } from "@repo/shared/feed/utils";
+import { discoverFeed } from "@repo/shared/feed/service";
 
 export default function TabsLayout() {
   const { isSignedIn } = useAuth();
-  const clerk = useClerk();
+  const { isAuthenticated } = useConvexAuth();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { addFeed, preferences, updatePreferences } = useFeedData();
+  const createSubscription = useMutation(api.feedSubscriptions.mutations.createForCurrentUser);
+  const queryClient = useQueryClient();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,14 +31,18 @@ export default function TabsLayout() {
   }
 
   const handleAddFeed = async () => {
+    if (!isAuthenticated) return;
+
     setError(null);
     setIsSubmitting(true);
 
     try {
-      const sourceId = await addFeed(normalizeInputUrl(url));
+      const discovery = await discoverFeed(normalizeInputUrl(url));
+      await createSubscription(discovery.source);
+      await queryClient.invalidateQueries({ queryKey: ["feed-items"] });
       setUrl("");
       setIsAddOpen(false);
-      router.push(`/feed/${sourceId}`);
+      router.push(`/feed/${discovery.source.sourceId}`);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Could not add feed.");
     } finally {
@@ -48,6 +54,7 @@ export default function TabsLayout() {
     <>
       <Tabs
         screenOptions={{
+          headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.mutedForeground,
           tabBarStyle: {
@@ -57,9 +64,6 @@ export default function TabsLayout() {
             paddingBottom: insets.bottom + 8,
             paddingTop: 8,
           },
-          headerStyle: { backgroundColor: colors.background },
-          headerShadowVisible: false,
-          headerTintColor: colors.foreground,
           sceneStyle: { backgroundColor: colors.background },
         }}
       >
@@ -67,47 +71,42 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: "Home",
-            tabBarIcon: ({ color, size }) => <House color={color} size={size} weight="duotone" />,
-            headerRight: () => (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="mr-2 size-10"
-                onPress={() => setIsSettingsOpen(true)}
-              >
-                <SlidersHorizontal size={20} color={colors.foreground} />
-              </Button>
-            ),
+            tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
           }}
         />
         <Tabs.Screen
           name="bookmarks"
           options={{
             title: "Bookmarks",
-            tabBarIcon: ({ color, size }) => (
-              <BookmarkSimple color={color} size={size} weight="duotone" />
-            ),
+            tabBarIcon: ({ color, size }) => <Ionicons name="bookmark" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            tabBarIcon: ({ color, size }) => <Ionicons name="settings" color={color} size={size} />,
           }}
         />
       </Tabs>
 
-      <View
-        className="absolute items-center self-center"
-        style={{ bottom: insets.bottom + 42 }}
-        pointerEvents="box-none"
+      <Pressable
+        style={[
+          styles.fab,
+          {
+            right: 16,
+            bottom: insets.bottom + 42,
+            backgroundColor: colors.primary,
+          },
+        ]}
+        onPress={() => setIsAddOpen(true)}
       >
-        <Button
-          className="size-14 rounded-full shadow-sm"
-          size="icon"
-          onPress={() => setIsAddOpen(true)}
-        >
-          <Plus size={24} color={colors.primaryForeground} weight="bold" />
-        </Button>
-      </View>
+        <Ionicons name="add" size={24} color={colors.primaryForeground} />
+      </Pressable>
 
       <Sheet open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <Text className="text-2xl font-semibold">Add feed</Text>
-        <Text className="mt-2 text-sm leading-6 text-muted-foreground">
+        <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Add feed</Text>
+        <Text style={[styles.sheetDesc, { color: colors.mutedForeground }]}>
           Paste a direct RSS or Atom feed URL.
         </Text>
         <Input
@@ -115,62 +114,49 @@ export default function TabsLayout() {
           onChangeText={setUrl}
           autoCapitalize="none"
           autoCorrect={false}
-          className="mt-5"
           placeholder="https://example.com/feed.xml"
+          style={styles.sheetInput}
         />
-        {error ? <Text className="mt-3 text-sm text-warn">{error}</Text> : null}
-        <Button className="mt-5" onPress={handleAddFeed} loading={isSubmitting} label="Add feed" />
-      </Sheet>
-
-      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <Text className="text-2xl font-semibold">Settings</Text>
-        <Text className="mt-2 text-sm text-muted-foreground">Polling interval</Text>
-        <View className="mt-4 flex-row gap-2">
-          {[10, 15, 30, 60].map((value) => (
-            <Button
-              key={value}
-              variant={preferences.pollingIntervalMinutes === value ? "primary" : "outline"}
-              className="flex-1"
-              onPress={() =>
-                void updatePreferences({
-                  pollingIntervalMinutes: value,
-                  defaultView: preferences.defaultView,
-                })
-              }
-              label={`${value}m`}
-            />
-          ))}
-        </View>
-
-        <Text className="mt-6 text-sm text-muted-foreground">Default article view</Text>
-        <View className="mt-4 flex-row gap-2">
-          {(["reader", "site"] as const).map((value) => (
-            <Button
-              key={value}
-              variant={preferences.defaultView === value ? "primary" : "outline"}
-              className="flex-1"
-              onPress={() =>
-                void updatePreferences({
-                  pollingIntervalMinutes: preferences.pollingIntervalMinutes,
-                  defaultView: value,
-                })
-              }
-              label={value}
-            />
-          ))}
-        </View>
-
-        <Button
-          variant="ghost"
-          className="mt-6 justify-start rounded-[18px] border border-line bg-card px-4"
-          onPress={() => void clerk.signOut()}
-        >
-          <View className="flex-row items-center gap-3">
-            <SignOut size={18} color={colors.foreground} />
-            <Text className="text-sm font-medium">Sign out</Text>
-          </View>
-        </Button>
+        {error ? (
+          <Text style={[styles.sheetError, { color: colors.destructive }]}>{error}</Text>
+        ) : null}
+        <Button style={styles.sheetButton} onPress={handleAddFeed} loading={isSubmitting} label="Add feed" />
       </Sheet>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  sheetTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+  },
+  sheetDesc: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  sheetInput: {
+    marginTop: 20,
+  },
+  sheetError: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  sheetButton: {
+    marginTop: 20,
+  },
+});

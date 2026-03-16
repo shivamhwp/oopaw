@@ -1,37 +1,88 @@
-import { RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { useFeedData } from "@/providers/feed-provider";
+import { useMutation, useQuery } from "convex/react";
+import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/convex";
 import { SourceCard } from "@/components/source-card";
-import { Text } from "@/components/ui/text";
+import { useColors } from "@/theme";
+import { refreshDiscoveredFeed } from "@repo/shared/feed/service";
+import type { FeedSubscription } from "@repo/shared/feed/types";
+
+function useSourceItems(source: FeedSubscription, pollingIntervalMs: number) {
+  return useTanstackQuery({
+    queryKey: ["feed-items", source.sourceId],
+    queryFn: () =>
+      refreshDiscoveredFeed({
+        source: { sourceId: source.sourceId, feedUrl: source.feedUrl },
+        seenItemIds: [],
+      }),
+    refetchInterval: pollingIntervalMs,
+    refetchIntervalInBackground: false,
+  });
+}
+
+function SourceCardWithItems({
+  source,
+  pollingIntervalMs,
+}: {
+  source: FeedSubscription;
+  pollingIntervalMs: number;
+}) {
+  const queryClient = useQueryClient();
+  const removeSubscription = useMutation(api.feedSubscriptions.mutations.removeForCurrentUser);
+  const { data } = useSourceItems(source, pollingIntervalMs);
+  const items = data?.items ?? [];
+
+  return (
+    <SourceCard
+      source={source}
+      items={items}
+      itemCount={items.length}
+      onPress={() => router.push(`/feed/${source.sourceId}`)}
+      onRefresh={() =>
+        void queryClient.invalidateQueries({ queryKey: ["feed-items", source.sourceId] })
+      }
+      onRemove={() => void removeSubscription({ sourceId: source.sourceId })}
+    />
+  );
+}
 
 export default function HomeScreen() {
-  const { sourceSummaries, refreshAll, refreshSource, removeFeed } = useFeedData();
+  const colors = useColors();
+  const subscriptions = (useQuery(
+    api.feedSubscriptions.queries.listForCurrentUser,
+    {},
+  ) ?? []) as FeedSubscription[];
+  const preferences = useQuery(api.preferences.queries.getForCurrentUser, {});
+  const queryClient = useQueryClient();
+  const pollingIntervalMs = (preferences?.pollingIntervalMinutes ?? 15) * 60_000;
+
+  const handleRefreshAll = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["feed-items"] });
+  };
 
   return (
     <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 20, paddingBottom: 148 }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={() => void refreshAll()} />}
+      style={[styles.scroll, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={false} onRefresh={() => void handleRefreshAll()} />}
     >
-      {sourceSummaries.length === 0 ? (
-        <View className="rounded-[28px] border border-dashed border-line bg-card px-6 py-12">
-          <Text className="text-2xl font-semibold text-card-foreground">No subscriptions yet.</Text>
-          <Text className="mt-3 text-base leading-7 text-muted-foreground">
+      {subscriptions.length === 0 ? (
+        <View style={[styles.empty, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
+            No subscriptions yet.
+          </Text>
+          <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
             Add a feed from the floating plus button. Subscriptions sync across web and mobile.
           </Text>
         </View>
       ) : (
-        <View className="gap-3">
-          {sourceSummaries.map((summary) => (
-            <SourceCard
-              key={summary.source.sourceId}
-              source={summary.source}
-              items={summary.items}
-              unreadCount={summary.unreadCount}
-              newCount={summary.newCount}
-              onPress={() => router.push(`/feed/${summary.source.sourceId}`)}
-              onRefresh={() => void refreshSource(summary.source.sourceId)}
-              onRemove={() => void removeFeed(summary.source.sourceId)}
+        <View style={styles.list}>
+          {subscriptions.map((source) => (
+            <SourceCardWithItems
+              key={source.sourceId}
+              source={source}
+              pollingIntervalMs={pollingIntervalMs}
             />
           ))}
         </View>
@@ -39,3 +90,32 @@ export default function HomeScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 148,
+  },
+  empty: {
+    borderRadius: 28,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+  },
+  emptyDesc: {
+    marginTop: 12,
+    fontSize: 16,
+    lineHeight: 26,
+  },
+  list: {
+    gap: 12,
+  },
+});

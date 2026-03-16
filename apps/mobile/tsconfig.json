@@ -4,8 +4,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "nativewind-env.d.ts",
-    "global.d.ts",
     "expo-env.d.ts"
   ],
   "compilerOptions": {
@@ -14,9 +12,8 @@
     "allowJs": false,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*", "./*"],
-      "@convex/*": ["./convex/*"],
-      "@root/*": ["./*"]
+      "@/*": ["./src/*"],
+      "@convex/*": ["./convex/*"]
     }
   }
 }

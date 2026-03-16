@@ -1,74 +1,152 @@
-import { useEffect } from "react";
-import { Pressable, RefreshControl, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { CaretRight } from "phosphor-react-native";
-import { Button } from "@/components/ui/button";
-import { useColors } from "@/constants/color";
-import { Text } from "@/components/ui/text";
-import { useFeedData } from "@/providers/feed-provider";
+import { Ionicons } from "@expo/vector-icons";
+import { useConvexAuth, useQuery } from "convex/react";
+import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/convex";
+import { useColors } from "@/theme";
+import { refreshDiscoveredFeed } from "@repo/shared/feed/service";
+import type { FeedSubscription } from "@repo/shared/feed/types";
 
 export default function FeedScreen() {
   const colors = useColors();
   const { sourceId } = useLocalSearchParams<{ sourceId: string }>();
-  const { getSource, getSourceItems, loadMore, markRead, refreshSource } = useFeedData();
-  const source = getSource(sourceId);
-  const items = getSourceItems(sourceId);
+  const { isAuthenticated, isLoading: isConvexAuthLoading } = useConvexAuth();
+  const canQuery = isAuthenticated;
+  const subscriptions = useQuery(
+    api.feedSubscriptions.queries.listForCurrentUser,
+    canQuery ? {} : "skip",
+  ) as FeedSubscription[] | undefined;
+  const preferences = useQuery(
+    api.preferences.queries.getForCurrentUser,
+    canQuery ? {} : "skip",
+  );
+  const source = subscriptions?.find((s) => s.sourceId === sourceId);
+  const queryClient = useQueryClient();
+  const pollingIntervalMs = (preferences?.pollingIntervalMinutes ?? 15) * 60_000;
 
-  useEffect(() => {
-    if (source && items.length === 0) {
-      void refreshSource(source.sourceId);
-    }
-  }, [items.length, refreshSource, source?.sourceId]);
+  const { data, isLoading } = useTanstackQuery({
+    queryKey: ["feed-items", sourceId],
+    queryFn: () =>
+      refreshDiscoveredFeed({
+        source: { sourceId: source!.sourceId, feedUrl: source!.feedUrl },
+        seenItemIds: [],
+      }),
+    enabled: !!source,
+    refetchInterval: pollingIntervalMs,
+    refetchIntervalInBackground: false,
+  });
+
+  const items = data?.items ?? [];
+
+  if (isConvexAuthLoading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 20, paddingBottom: 96 }}
+      style={[styles.scroll, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
       refreshControl={
-        <RefreshControl refreshing={false} onRefresh={() => void refreshSource(sourceId)} />
+        <RefreshControl
+          refreshing={false}
+          onRefresh={() =>
+            void queryClient.invalidateQueries({ queryKey: ["feed-items", sourceId] })
+          }
+        />
       }
     >
-      <Text className="text-3xl font-semibold text-foreground">{source?.label ?? "Feed"}</Text>
-      <Text className="mt-2 text-sm text-muted-foreground">{source?.siteUrl}</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{source?.label ?? "Feed"}</Text>
+      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{source?.siteUrl}</Text>
 
-      <View className="mt-6 gap-3">
-        {items.map((item) => (
-          <Pressable
-            key={item.id}
-            className="rounded-[22px] border border-line bg-card px-4 py-4"
-            onPress={() => {
-              markRead(sourceId, item.id);
-              router.push(`/article/${sourceId}/${item.id}`);
-            }}
-          >
-            <View className="flex-row items-start gap-3">
-              <View
-                className={`mt-2 size-2 rounded-full ${item.isRead ? "bg-line" : "bg-primary"}`}
-              />
-              <View className="flex-1">
-                <Text className="text-base font-semibold leading-7 text-card-foreground">
-                  {item.title}
-                </Text>
-                {item.excerpt ? (
-                  <Text className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {item.excerpt}
+      {isLoading && items.length === 0 ? (
+        <View style={styles.loadingItems}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {items.map((item) => (
+            <Pressable
+              key={item.id}
+              style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => router.push(`/article/${sourceId}/${item.id}`)}
+            >
+              <View style={styles.itemRow}>
+                <View style={styles.itemContent}>
+                  <Text style={[styles.itemTitle, { color: colors.cardForeground }]}>
+                    {item.title}
                   </Text>
-                ) : null}
+                  {item.excerpt ? (
+                    <Text style={[styles.itemExcerpt, { color: colors.mutedForeground }]}>
+                      {item.excerpt}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
               </View>
-              <CaretRight size={18} color={colors.mutedForeground} />
-            </View>
-          </Pressable>
-        ))}
-      </View>
-
-      {source && (items.length > 0 || source.feedUrl) ? (
-        <Button
-          className="mt-6"
-          variant="outline"
-          onPress={() => void loadMore(sourceId)}
-          label="Load more"
-        />
-      ) : null}
+            </Pressable>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 96,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "600",
+  },
+  subtitle: {
+    marginTop: 8,
+    fontSize: 14,
+  },
+  loadingItems: {
+    paddingVertical: 48,
+    alignItems: "center",
+  },
+  list: {
+    marginTop: 24,
+    gap: 12,
+  },
+  itemCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 24,
+  },
+  itemExcerpt: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+});

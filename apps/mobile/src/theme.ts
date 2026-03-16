@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, type Theme } from "@react-navigation/native";
+import { useColorScheme } from "react-native";
 
 export const THEME = {
   light: {
@@ -6,8 +6,6 @@ export const THEME = {
     foreground: "rgb(24, 24, 27)",
     card: "rgb(255, 255, 255)",
     cardForeground: "rgb(24, 24, 27)",
-    popover: "rgb(255, 255, 255)",
-    popoverForeground: "rgb(24, 24, 27)",
     primary: "rgb(91, 70, 255)",
     primaryForeground: "rgb(250, 250, 255)",
     secondary: "rgb(244, 244, 245)",
@@ -21,15 +19,12 @@ export const THEME = {
     border: "rgb(228, 228, 231)",
     input: "rgb(228, 228, 231)",
     ring: "rgb(167, 139, 250)",
-    radius: 20,
   },
   dark: {
     background: "rgb(10, 10, 10)",
     foreground: "rgb(250, 250, 250)",
     card: "rgb(17, 17, 19)",
     cardForeground: "rgb(250, 250, 250)",
-    popover: "rgb(17, 17, 19)",
-    popoverForeground: "rgb(250, 250, 250)",
     primary: "rgb(196, 181, 253)",
     primaryForeground: "rgb(34, 25, 68)",
     secondary: "rgb(39, 39, 42)",
@@ -43,33 +38,26 @@ export const THEME = {
     border: "rgb(39, 39, 42)",
     input: "rgb(39, 39, 42)",
     ring: "rgb(165, 180, 252)",
-    radius: 20,
   },
 } as const;
 
-export const NAV_THEME: Record<"light" | "dark", Theme> = {
-  light: {
-    ...DefaultTheme,
-    colors: {
-      ...DefaultTheme.colors,
-      background: THEME.light.background,
-      border: THEME.light.border,
-      card: THEME.light.card,
-      notification: THEME.light.destructive,
-      primary: THEME.light.primary,
-      text: THEME.light.foreground,
-    },
-  },
-  dark: {
-    ...DarkTheme,
-    colors: {
-      ...DarkTheme.colors,
-      background: THEME.dark.background,
-      border: THEME.dark.border,
-      card: THEME.dark.card,
-      notification: THEME.dark.destructive,
-      primary: THEME.dark.primary,
-      text: THEME.dark.foreground,
-    },
-  },
-};
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  xxl: 32,
+} as const;
+
+export const radii = {
+  sm: 8,
+  md: 12,
+  lg: 18,
+  xl: 24,
+  xxl: 28,
+} as const;
+
+export type ThemeColors = { [K in keyof (typeof THEME)["light"]]: string };
+
+export const useColors = () => THEME[useColorScheme() === "dark" ? "dark" : "light"];

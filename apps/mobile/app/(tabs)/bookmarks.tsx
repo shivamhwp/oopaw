@@ -1,37 +1,36 @@
-import { Image, Pressable, ScrollView, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { useAuth } from "@clerk/expo";
+import { Ionicons } from "@expo/vector-icons";
 import { useConvexAuth, useQuery } from "convex/react";
-import { BookmarkSimple } from "phosphor-react-native";
-import { useColors } from "@/constants/color";
-import { Text } from "@/components/ui/text";
+import { useColors } from "@/theme";
 import { api, type Doc } from "@/lib/convex";
 import { createFeedItemId, createSourceId } from "@repo/shared/feed/utils";
 
 export default function BookmarksScreen() {
   const colors = useColors();
-  const { isSignedIn } = useAuth();
   const { isAuthenticated } = useConvexAuth();
   const bookmarks = (useQuery(
     api.bookmarks.queries.listForCurrentUser,
-    isSignedIn && isAuthenticated ? {} : "skip",
+    isAuthenticated ? {} : "skip",
   ) ?? []) as Doc<"bookmarks">[];
 
   return (
     <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 20, paddingBottom: 132 }}
+      style={[styles.scroll, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
     >
       {bookmarks.length === 0 ? (
-        <View className="items-center rounded-[28px] border border-dashed border-line bg-card px-6 py-12">
-          <BookmarkSimple size={32} color={colors.mutedForeground} weight="duotone" />
-          <Text className="mt-4 text-xl font-semibold text-card-foreground">No bookmarks yet.</Text>
-          <Text className="mt-3 max-w-xs text-center text-base leading-7 text-muted-foreground">
+        <View style={[styles.empty, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Ionicons name="bookmark-outline" size={32} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.cardForeground }]}>
+            No bookmarks yet.
+          </Text>
+          <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
             Save articles from the reader and they will appear here on every device.
           </Text>
         </View>
       ) : (
-        <View className="gap-3">
+        <View style={styles.list}>
           {bookmarks.map((bookmark) => {
             const sourceId =
               bookmark.sourceId ?? createSourceId(bookmark.sourceSiteUrl ?? bookmark.url);
@@ -42,7 +41,7 @@ export default function BookmarksScreen() {
             return (
               <Pressable
                 key={bookmark._id}
-                className="overflow-hidden rounded-[24px] border border-line bg-card px-4 py-4"
+                style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() =>
                   router.push({
                     pathname: "/article/[sourceId]/[itemId]",
@@ -63,15 +62,17 @@ export default function BookmarksScreen() {
                 {bookmark.imageUrl ? (
                   <Image
                     source={{ uri: bookmark.imageUrl }}
-                    className="mb-4 h-44 w-full rounded-[18px]"
+                    style={styles.image}
                     resizeMode="cover"
                   />
                 ) : null}
-                <Text className="text-lg font-semibold leading-7 text-card-foreground">
+                <Text style={[styles.cardTitle, { color: colors.cardForeground }]}>
                   {bookmark.title}
                 </Text>
                 {bookmark.sourceLabel ? (
-                  <Text className="mt-2 text-sm text-muted-foreground">{bookmark.sourceLabel}</Text>
+                  <Text style={[styles.cardSource, { color: colors.mutedForeground }]}>
+                    {bookmark.sourceLabel}
+                  </Text>
                 ) : null}
               </Pressable>
             );
@@ -81,3 +82,57 @@ export default function BookmarksScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 132,
+  },
+  empty: {
+    alignItems: "center",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  emptyDesc: {
+    marginTop: 12,
+    maxWidth: 280,
+    textAlign: "center",
+    fontSize: 16,
+    lineHeight: 26,
+  },
+  list: {
+    gap: 12,
+  },
+  card: {
+    overflow: "hidden",
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16,
+  },
+  image: {
+    height: 176,
+    width: "100%",
+    borderRadius: 18,
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 26,
+  },
+  cardSource: {
+    marginTop: 8,
+    fontSize: 14,
+  },
+});

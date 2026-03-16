@@ -1,10 +1,14 @@
 import { query } from "../_generated/server";
-import { requireCurrentUser } from "../lib/auth";
 
 export const listForCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await requireCurrentUser(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      return [];
+    }
+
     const subscriptions = await ctx.db
       .query("feedSubscriptions")
       .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
