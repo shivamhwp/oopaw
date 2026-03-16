@@ -1,6 +1,7 @@
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAuth } from "@clerk/expo";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/convex";
 import { SourceCard } from "@/components/source-card";
@@ -49,11 +50,17 @@ function SourceCardWithItems({
 
 export default function HomeScreen() {
   const colors = useColors();
+  const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useConvexAuth();
+  const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
   const subscriptions = (useQuery(
     api.feedSubscriptions.queries.listForCurrentUser,
-    {},
+    canRunAuthenticatedQueries ? {} : "skip",
   ) ?? []) as FeedSubscription[];
-  const preferences = useQuery(api.preferences.queries.getForCurrentUser, {});
+  const preferences = useQuery(
+    api.preferences.queries.getForCurrentUser,
+    canRunAuthenticatedQueries ? {} : "skip",
+  );
   const queryClient = useQueryClient();
   const pollingIntervalMs = (preferences?.pollingIntervalMinutes ?? 15) * 60_000;
 

@@ -30,8 +30,13 @@ export default function TabsLayout() {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
+  const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
+
   const handleAddFeed = async () => {
-    if (!isAuthenticated) return;
+    if (!canRunAuthenticatedQueries) {
+      setError("Still connecting — please wait a moment and try again.");
+      return;
+    }
 
     setError(null);
     setIsSubmitting(true);
@@ -129,6 +134,7 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
+    zIndex: 10,
     width: 56,
     height: 56,
     borderRadius: 28,
