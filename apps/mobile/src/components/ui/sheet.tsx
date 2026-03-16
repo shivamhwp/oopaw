@@ -22,11 +22,11 @@ export function Sheet({ children, open, onOpenChange, className }: SheetProps) {
           <Pressable onPress={(event) => event.stopPropagation()}>
             <View
               className={cn(
-                "rounded-t-[32px] border border-line bg-canvas px-5 pb-6 pt-3",
+                "rounded-t-[28px] border border-line bg-canvas px-5 pb-6 pt-3",
                 className,
               )}
             >
-              <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-line" />
+              <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-muted" />
               {children}
             </View>
           </Pressable>

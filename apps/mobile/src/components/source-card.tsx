@@ -30,11 +30,11 @@ export function SourceCard({
 
   return (
     <Pressable onPress={onPress}>
-      <Card className="gap-3">
+      <Card className="gap-4">
         <View className="flex-row justify-between">
           <View className="flex-1 pr-3">
-            <Text className="text-lg font-semibold">{source.label}</Text>
-            <Text className="mt-1 text-xs text-muted">
+            <Text className="text-lg font-semibold text-card-foreground">{source.label}</Text>
+            <Text className="mt-1 text-xs text-muted-foreground">
               {source.siteUrl.replace(/^https?:\/\//, "")}
             </Text>
           </View>
@@ -71,23 +71,28 @@ export function SourceCard({
               <View
                 className={cn(
                   "mt-1.5 size-1.5 rounded-full",
-                  item.isRead ? "bg-line" : "bg-accent",
+                  item.isRead ? "bg-line" : "bg-primary",
                 )}
               />
-              <Text className={cn("flex-1 text-sm", item.isRead ? "text-muted" : "text-ink")}>
+              <Text
+                className={cn(
+                  "flex-1 text-sm leading-6",
+                  item.isRead ? "text-muted-foreground" : "text-card-foreground",
+                )}
+              >
                 {item.title}
               </Text>
             </View>
           ))}
           {items.length === 0 ? (
-            <Text className="text-sm italic text-muted">No posts yet.</Text>
+            <Text className="text-sm italic text-muted-foreground">No posts yet.</Text>
           ) : null}
         </View>
 
         <View className="flex-row justify-between">
-          <Text className="text-xs text-muted">{unreadCount} unread</Text>
+          <Text className="text-xs text-muted-foreground">{unreadCount} unread</Text>
           {newCount > 0 ? (
-            <Text className="text-xs font-semibold text-accent">{newCount} new</Text>
+            <Text className="text-xs font-semibold text-primary">{newCount} new</Text>
           ) : null}
         </View>
       </Card>

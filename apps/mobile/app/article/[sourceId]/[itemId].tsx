@@ -4,7 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import RenderHtml from "react-native-render-html";
 import { WebView } from "react-native-webview";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
   ArrowSquareOut,
   BookOpenText,
@@ -21,6 +21,7 @@ import { stripHtml } from "@repo/shared/feed/utils";
 export default function ArticleScreen() {
   const colors = useColors();
   const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useConvexAuth();
   const params = useLocalSearchParams<{
     sourceId: string;
     itemId: string;
@@ -34,8 +35,10 @@ export default function ArticleScreen() {
   }>();
   const { width } = Dimensions.get("window");
   const { preferences, ensureItem, getSource, markRead } = useFeedData();
-  const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, isSignedIn ? {} : "skip") ??
-    []) as Doc<"bookmarks">[];
+  const bookmarks = (useQuery(
+    api.bookmarks.queries.listForCurrentUser,
+    isSignedIn && isAuthenticated ? {} : "skip",
+  ) ?? []) as Doc<"bookmarks">[];
   const toggleBookmark = useMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const [item, setItem] = useState<Awaited<ReturnType<typeof ensureItem>>>();
   const [isTogglingBookmark, setIsTogglingBookmark] = useState(false);
@@ -107,35 +110,43 @@ export default function ArticleScreen() {
 
   return (
     <View className="flex-1 bg-canvas">
-      <View className="border-b border-line bg-card px-4 py-3">
-        <Text className="text-2xl font-semibold leading-tight">{fallbackItem.title}</Text>
-        {source?.label ? <Text className="mt-2 text-sm text-muted">{source.label}</Text> : null}
+      <View className="border-b border-line bg-card px-5 py-4">
+        <Text className="text-2xl font-semibold leading-tight text-card-foreground">
+          {fallbackItem.title}
+        </Text>
+        {source?.label ? (
+          <Text className="mt-2 text-sm text-muted-foreground">{source.label}</Text>
+        ) : null}
       </View>
 
       {activeMode === "site" && articleUrl ? (
         <WebView source={{ uri: articleUrl }} className="flex-1" />
       ) : (
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+        <ScrollView className="flex-1" contentContainerStyle={{ padding: 20, paddingBottom: 132 }}>
           {fallbackItem.contentHtml ? (
             <RenderHtml contentWidth={width - 32} source={{ html: fallbackItem.contentHtml }} />
           ) : readerText ? (
-            <Text className="text-base leading-8">{readerText}</Text>
+            <Text className="text-base leading-8 text-foreground">{readerText}</Text>
           ) : (
-            <View className="rounded-[28px] border border-dashed border-line bg-card px-5 py-5">
-              <Text className="text-sm font-medium text-muted">Fallback reader mode</Text>
-              <Text className="mt-3 text-base leading-7 text-muted">
+            <View className="rounded-[24px] border border-dashed border-line bg-card px-5 py-5">
+              <Text className="text-sm font-medium text-muted-foreground">
+                Fallback reader mode
+              </Text>
+              <Text className="mt-3 text-base leading-7 text-muted-foreground">
                 Full article content is not available in the cached feed item. You can still open
                 the site view or the original article.
               </Text>
               {fallbackItem.excerpt ? (
-                <Text className="mt-4 text-lg leading-8">{fallbackItem.excerpt}</Text>
+                <Text className="mt-4 text-lg leading-8 text-card-foreground">
+                  {fallbackItem.excerpt}
+                </Text>
               ) : null}
             </View>
           )}
         </ScrollView>
       )}
 
-      <View className="border-t border-line bg-card px-4 pb-6 pt-3">
+      <View className="border-t border-line bg-card px-4 pb-6 pt-4">
         <View className="flex-row gap-2">
           <Button
             variant="outline"
@@ -164,7 +175,7 @@ export default function ArticleScreen() {
               />
               <Text
                 className={`text-sm font-medium ${
-                  activeMode === "reader" ? "text-white" : "text-ink"
+                  activeMode === "reader" ? "text-primary-foreground" : "text-foreground"
                 }`}
               >
                 Reader
@@ -188,7 +199,7 @@ export default function ArticleScreen() {
               />
               <Text
                 className={`text-sm font-medium ${
-                  activeMode === "site" ? "text-white" : "text-ink"
+                  activeMode === "site" ? "text-primary-foreground" : "text-foreground"
                 }`}
               >
                 Site
@@ -198,7 +209,7 @@ export default function ArticleScreen() {
         </View>
         <Button
           variant="ghost"
-          className="mt-3 rounded-[22px] border border-line bg-canvas"
+          className="mt-3 rounded-[18px] border border-line bg-canvas"
           disabled={!articleUrl}
           onPress={() => {
             if (!articleUrl) return;

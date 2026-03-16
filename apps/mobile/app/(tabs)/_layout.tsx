@@ -53,8 +53,9 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: colors.card,
             borderTopColor: colors.border,
-            height: 68 + insets.bottom,
-            paddingBottom: insets.bottom + 10,
+            height: 64 + insets.bottom,
+            paddingBottom: insets.bottom + 8,
+            paddingTop: 8,
           },
           headerStyle: { backgroundColor: colors.background },
           headerShadowVisible: false,
@@ -96,17 +97,17 @@ export default function TabsLayout() {
         pointerEvents="box-none"
       >
         <Button
-          className="size-16 rounded-full shadow-sm"
+          className="size-14 rounded-full shadow-sm"
           size="icon"
           onPress={() => setIsAddOpen(true)}
         >
-          <Plus size={26} color={colors.primaryForeground} weight="bold" />
+          <Plus size={24} color={colors.primaryForeground} weight="bold" />
         </Button>
       </View>
 
       <Sheet open={isAddOpen} onOpenChange={setIsAddOpen}>
         <Text className="text-2xl font-semibold">Add feed</Text>
-        <Text className="mt-2 text-sm leading-6 text-muted">
+        <Text className="mt-2 text-sm leading-6 text-muted-foreground">
           Paste a direct RSS or Atom feed URL.
         </Text>
         <Input
@@ -123,7 +124,7 @@ export default function TabsLayout() {
 
       <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <Text className="text-2xl font-semibold">Settings</Text>
-        <Text className="mt-2 text-sm text-muted">Polling interval</Text>
+        <Text className="mt-2 text-sm text-muted-foreground">Polling interval</Text>
         <View className="mt-4 flex-row gap-2">
           {[10, 15, 30, 60].map((value) => (
             <Button
@@ -141,7 +142,7 @@ export default function TabsLayout() {
           ))}
         </View>
 
-        <Text className="mt-6 text-sm text-muted">Default article view</Text>
+        <Text className="mt-6 text-sm text-muted-foreground">Default article view</Text>
         <View className="mt-4 flex-row gap-2">
           {(["reader", "site"] as const).map((value) => (
             <Button
@@ -161,7 +162,7 @@ export default function TabsLayout() {
 
         <Button
           variant="ghost"
-          className="mt-6 justify-start rounded-[22px] border border-line bg-card px-4"
+          className="mt-6 justify-start rounded-[18px] border border-line bg-card px-4"
           onPress={() => void clerk.signOut()}
         >
           <View className="flex-row items-center gap-3">

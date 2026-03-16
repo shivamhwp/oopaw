@@ -3,16 +3,22 @@ module.exports = function (api) {
 
   return {
     presets: ["babel-preset-expo"],
+
     plugins: [
       [
         "module-resolver",
         {
+          root: ["./"],
+
           alias: {
             "@": "./src",
+            "@convex": "./convex",
+            "@root": "./",
+            "tailwind.config": "./tailwind.config.js",
           },
         },
       ],
-      "react-native-reanimated/plugin",
+      "react-native-worklets/plugin",
     ],
   };
 };

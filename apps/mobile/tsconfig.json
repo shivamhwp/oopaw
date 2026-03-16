@@ -14,7 +14,9 @@
     "allowJs": false,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*", "./*"],
+      "@convex/*": ["./convex/*"],
+      "@root/*": ["./*"]
     }
   }
 }

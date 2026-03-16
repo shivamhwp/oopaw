@@ -23,19 +23,19 @@ export default function FeedScreen() {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: 96 }}
       refreshControl={
         <RefreshControl refreshing={false} onRefresh={() => void refreshSource(sourceId)} />
       }
     >
-      <Text className="text-3xl font-semibold">{source?.label ?? "Feed"}</Text>
-      <Text className="mt-2 text-sm text-muted">{source?.siteUrl}</Text>
+      <Text className="text-3xl font-semibold text-foreground">{source?.label ?? "Feed"}</Text>
+      <Text className="mt-2 text-sm text-muted-foreground">{source?.siteUrl}</Text>
 
       <View className="mt-6 gap-3">
         {items.map((item) => (
           <Pressable
             key={item.id}
-            className="rounded-[24px] border border-line bg-card px-4 py-4"
+            className="rounded-[22px] border border-line bg-card px-4 py-4"
             onPress={() => {
               markRead(sourceId, item.id);
               router.push(`/article/${sourceId}/${item.id}`);
@@ -43,12 +43,16 @@ export default function FeedScreen() {
           >
             <View className="flex-row items-start gap-3">
               <View
-                className={`mt-2 size-2 rounded-full ${item.isRead ? "bg-line" : "bg-accent"}`}
+                className={`mt-2 size-2 rounded-full ${item.isRead ? "bg-line" : "bg-primary"}`}
               />
               <View className="flex-1">
-                <Text className="text-base font-semibold leading-7">{item.title}</Text>
+                <Text className="text-base font-semibold leading-7 text-card-foreground">
+                  {item.title}
+                </Text>
                 {item.excerpt ? (
-                  <Text className="mt-2 text-sm leading-6 text-muted">{item.excerpt}</Text>
+                  <Text className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {item.excerpt}
+                  </Text>
                 ) : null}
               </View>
               <CaretRight size={18} color={colors.mutedForeground} />

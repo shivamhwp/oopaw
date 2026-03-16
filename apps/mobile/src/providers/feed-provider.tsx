@@ -10,7 +10,7 @@ import {
 } from "react";
 import { AppState } from "react-native";
 import { useAuth } from "@clerk/expo";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api, type Doc } from "@/lib/convex";
 import { defaultUserPreferences } from "@/lib/preferences";
 import {
@@ -66,12 +66,14 @@ const FeedContext = createContext<FeedContextValue | null>(null);
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { isSignedIn, userId } = useAuth();
+  const { isAuthenticated } = useConvexAuth();
+  const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
   const subscriptions = (useQuery(
     api.feedSubscriptions.queries.listForCurrentUser,
-    isSignedIn ? {} : "skip",
+    canRunAuthenticatedQueries ? {} : "skip",
   ) ?? []) as Doc<"feedSubscriptions">[];
   const preferences =
-    useQuery(api.preferences.queries.getForCurrentUser, isSignedIn ? {} : "skip") ??
+    useQuery(api.preferences.queries.getForCurrentUser, canRunAuthenticatedQueries ? {} : "skip") ??
     defaultUserPreferences;
   const createSubscription = useMutation(api.feedSubscriptions.mutations.createForCurrentUser);
   const removeSubscription = useMutation(api.feedSubscriptions.mutations.removeForCurrentUser);

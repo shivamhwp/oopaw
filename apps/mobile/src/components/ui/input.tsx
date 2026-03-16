@@ -9,7 +9,7 @@ export function Input({ className, ...props }: TextInputProps & { className?: st
     <TextInput
       placeholderTextColor={colors.mutedForeground}
       className={cn(
-        "min-h-12 rounded-[22px] border border-line bg-card px-4 py-3 text-ink",
+        "min-h-12 rounded-[18px] border border-input bg-card px-4 py-3 text-foreground",
         className,
       )}
       {...props}

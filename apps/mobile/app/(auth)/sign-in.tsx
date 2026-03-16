@@ -40,21 +40,23 @@ export default function SignInScreen() {
 
   return (
     <View className="flex-1 items-center justify-center bg-canvas px-6">
-      <View className="w-full max-w-sm rounded-[34px] border border-line bg-card px-6 py-8">
-        <Text className="text-xs font-medium uppercase tracking-[0.24em] text-muted">
+      <View className="w-full max-w-sm rounded-[28px] border border-line bg-card px-6 py-8">
+        <Text className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
           Mobile Reader
         </Text>
-        <Text className="mt-4 text-4xl font-semibold leading-tight">
+        <Text className="mt-4 text-4xl font-semibold leading-tight text-card-foreground">
           Sign in with Google to load your feeds.
         </Text>
-        <Text className="mt-4 text-base leading-7 text-muted">
+        <Text className="mt-4 text-base leading-7 text-muted-foreground">
           Subscriptions, bookmarks, and preferences sync through Convex. Articles and read state
           stay local on this device.
         </Text>
         <Button className="mt-8 gap-3" onPress={handleSignIn} loading={isPending}>
           <View className="flex-row items-center gap-3">
             <GoogleLogoIcon size={20} color={colors.primaryForeground} />
-            <Text className="text-sm font-semibold text-white">Continue with Google</Text>
+            <Text className="text-sm font-semibold text-primary-foreground">
+              Continue with Google
+            </Text>
           </View>
         </Button>
         {error ? <Text className="mt-4 text-sm text-warn">{error}</Text> : null}

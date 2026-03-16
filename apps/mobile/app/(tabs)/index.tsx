@@ -10,18 +10,18 @@ export default function HomeScreen() {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: 148 }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => void refreshAll()} />}
     >
       {sourceSummaries.length === 0 ? (
-        <View className="rounded-[34px] border border-dashed border-line bg-card px-6 py-10">
-          <Text className="text-2xl font-semibold">No subscriptions yet.</Text>
-          <Text className="mt-3 text-base leading-7 text-muted">
+        <View className="rounded-[28px] border border-dashed border-line bg-card px-6 py-12">
+          <Text className="text-2xl font-semibold text-card-foreground">No subscriptions yet.</Text>
+          <Text className="mt-3 text-base leading-7 text-muted-foreground">
             Add a feed from the floating plus button. Subscriptions sync across web and mobile.
           </Text>
         </View>
       ) : (
-        <View className="gap-4">
+        <View className="gap-3">
           {sourceSummaries.map((summary) => (
             <SourceCard
               key={summary.source.sourceId}

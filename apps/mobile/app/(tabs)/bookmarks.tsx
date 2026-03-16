@@ -1,7 +1,7 @@
 import { Image, Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@clerk/expo";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { BookmarkSimple } from "phosphor-react-native";
 import { useColors } from "@/constants/color";
 import { Text } from "@/components/ui/text";
@@ -11,24 +11,27 @@ import { createFeedItemId, createSourceId } from "@repo/shared/feed/utils";
 export default function BookmarksScreen() {
   const colors = useColors();
   const { isSignedIn } = useAuth();
-  const bookmarks = (useQuery(api.bookmarks.queries.listForCurrentUser, isSignedIn ? {} : "skip") ??
-    []) as Doc<"bookmarks">[];
+  const { isAuthenticated } = useConvexAuth();
+  const bookmarks = (useQuery(
+    api.bookmarks.queries.listForCurrentUser,
+    isSignedIn && isAuthenticated ? {} : "skip",
+  ) ?? []) as Doc<"bookmarks">[];
 
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+      contentContainerStyle={{ padding: 20, paddingBottom: 132 }}
     >
       {bookmarks.length === 0 ? (
-        <View className="items-center rounded-[34px] border border-dashed border-line bg-card px-6 py-10">
+        <View className="items-center rounded-[28px] border border-dashed border-line bg-card px-6 py-12">
           <BookmarkSimple size={32} color={colors.mutedForeground} weight="duotone" />
-          <Text className="mt-4 text-xl font-semibold">No bookmarks yet.</Text>
-          <Text className="mt-2 text-center text-base leading-7 text-muted">
+          <Text className="mt-4 text-xl font-semibold text-card-foreground">No bookmarks yet.</Text>
+          <Text className="mt-3 max-w-xs text-center text-base leading-7 text-muted-foreground">
             Save articles from the reader and they will appear here on every device.
           </Text>
         </View>
       ) : (
-        <View className="gap-4">
+        <View className="gap-3">
           {bookmarks.map((bookmark) => {
             const sourceId =
               bookmark.sourceId ?? createSourceId(bookmark.sourceSiteUrl ?? bookmark.url);
@@ -39,7 +42,7 @@ export default function BookmarksScreen() {
             return (
               <Pressable
                 key={bookmark._id}
-                className="rounded-[28px] border border-line bg-card px-4 py-4"
+                className="overflow-hidden rounded-[24px] border border-line bg-card px-4 py-4"
                 onPress={() =>
                   router.push({
                     pathname: "/article/[sourceId]/[itemId]",
@@ -60,13 +63,15 @@ export default function BookmarksScreen() {
                 {bookmark.imageUrl ? (
                   <Image
                     source={{ uri: bookmark.imageUrl }}
-                    className="mb-4 h-40 w-full rounded-[20px]"
+                    className="mb-4 h-44 w-full rounded-[18px]"
                     resizeMode="cover"
                   />
                 ) : null}
-                <Text className="text-lg font-semibold leading-7">{bookmark.title}</Text>
+                <Text className="text-lg font-semibold leading-7 text-card-foreground">
+                  {bookmark.title}
+                </Text>
                 {bookmark.sourceLabel ? (
-                  <Text className="mt-2 text-sm text-muted">{bookmark.sourceLabel}</Text>
+                  <Text className="mt-2 text-sm text-muted-foreground">{bookmark.sourceLabel}</Text>
                 ) : null}
               </Pressable>
             );

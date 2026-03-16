@@ -4,23 +4,23 @@ import { useColors } from "@/constants/color";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = {
-  primary: "bg-accent",
-  secondary: "bg-accentSoft",
+  primary: "bg-primary",
+  secondary: "bg-secondary",
   ghost: "bg-transparent",
   outline: "border border-line bg-card",
 } as const;
 
 const buttonSizes = {
-  md: "min-h-12",
-  sm: "min-h-10 px-3 py-2",
-  icon: "size-12 px-0 py-0",
+  md: "min-h-12 px-4 py-3",
+  sm: "min-h-10 px-3 py-2.5",
+  icon: "size-11 px-0 py-0",
 } as const;
 
 const textVariants = {
-  primary: "text-white",
-  secondary: "text-accent",
-  ghost: "text-ink",
-  outline: "text-ink",
+  primary: "text-primary-foreground",
+  secondary: "text-secondary-foreground",
+  ghost: "text-foreground",
+  outline: "text-foreground",
 } as const;
 
 type ButtonVariant = keyof typeof buttonVariants;
@@ -53,7 +53,7 @@ export function Button({
     <Pressable
       disabled={disabled || loading}
       className={cn(
-        "flex-row items-center justify-center rounded-full px-4 py-3 active:opacity-90",
+        "flex-row items-center justify-center rounded-[18px] active:opacity-90",
         buttonVariants[variant],
         buttonSizes[size],
         (disabled || loading) && "opacity-50",
@@ -67,7 +67,7 @@ export function Button({
         />
       ) : typeof children === "string" || label ? (
         <Text
-          className={cn("text-center font-medium text-sm", textVariants[variant], textClassName)}
+          className={cn("text-center text-sm font-semibold", textVariants[variant], textClassName)}
         >
           {children ?? label}
         </Text>
