@@ -37,7 +37,7 @@ export function ItemList({
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-2 backdrop-blur-sm md:flex-nowrap md:items-center md:px-5 md:py-1">
+      <div className="flex items-center justify-between gap-3 border-b border-border/40 bg-background/94 px-4 py-2.5 backdrop-blur-sm md:px-5 md:py-2">
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span>{unreadCount} unread</span>
           <span>{readCount} read</span>

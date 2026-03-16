@@ -8,18 +8,25 @@
   "scripts": {
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",
-    "check": "turbo run check",
-    "dev": "turbo run dev",
+    "check": "turbo run format lint check",
+    "dev": "turbo run dev convex --parallel",
     "web": "turbo run dev --filter=web",
+    "convex": "bunx convex dev",
     "dev:web": "turbo run dev convex --filter=web --parallel",
     "install:web": "cd apps/web && bun install",
-    "format": "turbo run format",
-    "format:web": "turbo run format --filter=web",
+    "format": "oxfmt --check .",
+    "format:fix": "oxfmt .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "quality": "turbo run lint format",
+    "quality:fix": "turbo run lint:fix format:fix",
     "typecheck": "turbo run typecheck",
     "typecheck:web": "turbo run typecheck --filter=web"
   },
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260311.1",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
     "turbo": "^2.8.14"
   },
   "engines": {

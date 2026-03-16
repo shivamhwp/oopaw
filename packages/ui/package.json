@@ -6,12 +6,7 @@
     "./*": "./src/*.tsx"
   },
   "scripts": {
-    "check": "oxfmt --check . && oxlint --react-plugin src && bun run typecheck",
-    "format": "oxfmt --write .",
-    "lint": "oxlint --react-plugin src",
-    "lint:fix": "oxlint --react-plugin --fix src",
-    "fmt": "oxfmt --write .",
-    "fmt:check": "oxfmt --check .",
+    "check": "bun run typecheck",
     "typecheck": "tsgo --project tsconfig.json --noEmit",
     "check-types": "bun run typecheck"
   },
@@ -24,8 +19,6 @@
     "@types/node": "^22.15.3",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
-    "@typescript/native-preview": "7.0.0-dev.20260311.1",
-    "oxfmt": "^0.36.0",
-    "oxlint": "^1.51.0"
+    "@typescript/native-preview": "7.0.0-dev.20260311.1"
   }
 }

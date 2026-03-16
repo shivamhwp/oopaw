@@ -32,12 +32,12 @@ export function FeedCard({
         onClick={onSelect}
         onKeyDown={(e) => e.key === "Enter" && onSelect()}
         className={cn(
-          "h-full cursor-pointer gap-0 py-0 pr-14 transition-colors duration-150 md:pr-0",
-          isSelected ? "ring-primary/40 bg-primary/[0.02]" : "hover:bg-muted/30",
+          "h-full cursor-pointer gap-0 py-0 transition-colors duration-150",
+          isSelected ? "ring-primary/40 bg-primary/[0.02]" : "md:hover:bg-muted/30",
         )}
       >
         {/* Items */}
-        <CardContent className="flex-1 px-4 pt-4 pb-3 flex flex-col gap-0">
+        <CardContent className="flex flex-1 flex-col gap-0 pl-4 pr-12 pt-4 pb-1 md:px-4">
           {latestItems.length > 0 ? (
             latestItems.map((item) => (
               <div
@@ -87,13 +87,13 @@ export function FeedCard({
         </CardFooter>
       </Card>
 
-      {/* Hover actions */}
+      {/* Actions: always visible on mobile, hover-only on desktop */}
       <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
         <Button
           type="button"
           variant="ghost"
           size="icon-xs"
-          className="h-6 w-6 rounded-lg bg-card hover:bg-muted border border-border/60 text-destructive hover:text-destructive"
+          className="h-6 w-6 rounded-lg border border-border/60 bg-card text-destructive hover:bg-transparent hover:text-destructive md:hover:bg-muted md:hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();

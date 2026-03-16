@@ -7,12 +7,7 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "oxfmt --write . '!src/routeTree.gen.ts' '!convex/_generated'",
-    "check": "oxfmt --check . '!src/routeTree.gen.ts' '!convex/_generated' && oxlint --react-plugin --jsx-a11y-plugin --ignore-pattern src/routeTree.gen.ts --ignore-pattern convex/_generated . && bun run typecheck",
-    "lint": "oxlint --react-plugin --jsx-a11y-plugin --ignore-pattern src/routeTree.gen.ts --ignore-pattern convex/_generated .",
-    "lint:fix": "oxlint --react-plugin --jsx-a11y-plugin --ignore-pattern src/routeTree.gen.ts --ignore-pattern convex/_generated --fix .",
-    "fmt": "oxfmt --write . '!src/routeTree.gen.ts' '!convex/_generated'",
-    "fmt:check": "oxfmt --check . '!src/routeTree.gen.ts' '!convex/_generated'",
+    "check": "bun run typecheck",
     "typecheck": "tsgo --project tsconfig.json --noEmit",
     "check-types": "bun run typecheck"
   },
@@ -63,8 +58,6 @@
     "@types/sanitize-html": "^2.16.1",
     "@typescript/native-preview": "7.0.0-dev.20260311.1",
     "@vitejs/plugin-react": "^5.2.0",
-    "oxfmt": "^0.36.0",
-    "oxlint": "^1.55.0",
     "react-grab": "^0.1.28",
     "vite": "^7.3.1",
     "web-vitals": "^5.1.0"

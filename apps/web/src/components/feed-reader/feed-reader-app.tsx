@@ -243,8 +243,8 @@ export function AppNavbar({
 }: AppNavbarProps) {
   return (
     <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 md:px-6 md:py-1.5">
-        <div className="flex items-baseline gap-2.5">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 md:px-6 md:py-1.5">
+        <div className="flex items-baseline gap-2.5 shrink-0">
           <Link
             to="/"
             className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground"
@@ -253,7 +253,7 @@ export function AppNavbar({
           </Link>
         </div>
 
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-1.5">
+        <div className="flex items-center justify-end gap-1.5">
           {isSignedIn ? (
             <Button asChild variant="ghost" className="rounded-full">
               <Link to="/bookmarks">Bookmarks</Link>
