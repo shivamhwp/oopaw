@@ -18,6 +18,7 @@ import {
   feedReaderStateAtom,
   feedSubscriptionsAtom,
   isReaderFullScreenAtom,
+  markItemUnreadAtom,
   openFeedAtom,
   removeSourceAtom,
   selectItemAtom,
@@ -26,6 +27,7 @@ import {
   showAddFormAtom,
   sourceInputAtom,
   sourceSummariesAtom,
+  syncSourcesFromConvexAtom,
   toggleReaderFullScreenAtom,
   totalNewAtom,
 } from "@/components/feed-reader/store";
@@ -42,7 +44,7 @@ import {
 import { normalizeInputUrl } from "@/lib/feed/utils";
 import { getBrowserStorage } from "@/lib/browser-storage";
 import { fetchFeedSource, loadMoreFeedItems } from "@/lib/server/feed";
-import { discoveryResultSchema, FEED_READER_STATE_STORAGE_KEY } from "@/lib/types";
+import { discoveryResultSchema, FEED_READER_STATE_STORAGE_KEY, type FeedItem } from "@/lib/types";
 
 const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
   try {
@@ -73,11 +75,13 @@ export function useFeedReader() {
   const totalNew = useAtomValue(totalNewAtom);
   const openFeed = useSetAtom(openFeedAtom);
   const selectItem = useSetAtom(selectItemAtom);
+  const markItemUnread = useSetAtom(markItemUnreadAtom);
   const backToFeedList = useSetAtom(backToFeedListAtom);
   const closeDetailPanel = useSetAtom(closeDetailPanelAtom);
   const toggleReaderFullScreen = useSetAtom(toggleReaderFullScreenAtom);
   const addSourceSuccess = useSetAtom(addSourceSuccessAtom);
   const removeFeedSource = useSetAtom(removeSourceAtom);
+  const syncSourcesFromConvex = useSetAtom(syncSourcesFromConvexAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const applyRefresh = useSetAtom(applySourceRefreshAtom);
   const setFeedSourceError = useSetAtom(setSourceErrorAtom);
@@ -99,6 +103,10 @@ export function useFeedReader() {
   const bookmarksQuery = useQuery(
     convexQuery(api.bookmarks.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
   );
+  const feedSubscriptionsQuery = useQuery({
+    ...convexQuery(api.feedSubscriptions.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
   const upsertPreferences = useConvexMutation(api.preferences.mutations.upsertForCurrentUser);
   const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const createSubscription = useConvexMutation(
@@ -224,6 +232,11 @@ export function useFeedReader() {
     subscriptionsQuery.isPending,
     userId,
   ]);
+
+  useEffect(() => {
+    if (!canReadUserData || !feedSubscriptionsQuery.data) return;
+    syncSourcesFromConvex(feedSubscriptionsQuery.data);
+  }, [canReadUserData, feedSubscriptionsQuery.data, syncSourcesFromConvex]);
 
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) => {
@@ -391,6 +404,25 @@ export function useFeedReader() {
     });
   };
 
+  const handleBookmarkItem = async (
+    item: { url: string; title: string; excerpt?: string; imageUrl?: string; publishedAt?: string },
+    source: { label: string; siteUrl: string },
+  ) => {
+    if (!canReadUserData || bookmarkMutation.isPending) {
+      return;
+    }
+
+    await bookmarkMutation.mutateAsync({
+      url: item.url,
+      title: item.title,
+      excerpt: item.excerpt,
+      imageUrl: item.imageUrl,
+      sourceLabel: source.label,
+      sourceSiteUrl: source.siteUrl,
+      publishedAt: item.publishedAt,
+    });
+  };
+
   return {
     state,
     sourceInput,
@@ -409,6 +441,7 @@ export function useFeedReader() {
     isAuthLoading: convexAuth.isLoading,
     isSignedIn: canReadUserData,
     isBookmarked: selectedItem ? bookmarkedUrls.has(selectedItem.url) : false,
+    isItemBookmarked: (item: FeedItem) => bookmarkedUrls.has(item.url),
     isBookmarkPending: bookmarkMutation.isPending,
     refreshingSourceIds,
     isRefreshingAll,
@@ -436,5 +469,7 @@ export function useFeedReader() {
     handleSourceRefresh,
     handleSourceError,
     handleToggleBookmark,
+    handleBookmarkItem,
+    handleMarkUnread: (itemId: string) => markItemUnread(itemId),
   };
 }

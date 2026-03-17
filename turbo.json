@@ -4,22 +4,28 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "cache": false
     },
     "check": {
-      "dependsOn": ["^check"]
+      "dependsOn": ["^check"],
+      "cache": false
     },
-    "format": {
-      "dependsOn": ["^format"]
+    "//#lint": {},
+    "//#lint:fix": {
+      "cache": false
     },
-    "lint": {
-      "dependsOn": ["^lint"]
+    "//#format": {},
+    "//#format:fix": {
+      "cache": false
     },
     "transit": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "cache": false
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "cache": false
     },
     "web#dev": {
       "cache": false,

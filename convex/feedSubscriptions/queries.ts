@@ -16,6 +16,6 @@ export const listForCurrentUser = query({
 
     return subscriptions
       .sort((left, right) => left.label.localeCompare(right.label))
-      .map(({ _id, _creationTime, userId, ...subscription }) => subscription);
+      .map(({ _id, _creationTime, userId: _userId, ...subscription }) => subscription);
   },
 });

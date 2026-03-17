@@ -7,11 +7,14 @@ import {
   getLocalFeedCacheForUser,
   getSourceItems,
   markItemRead,
+  markItemUnread,
   mergeSourceDiscovery,
   removeSource,
   setLocalFeedCacheForUser,
   setSelectedSource,
   setSourceError,
+  syncSourcesFromConvex,
+  type ConvexSubscription,
 } from "@/lib/feed-reader-state";
 import { getBrowserStorage } from "@/lib/browser-storage";
 import {
@@ -310,6 +313,10 @@ export const selectItemAtom = atom(null, (get, set, itemId: string) => {
   set(feedReaderStateAtom, (state) => markItemRead(state, detailPanel.sourceId, itemId));
 });
 
+export const markItemUnreadAtom = atom(null, (_get, set, itemId: string) => {
+  set(feedReaderStateAtom, (state) => markItemUnread(state, itemId));
+});
+
 export const backToFeedListAtom = atom(null, (get, set) => {
   const detailPanel = get(detailPanelAtom);
 
@@ -362,6 +369,13 @@ export const setSourceErrorAtom = atom(
   null,
   (_get, set, payload: { sourceId: string; message: string }) => {
     set(feedReaderStateAtom, (state) => setSourceError(state, payload.sourceId, payload.message));
+  },
+);
+
+export const syncSourcesFromConvexAtom = atom(
+  null,
+  (_get, set, subscriptions: ConvexSubscription[]) => {
+    set(feedReaderStateAtom, (state) => syncSourcesFromConvex(state, subscriptions));
   },
 );
 

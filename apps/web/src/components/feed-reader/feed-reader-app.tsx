@@ -13,7 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAtom, useAtomValue } from "jotai";
-import { type PanelImperativeHandle } from "react-resizable-panels";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 import { toast } from "sonner";
 import { ItemList } from "@/components/feed-reader/item-list";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
@@ -81,8 +81,8 @@ function ThemeToggle() {
     0,
     THEME_CYCLE.findIndex((entry) => entry.value === theme),
   );
-  const current = THEME_CYCLE[idx]!;
-  const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length]!;
+  const current = THEME_CYCLE[idx] ?? THEME_CYCLE[0];
+  const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length] ?? THEME_CYCLE[0];
   const { Icon } = current;
 
   return (
@@ -340,9 +340,9 @@ function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
               { x: -240, y: 96, rotate: 3 },
               { x: 252, y: 88, rotate: -4 },
             ] as { x: number; y: number; rotate: number }[]
-          ).map((tile, index) => (
+          ).map((tile) => (
             <div
-              key={index}
+              key={`${tile.x}:${tile.y}:${tile.rotate}`}
               className="paper-panel absolute w-48 rounded-xl border border-primary/40 p-4 opacity-[0.28] dark:opacity-[0.14]"
               style={{
                 transform: `translate(${tile.x}px, ${tile.y}px) rotate(${tile.rotate}deg)`,
@@ -427,6 +427,9 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     handleCloseDetailPanel,
     handleToggleFullScreen,
     handleToggleBookmark,
+    handleMarkUnread,
+    handleBookmarkItem,
+    isItemBookmarked,
     handleRefreshAll,
     handleRemoveSource,
     handleLoadMoreDetailPanelItems,
@@ -538,6 +541,16 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           onSelect={handleSelectItem}
           onLoadMore={() => handleLoadMoreDetailPanelItems(detailPanel.sourceId)}
           onClose={handleCloseDetailPanel}
+          onMarkUnread={handleMarkUnread}
+          onBookmarkItem={
+            detailPanelSourceSummary?.source
+              ? (item) => handleBookmarkItem(item, detailPanelSourceSummary.source)
+              : undefined
+          }
+          onRequireSignIn={!isSignedIn ? () => void openSignInModal("/") : undefined}
+          isItemBookmarked={isItemBookmarked}
+          isSignedIn={isSignedIn}
+          isBookmarkPending={isBookmarkPending}
         />
       )}
 
@@ -554,6 +567,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           onClose={handleCloseDetailPanel}
           onToggleFullScreen={handleToggleFullScreen}
           onArticleViewModeChange={setArticleViewMode}
+          onMarkUnread={selectedItem?.isRead ? () => handleMarkUnread(selectedItem.id) : undefined}
         />
       )}
     </div>
@@ -692,6 +706,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
             onClose={handleCloseDetailPanel}
             onToggleFullScreen={handleToggleFullScreen}
             onArticleViewModeChange={setArticleViewMode}
+            onMarkUnread={selectedItem.isRead ? () => handleMarkUnread(selectedItem.id) : undefined}
           />
         </div>
       )}

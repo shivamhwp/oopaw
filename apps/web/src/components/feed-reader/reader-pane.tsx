@@ -15,6 +15,12 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ArticleViewMode, FeedItem } from "@/lib/types";
 import { stripHtml } from "@/lib/feed/utils";
@@ -31,6 +37,7 @@ type ReaderPaneProps = {
   onRequireSignIn?: () => void;
   onClose?: () => void;
   onToggleFullScreen?: () => void;
+  onMarkUnread?: () => void;
   onArticleViewModeChange: (mode: ArticleViewMode) => void;
 };
 
@@ -54,6 +61,7 @@ export function ReaderPane({
   onRequireSignIn,
   onClose,
   onToggleFullScreen,
+  onMarkUnread,
   onArticleViewModeChange,
 }: ReaderPaneProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -71,6 +79,7 @@ export function ReaderPane({
 
   if (!item) return null;
 
+  const hasContextMenuActions = onMarkUnread || onBookmarkToggle || onRequireSignIn;
   const isSiteMode = articleViewMode === "site";
   const showReaderHeader = isMobile || isFullScreen;
   const title = item.title;
@@ -252,7 +261,7 @@ export function ReaderPane({
     </div>
   );
 
-  return (
+  const content = (
     <div className="flex h-full flex-col bg-background">
       {topNav}
       {isSiteMode ? (
@@ -272,7 +281,7 @@ export function ReaderPane({
       ) : (
         <>
           {showReaderHeader && (
-            <div className="pt-[env(safe-area-inset-top,0px)] shrink-0 border-b border-border/40 px-4 pb-4 pt-4 md:px-5 md:pt-5">
+            <div className="shrink-0 border-b border-border/40 px-4 pt-[env(safe-area-inset-top,0px)] pb-4 md:px-5 md:pt-5">
               <div className="mx-auto w-full max-w-[52rem]">
                 <h2
                   className={
@@ -319,6 +328,7 @@ export function ReaderPane({
               <div className="mx-auto w-full max-w-[52rem]">
                 <article
                   className="reader-prose"
+                  /* biome-ignore lint/security/noDangerouslySetInnerHtml: feed HTML is sanitized before rendering. */
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: item.contentHtml }}
                 />
@@ -349,4 +359,29 @@ export function ReaderPane({
       )}
     </div>
   );
+
+  if (hasContextMenuActions) {
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{content}</ContextMenuTrigger>
+        <ContextMenuContent>
+          {onMarkUnread && (
+            <ContextMenuItem onSelect={onMarkUnread}>Mark as unread</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            onSelect={onBookmarkToggle ?? onRequireSignIn}
+            disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
+          >
+            {onBookmarkToggle
+              ? isBookmarked
+                ? "Remove bookmark"
+                : "Add bookmark"
+              : "Sign in to bookmark"}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  }
+
+  return content;
 }
