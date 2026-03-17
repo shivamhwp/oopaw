@@ -404,6 +404,9 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     handleCloseDetailPanel,
     handleToggleFullScreen,
     handleToggleBookmark,
+    handleMarkUnread,
+    handleBookmarkItem,
+    isItemBookmarked,
     handleRefreshAll,
     handleRemoveSource,
     handleLoadMoreDetailPanelItems,
@@ -502,6 +505,16 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           onSelect={handleSelectItem}
           onLoadMore={() => handleLoadMoreDetailPanelItems(detailPanel.sourceId)}
           onClose={handleCloseDetailPanel}
+          onMarkUnread={handleMarkUnread}
+          onBookmarkItem={
+            detailPanelSourceSummary?.source
+              ? (item) => handleBookmarkItem(item, detailPanelSourceSummary.source)
+              : undefined
+          }
+          onRequireSignIn={!isSignedIn ? () => void openSignInModal("/") : undefined}
+          isItemBookmarked={isItemBookmarked}
+          isSignedIn={isSignedIn}
+          isBookmarkPending={isBookmarkPending}
         />
       )}
 
@@ -518,6 +531,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           onClose={handleCloseDetailPanel}
           onToggleFullScreen={handleToggleFullScreen}
           onArticleViewModeChange={setArticleViewMode}
+          onMarkUnread={selectedItem?.isRead ? () => handleMarkUnread(selectedItem.id) : undefined}
         />
       )}
     </div>
@@ -650,6 +664,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
             onClose={handleCloseDetailPanel}
             onToggleFullScreen={handleToggleFullScreen}
             onArticleViewModeChange={setArticleViewMode}
+            onMarkUnread={selectedItem.isRead ? () => handleMarkUnread(selectedItem.id) : undefined}
           />
         </div>
       )}

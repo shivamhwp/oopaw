@@ -7,6 +7,7 @@ import {
   createEmptyFeedReaderState,
   getSourceItems,
   markItemRead,
+  markItemUnread,
   migrateFeedReaderState,
   mergeSourceDiscovery,
   removeSource,
@@ -290,6 +291,10 @@ export const selectItemAtom = atom(null, (get, set, itemId: string) => {
 
   set(detailPanelAtom, { mode: "reader", sourceId: detailPanel.sourceId, itemId });
   set(feedReaderStateAtom, (state) => markItemRead(state, detailPanel.sourceId, itemId));
+});
+
+export const markItemUnreadAtom = atom(null, (_get, set, itemId: string) => {
+  set(feedReaderStateAtom, (state) => markItemUnread(state, itemId));
 });
 
 export const backToFeedListAtom = atom(null, (get, set) => {

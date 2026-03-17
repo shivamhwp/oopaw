@@ -15,6 +15,12 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ArticleViewMode, FeedItem } from "@/lib/types";
 import { stripHtml } from "@/lib/feed/utils";
@@ -31,6 +37,7 @@ type ReaderPaneProps = {
   onRequireSignIn?: () => void;
   onClose?: () => void;
   onToggleFullScreen?: () => void;
+  onMarkUnread?: () => void;
   onArticleViewModeChange: (mode: ArticleViewMode) => void;
 };
 
@@ -54,6 +61,7 @@ export function ReaderPane({
   onRequireSignIn,
   onClose,
   onToggleFullScreen,
+  onMarkUnread,
   onArticleViewModeChange,
 }: ReaderPaneProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -71,6 +79,7 @@ export function ReaderPane({
 
   if (!item) return null;
 
+  const hasContextMenuActions = onMarkUnread || onBookmarkToggle || onRequireSignIn;
   const isSiteMode = articleViewMode === "site";
   const showReaderHeader = isMobile || isFullScreen;
   const title = item.title;
@@ -232,7 +241,7 @@ export function ReaderPane({
     </div>
   );
 
-  return (
+  const content = (
     <div className="flex h-full flex-col bg-background">
       {topNav}
       {isSiteMode ? (
@@ -329,4 +338,29 @@ export function ReaderPane({
       )}
     </div>
   );
+
+  if (hasContextMenuActions) {
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{content}</ContextMenuTrigger>
+        <ContextMenuContent>
+          {onMarkUnread && (
+            <ContextMenuItem onSelect={onMarkUnread}>Mark as unread</ContextMenuItem>
+          )}
+          <ContextMenuItem
+            onSelect={onBookmarkToggle ?? onRequireSignIn}
+            disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
+          >
+            {onBookmarkToggle
+              ? isBookmarked
+                ? "Remove bookmark"
+                : "Add bookmark"
+              : "Sign in to bookmark"}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  }
+
+  return content;
 }

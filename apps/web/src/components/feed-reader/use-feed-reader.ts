@@ -15,6 +15,7 @@ import {
   detailPanelSourceSummaryAtom,
   feedReaderStateAtom,
   isReaderFullScreenAtom,
+  markItemUnreadAtom,
   openFeedAtom,
   removeSourceAtom,
   selectItemAtom,
@@ -33,7 +34,7 @@ import { queryKeys } from "@/lib/query/keys";
 import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import { normalizeInputUrl } from "@/lib/feed/utils";
 import { fetchFeedSource, loadMoreFeedItems } from "@/lib/server/feed";
-import { discoveryResultSchema, type SavedSource } from "@/lib/types";
+import { discoveryResultSchema, type FeedItem, type SavedSource } from "@/lib/types";
 
 const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
   try {
@@ -63,6 +64,7 @@ export function useFeedReader() {
   const totalNew = useAtomValue(totalNewAtom);
   const openFeed = useSetAtom(openFeedAtom);
   const selectItem = useSetAtom(selectItemAtom);
+  const markItemUnread = useSetAtom(markItemUnreadAtom);
   const backToFeedList = useSetAtom(backToFeedListAtom);
   const closeDetailPanel = useSetAtom(closeDetailPanelAtom);
   const toggleReaderFullScreen = useSetAtom(toggleReaderFullScreenAtom);
@@ -283,6 +285,25 @@ export function useFeedReader() {
     });
   };
 
+  const handleBookmarkItem = async (
+    item: { url: string; title: string; excerpt?: string; imageUrl?: string; publishedAt?: string },
+    source: { label: string; siteUrl: string },
+  ) => {
+    if (!canReadUserData || bookmarkMutation.isPending) {
+      return;
+    }
+
+    await bookmarkMutation.mutateAsync({
+      url: item.url,
+      title: item.title,
+      excerpt: item.excerpt,
+      imageUrl: item.imageUrl,
+      sourceLabel: source.label,
+      sourceSiteUrl: source.siteUrl,
+      publishedAt: item.publishedAt,
+    });
+  };
+
   return {
     state,
     sourceInput,
@@ -300,6 +321,7 @@ export function useFeedReader() {
     effectivePollingIntervalMs,
     isSignedIn: canReadUserData,
     isBookmarked: selectedItem ? bookmarkedUrls.has(selectedItem.url) : false,
+    isItemBookmarked: (item: FeedItem) => bookmarkedUrls.has(item.url),
     isBookmarkPending: bookmarkMutation.isPending,
     refreshingSourceIds,
     isRefreshingAll,
@@ -327,5 +349,7 @@ export function useFeedReader() {
     handleSourceRefresh,
     handleSourceError,
     handleToggleBookmark,
+    handleBookmarkItem,
+    handleMarkUnread: (itemId: string) => markItemUnread(itemId),
   };
 }

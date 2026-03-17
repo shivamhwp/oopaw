@@ -241,6 +241,11 @@ export const markItemRead = (state: FeedReaderState, sourceId: string, itemId: s
   };
 };
 
+export const markItemUnread = (state: FeedReaderState, itemId: string) => ({
+  ...state,
+  readItemIds: state.readItemIds.filter((id) => id !== itemId),
+});
+
 export const setSelectedSource = (state: FeedReaderState, sourceId: string | null) => ({
   ...state,
   selectedSourceId: sourceId,
