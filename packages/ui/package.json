@@ -11,14 +11,12 @@
     "check-types": "bun run typecheck"
   },
   "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react": "^19.2.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "*",
     "@types/node": "^22.15.3",
     "@types/react": "19.2.2",
-    "@types/react-dom": "19.2.2",
     "@typescript/native-preview": "7.0.0-dev.20260311.1"
   }
 }

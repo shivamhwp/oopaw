@@ -167,7 +167,7 @@ const createSanitizeFeedHtmlOptions = (baseUrl: string | undefined) =>
     },
   }) satisfies NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 
-export const sanitizeFeedHtml = (value: string | undefined, baseUrl?: string) => {
+const sanitizeFeedHtml = (value: string | undefined, baseUrl?: string) => {
   if (!value) {
     return undefined;
   }

@@ -249,7 +249,7 @@ export function AppNavbar({
             to="/"
             className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground"
           >
-            oop
+            oopaw
           </Link>
         </div>
 

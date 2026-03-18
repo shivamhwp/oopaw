@@ -154,4 +154,3 @@ export type LoadMoreSourceItemsResult = z.infer<typeof loadMoreSourceItemsResult
 export type FeedReaderStateV1 = z.infer<typeof feedReaderStateV1Schema>;
 export type FeedReaderStateV2 = z.infer<typeof feedReaderStateV2Schema>;
 export type FeedReaderState = z.infer<typeof feedReaderStateSchema>;
-export type LoadMoreSourceItemsInput = z.infer<typeof loadMoreSourceItemsInputSchema>;

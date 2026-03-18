@@ -33,7 +33,7 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       {
-        title: "oop — Feed Reader",
+        title: "oopaw",
       },
       {
         name: "description",
@@ -48,6 +48,22 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
         name: "theme-color",
         content: "#2a2629",
         media: "(prefers-color-scheme: dark)",
+      },
+      {
+        name: "mobile-web-app-capable",
+        content: "yes",
+      },
+      {
+        name: "apple-mobile-web-app-capable",
+        content: "yes",
+      },
+      {
+        name: "apple-mobile-web-app-status-bar-style",
+        content: "default",
+      },
+      {
+        name: "apple-mobile-web-app-title",
+        content: "oopaw",
       },
     ],
     links: [
@@ -72,6 +88,14 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
         rel: "icon",
         href: "/oop-logo.svg",
         type: "image/svg+xml",
+      },
+      {
+        rel: "manifest",
+        href: "/manifest.webmanifest",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/icons/apple-touch-icon.png",
       },
     ],
   }),

@@ -34,7 +34,7 @@ const upsertSource = (sources: SavedSource[], source: SavedSource) => {
   return sources.map((entry) => (entry.id === source.id ? { ...existing, ...source } : entry));
 };
 
-export const getInitialLoadedPageUrl = (source: Pick<SavedSource, "feedUrl" | "siteUrl">) =>
+const getInitialLoadedPageUrl = (source: Pick<SavedSource, "feedUrl" | "siteUrl">) =>
   source.feedUrl;
 
 const createSourcePagination = (
@@ -249,23 +249,6 @@ export const markItemUnread = (state: FeedReaderState, itemId: string) => ({
 export const setSelectedSource = (state: FeedReaderState, sourceId: string | null) => ({
   ...state,
   selectedSourceId: sourceId,
-});
-
-export const toggleSourcePolling = (
-  state: FeedReaderState,
-  sourceId: string,
-  enabled: boolean,
-) => ({
-  ...state,
-  sources: state.sources.map((source) =>
-    source.id === sourceId
-      ? {
-          ...source,
-          pollingEnabled: enabled,
-          pollIntervalMs: source.pollIntervalMs || POLL_INTERVAL_MS,
-        }
-      : source,
-  ),
 });
 
 export const removeSource = (state: FeedReaderState, sourceId: string) => {

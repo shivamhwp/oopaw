@@ -10,10 +10,10 @@ type UseProgressiveWindowOptions = {
   onRemoteLoadMore?: () => Promise<void> | void;
 };
 
-export const getInitialVisibleCount = (loadedCount: number, pageSize: number) =>
+const getInitialVisibleCount = (loadedCount: number, pageSize: number) =>
   Math.min(loadedCount, pageSize);
 
-export const getNextVisibleCount = ({
+const getNextVisibleCount = ({
   loadedCount,
   pageSize,
   threshold,
@@ -37,7 +37,7 @@ export const getNextVisibleCount = ({
   return visibleCount;
 };
 
-export const getRemoteLoadTriggerKey = ({
+const getRemoteLoadTriggerKey = ({
   identityKey,
   loadedCount,
   threshold,

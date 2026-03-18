@@ -33,7 +33,7 @@ const getErrorMessage = (error: unknown): string | undefined => {
   return undefined;
 };
 
-export const isStaleDeploymentError = (error: unknown) => {
+const isStaleDeploymentError = (error: unknown) => {
   const message = getErrorMessage(error);
 
   return message ? staleDeploymentPatterns.some((pattern) => pattern.test(message)) : false;
@@ -54,10 +54,10 @@ export const recoverFromStaleDeployment = (error: unknown) => {
   return true;
 };
 
-export const isLocalDevelopmentHostname = (hostname: string) =>
+const isLocalDevelopmentHostname = (hostname: string) =>
   ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
 
-export const cleanupLocalhostCachesOncePerSession = async ({
+const cleanupLocalhostCachesOncePerSession = async ({
   hostname,
   sessionStorage,
   serviceWorker,
@@ -100,25 +100,4 @@ export const installLocalhostCacheCleanup = () => {
     serviceWorker: "serviceWorker" in navigator ? navigator.serviceWorker : undefined,
     cacheStorage: "caches" in globalThis ? globalThis.caches : undefined,
   });
-};
-
-export const installStaleDeploymentRecovery = () => {
-  if (typeof window === "undefined") {
-    return () => undefined;
-  }
-
-  const handleError = (event: ErrorEvent) => {
-    recoverFromStaleDeployment(event.error ?? event.message);
-  };
-  const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-    recoverFromStaleDeployment(event.reason);
-  };
-
-  window.addEventListener("error", handleError);
-  window.addEventListener("unhandledrejection", handleUnhandledRejection);
-
-  return () => {
-    window.removeEventListener("error", handleError);
-    window.removeEventListener("unhandledrejection", handleUnhandledRejection);
-  };
 };

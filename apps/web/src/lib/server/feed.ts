@@ -82,7 +82,7 @@ const loadFeedSource = async ({ url, sourceId }: { url: string; sourceId?: strin
   });
 };
 
-export const fetchFeedSourceResult = async (data: {
+const fetchFeedSourceResult = async (data: {
   url: string;
   sourceId?: string;
   pollIntervalMs?: number;
@@ -107,7 +107,7 @@ export const fetchFeedSourceResult = async (data: {
   });
 };
 
-export const refreshFeedSourceResult = async (data: {
+const refreshFeedSourceResult = async (data: {
   source: { id: string; feedUrl: string };
   seenItemIds: string[];
 }) => {
@@ -127,10 +127,7 @@ export const refreshFeedSourceResult = async (data: {
   });
 };
 
-export const loadMoreFeedItemsResult = async (data: {
-  source: { id: string };
-  pageUrl: string;
-}) => {
+const loadMoreFeedItemsResult = async (data: { source: { id: string }; pageUrl: string }) => {
   const loaded = await loadFeedSource({
     url: data.pageUrl,
     sourceId: data.source.id,

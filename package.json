@@ -9,10 +9,10 @@
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",
     "check": "turbo run format lint check",
-    "dev": "turbo run dev convex --parallel",
-    "web": "turbo run dev --filter=web",
-    "convex": "bunx convex dev",
-    "dev:web": "turbo run dev convex --filter=web --parallel",
+    "dev": "concurrently --names web,convex --prefix-colors auto \"bun run web\" \"bun run convex\"",
+    "web": "bun run --cwd apps/web dev",
+    "convex": "bun run --cwd apps/web convex",
+    "dev:web": "bun run dev",
     "install:web": "cd apps/web && bun install",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt .",
@@ -21,13 +21,17 @@
     "quality": "turbo run lint format",
     "quality:fix": "turbo run lint:fix format:fix",
     "typecheck": "turbo run typecheck",
-    "typecheck:web": "turbo run typecheck --filter=web"
+    "typecheck:web": "turbo run typecheck --filter=web",
+    "knip": "knip"
   },
   "devDependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20260311.1",
+    "@types/node": "^25.5.0",
+    "concurrently": "^9.2.1",
+    "knip": "^5.87.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
-    "turbo": "^2.8.14"
+    "turbo": "^2.8.14",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18"

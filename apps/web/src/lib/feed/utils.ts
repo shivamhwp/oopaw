@@ -1,6 +1,6 @@
 import type { StoredFeedItem } from "@/lib/types";
 
-export const createStableHash = (value: string) => {
+const createStableHash = (value: string) => {
   let hash = 5381;
 
   for (const character of value) {
@@ -125,11 +125,3 @@ export const createFeedItemId = (sourceId: string, values: Array<string | undefi
 
   return `item_${createStableHash(identity || sourceId)}`;
 };
-
-export const getHostnameLabel = (urlValue: string) => {
-  const url = new URL(urlValue);
-
-  return url.hostname.replace(/^www\./, "");
-};
-
-export const clampArray = <T>(items: T[], size: number) => items.slice(0, size);
