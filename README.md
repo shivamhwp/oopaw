@@ -1,44 +1,40 @@
-# t3s-agent
+# oopaw
 
-Bun monorepo with:
+a clean, no-nonsense rss feed reader that just works.
 
-- `apps/web`: TanStack Start app
-- `packages/ui`: shared React components
-- `packages/typescript-config`: shared TypeScript config
+## Tech
 
-## Tooling
+TanStack Start, Convex, Clerk, Tailwind CSS, shadcn/ui, Bun, Turbo, Jotai, Vite
 
-- `tsgo` for typechecking
-- `oxlint` for linting
-- `oxfmt` for formatting
-- `turbo` for task orchestration
+## Features
 
-## Commands
+- **Subscribe to any RSS/Atom feed** — paste a url, get your posts. polling intervals keep things fresh automatically.
+- **Split-pane reader** — read articles inline or pop out to the original site. resize panels however you like.
+- **Bookmarks** — save stuff for later with one click. come back to it whenever.
+
+## Getting Started
 
 ```sh
+bun install
 bun run dev
-bun run web
-bun run format
-bun run check
-bun run lint
-bun run typecheck
 ```
 
-Use filtered commands when you only want the web app:
+This spins up the web app and convex backend together.
+
+## Project Structure
+
+```
+apps/web        — tanstack start app (the main thing)
+packages/ui     — shared react components
+packages/ts-config — shared typescript config
+```
+
+## Scripts
 
 ```sh
-bun run dev:web
-bun run web:dev
-bun run install:web
-bun run web:install
-bun run format:web
-bun run web:format
-bun run check:web
-bun run web:check
-bun run lint:web
-bun run web:lint
-bun run test:web
-bun run web:test
-bun run typecheck:web
-bun run web:typecheck
+bun run dev          # run everything
+bun run format       # check formatting (oxfmt)
+bun run lint         # lint (oxlint)
+bun run typecheck    # typecheck (tsgo)
+bun run check        # all of the above
 ```
