@@ -1,9 +1,7 @@
 import {
   applyLoadMoreSourceItems,
   applySourceRefresh,
-  createEmptyLocalFeedCache,
   extractLegacyFeedSubscriptions,
-  getInitialLoadedPageUrl,
   getLocalFeedCacheForUser,
   getSourceItems,
   markItemRead,
@@ -21,9 +19,7 @@ import type { FeedReaderState, SavedSource } from "@/lib/types";
 export {
   applyLoadMoreSourceItems,
   applySourceRefresh,
-  createEmptyLocalFeedCache as createEmptyFeedReaderState,
   extractLegacyFeedSubscriptions,
-  getInitialLoadedPageUrl,
   getLocalFeedCacheForUser,
   getSourceItems,
   markItemRead,

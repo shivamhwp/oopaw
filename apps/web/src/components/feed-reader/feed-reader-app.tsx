@@ -305,10 +305,10 @@ export function AppNavbar({
   );
 }
 
-export const shouldShowFeedReaderBootScreen = (isClientReady: boolean) => !isClientReady;
-export const getFeedReaderLayoutMode = (isMobile: boolean) => (isMobile ? "mobile" : "desktop");
+const shouldShowFeedReaderBootScreen = (isClientReady: boolean) => !isClientReady;
+const getFeedReaderLayoutMode = (isMobile: boolean) => (isMobile ? "mobile" : "desktop");
 
-export function FeedReaderBootScreen() {
+function FeedReaderBootScreen() {
   return (
     <div className="flex h-svh items-center justify-center overflow-hidden bg-background">
       <div role="status" aria-label="Loading feeds" className="text-muted-foreground">

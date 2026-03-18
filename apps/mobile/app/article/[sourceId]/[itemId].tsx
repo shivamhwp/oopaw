@@ -10,7 +10,7 @@ import { useColors, type ThemeColors } from "@/theme";
 import { api, type Doc } from "@/lib/convex";
 import { refreshDiscoveredFeed } from "@repo/shared/feed/service";
 import { stripHtml } from "@repo/shared/feed/utils";
-import type { FeedSubscription, StoredFeedItem } from "@repo/shared/feed/types";
+import type { StoredFeedItem } from "@repo/shared/feed/types";
 
 function buildReaderHtml(title: string, html: string, colors: ThemeColors) {
   return `<!DOCTYPE html>
@@ -50,7 +50,7 @@ function buildReaderHtml(title: string, html: string, colors: ThemeColors) {
 
 export default function ArticleScreen() {
   const colors = useColors();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading: isConvexAuthLoading } = useConvexAuth();
   const canQuery = isAuthenticated;
   const params = useLocalSearchParams<{
     sourceId: string;
@@ -67,18 +67,14 @@ export default function ArticleScreen() {
   const subscriptions = useQuery(
     api.feedSubscriptions.queries.listForCurrentUser,
     canQuery ? {} : "skip",
-  ) as FeedSubscription[] | undefined;
-  const preferences = useQuery(
-    api.preferences.queries.getForCurrentUser,
-    canQuery ? {} : "skip",
   );
-  const bookmarks = (useQuery(
-    api.bookmarks.queries.listForCurrentUser,
-    canQuery ? {} : "skip",
-  ) ?? []) as Doc<"bookmarks">[];
+  const preferences = useQuery(api.preferences.queries.getForCurrentUser, canQuery ? {} : "skip");
+  const bookmarks = useQuery(api.bookmarks.queries.listForCurrentUser, canQuery ? {} : "skip");
   const toggleBookmark = useMutation(api.bookmarks.mutations.toggleForCurrentUser);
 
-  const source = subscriptions?.find((s) => s.sourceId === params.sourceId);
+  const source = subscriptions?.find(
+    (s: Doc<"feedSubscriptions">) => s.sourceId === params.sourceId,
+  );
   const [isTogglingBookmark, setIsTogglingBookmark] = useState(false);
   const [mode, setMode] = useState<"reader" | "site">(preferences?.defaultView ?? "reader");
 
@@ -86,7 +82,7 @@ export default function ArticleScreen() {
     queryKey: ["feed-items", params.sourceId],
     queryFn: () =>
       refreshDiscoveredFeed({
-        source: { sourceId: source!.sourceId, feedUrl: source!.feedUrl },
+        source: { sourceId: source?._id ?? "", feedUrl: source?.feedUrl ?? "" },
         seenItemIds: [],
       }),
     enabled: !!source,
@@ -114,12 +110,12 @@ export default function ArticleScreen() {
   const articleUrl = fallbackItem.url || undefined;
   const activeMode = mode === "site" && articleUrl ? "site" : "reader";
   const isBookmarked = articleUrl
-    ? bookmarks.some((bookmark) => bookmark.url === articleUrl)
+    ? (bookmarks?.some((bookmark: Doc<"bookmarks">) => bookmark.url === articleUrl) ?? false)
     : false;
   const readerText = fallbackItem.contentText ?? stripHtml(fallbackItem.contentHtml);
 
   const handleToggleBookmark = async () => {
-    if (isTogglingBookmark || !articleUrl) return;
+    if (isTogglingBookmark || !articleUrl || !isAuthenticated || isConvexAuthLoading) return;
 
     setIsTogglingBookmark(true);
 
@@ -142,7 +138,9 @@ export default function ArticleScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+      >
         <Text style={[styles.articleTitle, { color: colors.cardForeground }]}>
           {fallbackItem.title}
         </Text>
@@ -189,12 +187,14 @@ export default function ArticleScreen() {
         </ScrollView>
       )}
 
-      <View style={[styles.toolbar, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+      <View
+        style={[styles.toolbar, { backgroundColor: colors.card, borderTopColor: colors.border }]}
+      >
         <View style={styles.toolbarRow}>
           <Button
             variant="outline"
             style={styles.toolbarBtn}
-            disabled={isTogglingBookmark || !articleUrl}
+            disabled={isTogglingBookmark || !articleUrl || !isAuthenticated || isConvexAuthLoading}
             onPress={() => void handleToggleBookmark()}
           >
             <View style={styles.btnContent}>
@@ -221,8 +221,7 @@ export default function ArticleScreen() {
                 style={[
                   styles.btnLabel,
                   {
-                    color:
-                      activeMode === "reader" ? colors.primaryForeground : colors.foreground,
+                    color: activeMode === "reader" ? colors.primaryForeground : colors.foreground,
                   },
                 ]}
               >
@@ -249,8 +248,7 @@ export default function ArticleScreen() {
                 style={[
                   styles.btnLabel,
                   {
-                    color:
-                      activeMode === "site" ? colors.primaryForeground : colors.foreground,
+                    color: activeMode === "site" ? colors.primaryForeground : colors.foreground,
                   },
                 ]}
               >
@@ -261,7 +259,10 @@ export default function ArticleScreen() {
         </View>
         <Button
           variant="ghost"
-          style={[styles.openOriginal, { borderColor: colors.border, backgroundColor: colors.background }]}
+          style={[
+            styles.openOriginal,
+            { borderColor: colors.border, backgroundColor: colors.background },
+          ]}
           disabled={!articleUrl}
           onPress={() => {
             if (!articleUrl) return;

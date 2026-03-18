@@ -34,7 +34,6 @@ import {
 import { api } from "@/lib/convex";
 import { defaultUserPreferences } from "@/lib/preferences";
 import { queryKeys } from "@/lib/query/keys";
-import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import {
   extractLegacyFeedSubscriptions,
   migrateLegacyFeedReaderState,
@@ -43,19 +42,8 @@ import {
 } from "@/lib/feed-reader-state";
 import { normalizeInputUrl } from "@/lib/feed/utils";
 import { getBrowserStorage } from "@/lib/browser-storage";
-import { fetchFeedSource, loadMoreFeedItems } from "@/lib/server/feed";
-import { discoveryResultSchema, FEED_READER_STATE_STORAGE_KEY, type FeedItem } from "@/lib/types";
-
-const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
-  try {
-    return await load();
-  } catch (error) {
-    recoverFromStaleDeployment(error);
-    throw error;
-  }
-};
-
-const assertDiscoveryResult = (value: unknown) => discoveryResultSchema.parse(value);
+import { discoverFeed, loadMoreDiscoveredFeedItems } from "@repo/shared/feed/service";
+import { FEED_READER_STATE_STORAGE_KEY, type FeedItem } from "@/lib/types";
 
 export function useFeedReader() {
   const convexAuth = useConvexAuth();
@@ -244,15 +232,7 @@ export function useFeedReader() {
         throw new Error("Authentication required.");
       }
 
-      const discovery = assertDiscoveryResult(
-        await withStaleDeploymentRecovery(() =>
-          fetchFeedSource({
-            data: {
-              url: normalizeInputUrl(input),
-            },
-          }),
-        ),
-      );
+      const discovery = await discoverFeed(normalizeInputUrl(input));
 
       await createSubscription(discovery.source);
 
@@ -267,11 +247,7 @@ export function useFeedReader() {
 
   const loadMoreSourceItemsMutation = useMutation({
     mutationFn: ({ sourceId, pageUrl }: { sourceId: string; pageUrl: string }) =>
-      withStaleDeploymentRecovery(() =>
-        loadMoreFeedItems({
-          data: { sourceId, pageUrl },
-        }),
-      ),
+      loadMoreDiscoveredFeedItems({ sourceId, pageUrl }),
     onSuccess: (result) => {
       startTransition(() => {
         applyLoadMore(result);

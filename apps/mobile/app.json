@@ -8,6 +8,8 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "plugins": [
+      "expo-dev-client",
+      "@clerk/expo",
       "expo-router",
       "expo-secure-store",
       [

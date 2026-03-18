@@ -7,7 +7,7 @@
     "./feed/*": "./src/feed/*.ts"
   },
   "scripts": {
-    "check": "oxfmt --check . && oxlint . && bun run typecheck",
+    "check": "concurrently --kill-others-on-fail --names fmt,lint,types \"oxfmt --check .\" \"oxlint .\" \"bun run typecheck\"",
     "format": "oxfmt --write .",
     "typecheck": "tsgo --project tsconfig.json --noEmit"
   },
@@ -22,6 +22,7 @@
     "@types/node": "^25.5.0",
     "@types/sanitize-html": "^2.16.1",
     "@typescript/native-preview": "^7.0.0-dev.20260315.1",
+    "concurrently": "^9.2.1",
     "oxfmt": "^0.40.0",
     "oxlint": "^1.55.0"
   }

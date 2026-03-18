@@ -16,6 +16,8 @@ export default defineSchema({
     label: v.string(),
     siteUrl: v.string(),
     feedUrl: v.string(),
+    pollingEnabled: v.optional(v.boolean()),
+    pollIntervalMs: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

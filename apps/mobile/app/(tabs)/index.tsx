@@ -1,7 +1,13 @@
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router } from "expo-router";
-import { useAuth } from "@clerk/expo";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { AuthLoading, Authenticated, useMutation, useQuery } from "convex/react";
 import { useQuery as useTanstackQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/convex";
 import { SourceCard } from "@/components/source-card";
@@ -31,7 +37,7 @@ function SourceCardWithItems({
 }) {
   const queryClient = useQueryClient();
   const removeSubscription = useMutation(api.feedSubscriptions.mutations.removeForCurrentUser);
-  const { data } = useSourceItems(source, pollingIntervalMs);
+  const { data, isLoading } = useSourceItems(source, pollingIntervalMs);
   const items = data?.items ?? [];
 
   return (
@@ -39,6 +45,7 @@ function SourceCardWithItems({
       source={source}
       items={items}
       itemCount={items.length}
+      isLoading={isLoading}
       onPress={() => router.push(`/feed/${source.sourceId}`)}
       onRefresh={() =>
         void queryClient.invalidateQueries({ queryKey: ["feed-items", source.sourceId] })
@@ -48,19 +55,11 @@ function SourceCardWithItems({
   );
 }
 
-export default function HomeScreen() {
+function FeedList() {
   const colors = useColors();
-  const { isSignedIn } = useAuth();
-  const { isAuthenticated } = useConvexAuth();
-  const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
-  const subscriptions = (useQuery(
-    api.feedSubscriptions.queries.listForCurrentUser,
-    canRunAuthenticatedQueries ? {} : "skip",
-  ) ?? []) as FeedSubscription[];
-  const preferences = useQuery(
-    api.preferences.queries.getForCurrentUser,
-    canRunAuthenticatedQueries ? {} : "skip",
-  );
+  const subscriptions = (useQuery(api.feedSubscriptions.queries.listForCurrentUser, {}) ??
+    []) as FeedSubscription[];
+  const preferences = useQuery(api.preferences.queries.getForCurrentUser, {});
   const queryClient = useQueryClient();
   const pollingIntervalMs = (preferences?.pollingIntervalMinutes ?? 15) * 60_000;
 
@@ -72,7 +71,9 @@ export default function HomeScreen() {
     <ScrollView
       style={[styles.scroll, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={() => void handleRefreshAll()} />}
+      refreshControl={
+        <RefreshControl refreshing={false} onRefresh={() => void handleRefreshAll()} />
+      }
     >
       {subscriptions.length === 0 ? (
         <View style={[styles.empty, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -98,7 +99,29 @@ export default function HomeScreen() {
   );
 }
 
+export default function HomeScreen() {
+  const colors = useColors();
+
+  return (
+    <>
+      <AuthLoading>
+        <View style={[styles.centered, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </AuthLoading>
+      <Authenticated>
+        <FeedList />
+      </Authenticated>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   scroll: {
     flex: 1,
   },

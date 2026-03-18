@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { getBrowserStorage } from "@/lib/browser-storage";
 
-export type Theme = "dark" | "light" | "system";
+type Theme = "dark" | "light" | "system";
 
 export const DEFAULT_THEME = "system" satisfies Theme;
 export const THEME_STORAGE_KEY = "oop-theme";
@@ -14,7 +14,7 @@ const getSystemTheme = () =>
 
 const getResolvedTheme = (theme: Theme) => (theme === "system" ? getSystemTheme() : theme);
 
-export const applyTheme = (theme: Theme, root = document.documentElement) => {
+const applyTheme = (theme: Theme, root = document.documentElement) => {
   const resolvedTheme = getResolvedTheme(theme);
 
   root.classList.remove("light", "dark");

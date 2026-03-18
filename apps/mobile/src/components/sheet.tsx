@@ -12,9 +12,16 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
   const colors = useColors();
 
   return (
-    <Modal visible={open} animationType="slide" transparent onRequestClose={() => onOpenChange(false)}>
+    <Modal
+      visible={open}
+      animationType="slide"
+      transparent
+      onRequestClose={() => onOpenChange(false)}
+    >
       <Pressable style={styles.backdrop} onPress={() => onOpenChange(false)} />
-      <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View
+        style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
         <View style={[styles.handle, { backgroundColor: colors.mutedForeground }]} />
         <SafeAreaView edges={["bottom"]} style={styles.content}>
           {children}

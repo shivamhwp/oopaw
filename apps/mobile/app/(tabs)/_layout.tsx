@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { Redirect, Tabs, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
@@ -15,8 +15,8 @@ import { normalizeInputUrl } from "@repo/shared/feed/utils";
 import { discoverFeed } from "@repo/shared/feed/service";
 
 export default function TabsLayout() {
-  const { isSignedIn } = useAuth();
-  const { isAuthenticated } = useConvexAuth();
+  const { isSignedIn, isLoaded } = useAuth();
+  const { isAuthenticated, isLoading: isConvexAuthLoading } = useConvexAuth();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const createSubscription = useMutation(api.feedSubscriptions.mutations.createForCurrentUser);
@@ -26,15 +26,19 @@ export default function TabsLayout() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  if (!isLoaded) {
+    return null;
+  }
+
   if (!isSignedIn) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
-  const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
+  const canCreateSubscription = isSignedIn && isAuthenticated && !isConvexAuthLoading;
 
   const handleAddFeed = async () => {
-    if (!canRunAuthenticatedQueries) {
-      setError("Still connecting — please wait a moment and try again.");
+    if (!canCreateSubscription) {
+      setError("Still connecting your account. Please wait a moment and try again.");
       return;
     }
 
@@ -125,7 +129,13 @@ export default function TabsLayout() {
         {error ? (
           <Text style={[styles.sheetError, { color: colors.destructive }]}>{error}</Text>
         ) : null}
-        <Button style={styles.sheetButton} onPress={handleAddFeed} loading={isSubmitting} label="Add feed" />
+        <Button
+          style={styles.sheetButton}
+          disabled={!canCreateSubscription}
+          onPress={handleAddFeed}
+          loading={isSubmitting}
+          label="Add feed"
+        />
       </Sheet>
     </>
   );

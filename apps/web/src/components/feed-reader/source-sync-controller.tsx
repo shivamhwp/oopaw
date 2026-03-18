@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import { queryKeys } from "@/lib/query/keys";
-import { refreshFeedSource } from "@/lib/server/feed";
+import { refreshDiscoveredFeed } from "@repo/shared/feed/service";
 import type { RefreshResult, SavedSource, StoredFeedItem } from "@/lib/types";
 
 type SourceSyncControllerProps = {
@@ -31,22 +30,11 @@ export function SourceSyncController({
 
   const query = useQuery({
     queryKey: queryKeys.sourceItems(source.sourceId),
-    queryFn: async () => {
-      try {
-        return await refreshFeedSource({
-          data: {
-            source: {
-              sourceId: source.sourceId,
-              feedUrl: source.feedUrl,
-            },
-            seenItemIds,
-          },
-        });
-      } catch (error) {
-        recoverFromStaleDeployment(error);
-        throw error;
-      }
-    },
+    queryFn: () =>
+      refreshDiscoveredFeed({
+        source: { sourceId: source.sourceId, feedUrl: source.feedUrl },
+        seenItemIds,
+      }),
     enabled,
     initialData:
       lastCheckedAt && initialItems.length

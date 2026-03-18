@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d939b79f-195e-4585-93fc-e41532827489"
+      }
+    },
+    "android": {
+      "package": "com.shivamhwp.t3sagent"
+    }
+  }
+}

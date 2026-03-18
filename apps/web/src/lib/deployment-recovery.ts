@@ -33,13 +33,13 @@ const getErrorMessage = (error: unknown): string | undefined => {
   return undefined;
 };
 
-export const isStaleDeploymentError = (error: unknown) => {
+const isStaleDeploymentError = (error: unknown) => {
   const message = getErrorMessage(error);
 
   return message ? staleDeploymentPatterns.some((pattern) => pattern.test(message)) : false;
 };
 
-export const recoverFromStaleDeployment = (error: unknown) => {
+const recoverFromStaleDeployment = (error: unknown) => {
   if (typeof window === "undefined" || !isStaleDeploymentError(error)) {
     return false;
   }
@@ -54,10 +54,10 @@ export const recoverFromStaleDeployment = (error: unknown) => {
   return true;
 };
 
-export const isLocalDevelopmentHostname = (hostname: string) =>
+const isLocalDevelopmentHostname = (hostname: string) =>
   ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
 
-export const cleanupLocalhostCachesOncePerSession = async ({
+const cleanupLocalhostCachesOncePerSession = async ({
   hostname,
   sessionStorage,
   serviceWorker,

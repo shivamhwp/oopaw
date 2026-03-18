@@ -1,0 +1,29 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "tags": ["-lintignore"],
+  "workspaces": {
+    ".": {
+      "project": ["**/*.{ts,tsx}", "!**/convex/_generated/**"]
+    },
+    "apps/web": {},
+    "apps/mobile": {
+      "expo": {
+        "entry": ["app/**/*.{ts,tsx}"]
+      },
+      "project": ["**/*.{ts,tsx}", "!**/convex/_generated/**"]
+    },
+    "packages/shared": {
+      "entry": ["src/feed/**/*.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {},
+    "packages/typescript-config": {}
+  },
+  "ignoreWorkspaces": ["packages/typescript-config", "packages/ui"],
+  "ignoreIssues": {
+    "**/convex/_generated/**": ["unresolved", "exports", "types"],
+    "apps/web/src/components/ui/**": ["exports"],
+    "apps/web/src/lib/deployment-recovery.ts": ["exports"]
+  },
+  "ignoreDependencies": ["expo-updates", "babel-plugin-module-resolver", "babel-preset-expo"]
+}

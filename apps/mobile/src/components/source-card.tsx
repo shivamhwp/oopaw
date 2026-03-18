@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/theme";
 import type { FeedSubscription, StoredFeedItem } from "@repo/shared/feed/types";
@@ -7,6 +7,7 @@ type SourceCardProps = {
   source: FeedSubscription;
   items: StoredFeedItem[];
   itemCount: number;
+  isLoading: boolean;
   onPress: () => void;
   onRefresh: () => void;
   onRemove: () => void;
@@ -16,6 +17,7 @@ export function SourceCard({
   source,
   items,
   itemCount,
+  isLoading,
   onPress,
   onRefresh,
   onRemove,
@@ -45,19 +47,27 @@ export function SourceCard({
       </View>
 
       <View style={styles.items}>
-        {items.slice(0, 4).map((item) => (
-          <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
-            <Text
-              style={[styles.itemTitle, { color: colors.cardForeground }]}
-              numberOfLines={2}
-            >
-              {item.title}
-            </Text>
-          </View>
-        ))}
-        {items.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No posts yet.</Text>
-        ) : null}
+        {isLoading ? (
+          <ActivityIndicator size="small" color={colors.mutedForeground} />
+        ) : (
+          <>
+            {items.slice(0, 4).map((item) => (
+              <View key={item.id} style={[styles.itemRow, { borderBottomColor: colors.border }]}>
+                <Text
+                  style={[styles.itemTitle, { color: colors.cardForeground }]}
+                  numberOfLines={2}
+                >
+                  {item.title}
+                </Text>
+              </View>
+            ))}
+            {items.length === 0 ? (
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                No posts yet.
+              </Text>
+            ) : null}
+          </>
+        )}
       </View>
 
       <View style={styles.footer}>

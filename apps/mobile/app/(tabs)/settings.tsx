@@ -14,7 +14,8 @@ export default function SettingsScreen() {
   const canRunAuthenticatedQueries = isSignedIn && isAuthenticated;
   const colors = useColors();
   const preferences =
-    useQuery(api.preferences.queries.getForCurrentUser, canRunAuthenticatedQueries ? {} : "skip") ?? defaultUserPreferences;
+    useQuery(api.preferences.queries.getForCurrentUser, canRunAuthenticatedQueries ? {} : "skip") ??
+    defaultUserPreferences;
   const upsertPreferences = useMutation(api.preferences.mutations.upsertForCurrentUser);
 
   return (

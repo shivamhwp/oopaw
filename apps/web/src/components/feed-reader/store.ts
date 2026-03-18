@@ -31,21 +31,21 @@ import {
   type LocalFeedCacheStorage,
 } from "@repo/shared/feed/types";
 
-export const FEED_READER_PANEL_STATE_STORAGE_KEY = "papertrail.feed-reader.panel";
-export const FEED_READER_PANEL_SIZE_STORAGE_KEY = "papertrail.feed-reader.panel-size";
+const FEED_READER_PANEL_STATE_STORAGE_KEY = "papertrail.feed-reader.panel";
+const FEED_READER_PANEL_SIZE_STORAGE_KEY = "papertrail.feed-reader.panel-size";
 
 export const MIN_FEED_READER_READER_PANEL_SIZE = 14;
 export const MIN_FEED_READER_LIST_PANEL_SIZE = 40;
-export const DEFAULT_FEED_READER_PANEL_SIZE = 50;
+const DEFAULT_FEED_READER_PANEL_SIZE = 50;
 export const MAX_FEED_READER_PANEL_SIZE = 70;
 
-export const detailPanelStateSchema = z.union([
+const detailPanelStateSchema = z.union([
   z.object({ mode: z.literal("closed") }),
   z.object({ mode: z.literal("list"), sourceId: z.string().min(1) }),
   z.object({ mode: z.literal("reader"), sourceId: z.string().min(1), itemId: z.string().min(1) }),
 ]);
 
-export const detailPanelSizeSchema = z
+const detailPanelSizeSchema = z
   .number()
   .min(MIN_FEED_READER_READER_PANEL_SIZE)
   .max(MAX_FEED_READER_PANEL_SIZE);
@@ -151,9 +151,9 @@ const feedReaderStorage = {
   subscribe?: StorageSubscription<LocalFeedCacheStorage>;
 };
 
-export const detailPanelSizeStorage = createValidatedStorage(isDetailPanelSize);
-export const detailPanelStateStorage = createValidatedStorage(isDetailPanelState);
-export const detailPanelOpenStorage = unstable_withStorageValidator(
+const detailPanelSizeStorage = createValidatedStorage(isDetailPanelSize);
+const detailPanelStateStorage = createValidatedStorage(isDetailPanelState);
+const detailPanelOpenStorage = unstable_withStorageValidator(
   (value): value is boolean => typeof value === "boolean",
 )(createJSONStorage<unknown>(() => browserStringStorage));
 
@@ -379,4 +379,4 @@ export const syncSourcesFromConvexAtom = atom(
   },
 );
 
-export type { DetailPanelSize, DetailPanelState };
+export type { DetailPanelState };

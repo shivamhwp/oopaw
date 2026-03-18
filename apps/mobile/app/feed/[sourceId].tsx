@@ -1,4 +1,12 @@
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -17,10 +25,7 @@ export default function FeedScreen() {
     api.feedSubscriptions.queries.listForCurrentUser,
     canQuery ? {} : "skip",
   ) as FeedSubscription[] | undefined;
-  const preferences = useQuery(
-    api.preferences.queries.getForCurrentUser,
-    canQuery ? {} : "skip",
-  );
+  const preferences = useQuery(api.preferences.queries.getForCurrentUser, canQuery ? {} : "skip");
   const source = subscriptions?.find((s) => s.sourceId === sourceId);
   const queryClient = useQueryClient();
   const pollingIntervalMs = (preferences?.pollingIntervalMinutes ?? 15) * 60_000;
@@ -72,7 +77,10 @@ export default function FeedScreen() {
           {items.map((item) => (
             <Pressable
               key={item.id}
-              style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[
+                styles.itemCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
               onPress={() => router.push(`/article/${sourceId}/${item.id}`)}
             >
               <View style={styles.itemRow}>

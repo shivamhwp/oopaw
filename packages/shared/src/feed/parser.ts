@@ -16,6 +16,10 @@ const xmlParser = new XMLParser({
   textNodeName: "text",
   cdataPropName: "cdata",
   trimValues: true,
+  processEntities: {
+    maxTotalExpansions: 20_000,
+    maxExpandedLength: 500_000,
+  },
 });
 
 const asArray = <Value>(value: Value | Value[] | undefined | null): Value[] => {
@@ -319,7 +323,17 @@ export const parseFeedDocument = ({
   sourceId: string;
 }): FetchedFeedSource => {
   const trimmed = body.trim();
-  const parsed = xmlParser.parse(trimmed) as Record<string, unknown>;
+  let parsed: Record<string, unknown>;
+
+  try {
+    parsed = xmlParser.parse(trimmed) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Entity expansion limit exceeded")) {
+      throw new Error("This feed uses more XML entity expansion than the app currently allows.");
+    }
+
+    throw error;
+  }
 
   if (parsed.rss || parsed["rdf:RDF"]) {
     const isRdfFeed = parsed["rdf:RDF"] !== undefined;

@@ -236,7 +236,7 @@ const readResponseBody = async ({
   }
 
   if (!response.body) {
-    return "";
+    return await response.text();
   }
 
   const reader = response.body.getReader();
