@@ -31,7 +31,7 @@ const clampColumns = (width: number, detailPanelOpen: boolean) => {
     return 1;
   }
 
-  const maxColumns = detailPanelOpen ? 2 : 4;
+  const maxColumns = detailPanelOpen ? 2 : 5;
   const computedColumns = Math.floor((width + GRID_GAP) / (CARD_WIDTH + GRID_GAP));
 
   return Math.max(1, Math.min(maxColumns, computedColumns));
@@ -145,7 +145,7 @@ export function SourceGrid({
               className="grid"
               style={{
                 gap: GRID_GAP,
-                gridTemplateColumns: `repeat(${columnCount}, ${CARD_WIDTH}px)`,
+                gridTemplateColumns: `repeat(${columnCount}, minmax(${CARD_WIDTH}px, 1fr))`,
               }}
             >
               {rows[virtualRow.index]?.map(({ source, items, unreadCount, newCount }) => (

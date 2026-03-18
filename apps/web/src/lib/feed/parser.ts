@@ -15,8 +15,11 @@ const xmlParser = new XMLParser({
   attributeNamePrefix: "",
   textNodeName: "text",
   cdataPropName: "cdata",
+  processEntities: false,
   trimValues: true,
 });
+const MAX_FEED_ITEMS = 250;
+const MAX_FEED_TEXT_LENGTH = 50_000;
 
 const asArray = <T>(value: T | T[] | undefined | null): T[] => {
   if (!value) {
@@ -58,8 +61,10 @@ const trimValue = (value: string | undefined) => {
   return trimmed ? trimmed : undefined;
 };
 
+const clampText = (value: string | undefined) => value?.slice(0, MAX_FEED_TEXT_LENGTH);
+
 const normalizeFeedValue = (value: string | undefined, treatAsHtml = false) => {
-  const trimmed = trimValue(value);
+  const trimmed = trimValue(clampText(value));
 
   if (!trimmed) {
     return {
@@ -141,6 +146,7 @@ const normalizeRssItems = (sourceId: string, baseUrl: string, items: unknown[]) 
   sortItemsNewestFirst(
     dedupeItems(
       items
+        .slice(0, MAX_FEED_ITEMS)
         .map((entry) => {
           if (!entry || typeof entry !== "object") {
             return undefined;
@@ -251,6 +257,7 @@ const normalizeAtomItems = (sourceId: string, baseUrl: string, items: unknown[])
   sortItemsNewestFirst(
     dedupeItems(
       items
+        .slice(0, MAX_FEED_ITEMS)
         .map((entry) => {
           if (!entry || typeof entry !== "object") {
             return undefined;

@@ -86,7 +86,7 @@ export function ItemList({
                     onClick={() => onSelect(item.id)}
                     className={cn(
                       "group w-full px-5 py-3.5 text-left transition-colors",
-                      isSelected ? "bg-primary/[0.04]" : "hover:bg-muted/25",
+                      isSelected ? "bg-primary/[0.04]" : "hover:bg-primary/10",
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">

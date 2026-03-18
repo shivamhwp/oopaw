@@ -11,6 +11,7 @@ import {
   SpinnerIcon,
   SunIcon,
 } from "@phosphor-icons/react";
+import { useHotkey, useHotkeySequence } from "@tanstack/react-hotkeys";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAtom, useAtomValue } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
@@ -55,6 +56,7 @@ const THEME_CYCLE = [
   { value: "light" as const, label: "Light", Icon: SunIcon },
   { value: "dark" as const, label: "Dark", Icon: MoonIcon },
 ];
+type ThemeValue = (typeof THEME_CYCLE)[number]["value"];
 
 const articleViewOptions: ArticleViewMode[] = ["reader", "site"];
 const pollingOptions = [
@@ -75,36 +77,22 @@ const getUserDisplayName = (user: ReturnType<typeof useUser>["user"]) =>
 const getUserEmail = (user: ReturnType<typeof useUser>["user"]) =>
   user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? "";
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const idx = Math.max(
-    0,
-    THEME_CYCLE.findIndex((entry) => entry.value === theme),
-  );
-  const current = THEME_CYCLE[idx]!;
-  const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length]!;
-  const { Icon } = current;
-
-  return (
-    <Button
-      type="button"
-      variant="secondary"
-      className="cursor-pointer"
-      onClick={() => setTheme(next.value)}
-      aria-label={`Switch to ${next.label} theme`}
-    >
-      <Icon weight="bold" />
-    </Button>
-  );
-}
+const isEditableElement = (element: Element | null) =>
+  element instanceof HTMLElement &&
+  (element.isContentEditable ||
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.tagName === "SELECT");
 
 function ProfileMenu({
+  isSignedIn,
   defaultView,
   isSavingPreferences,
   pollingIntervalMinutes,
   onDefaultViewChange,
   onPollingIntervalMinutesChange,
 }: {
+  isSignedIn: boolean;
   defaultView: ArticleViewMode;
   isSavingPreferences: boolean;
   pollingIntervalMinutes: number;
@@ -113,6 +101,7 @@ function ProfileMenu({
 }) {
   const clerk = useClerk();
   const { user } = useUser();
+  const { theme, setTheme } = useTheme();
   const displayName = getUserDisplayName(user);
   const email = getUserEmail(user);
   const [isEmailVisible, setIsEmailVisible] = useState(false);
@@ -127,30 +116,58 @@ function ProfileMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-[16rem]">
-        <div className="space-y-1 px-2.5 py-2">
-          <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
-          {email ? (
-            <div className="flex items-center gap-1.5">
-              <p
-                className={cn(
-                  "min-w-0 flex-1 truncate text-xs text-muted-foreground transition-all",
-                  !isEmailVisible && "blur-sm",
-                )}
-              >
-                {email}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 rounded-md"
-                onClick={() => setIsEmailVisible((current) => !current)}
-                aria-label={isEmailVisible ? "Hide email" : "Show email"}
-              >
-                <EmailVisibilityIcon weight="bold" className="size-4" />
-              </Button>
+        {isSignedIn ? (
+          <>
+            <div className="space-y-1 px-2.5 py-2">
+              <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+              {email ? (
+                <div className="flex items-center gap-1.5">
+                  <p
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-xs text-muted-foreground transition-all",
+                      !isEmailVisible && "blur-sm",
+                    )}
+                  >
+                    {email}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 rounded-md"
+                    onClick={() => setIsEmailVisible((current) => !current)}
+                    aria-label={isEmailVisible ? "Hide email" : "Show email"}
+                  >
+                    <EmailVisibilityIcon weight="bold" className="size-4" />
+                  </Button>
+                </div>
+              ) : null}
             </div>
-          ) : null}
+
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
+
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <div className="px-1.5 pb-1">
+          <Tabs
+            value={theme}
+            onValueChange={(value) => setTheme(value as ThemeValue)}
+            className="gap-0"
+          >
+            <TabsList className="grid h-auto w-full grid-cols-3">
+              {THEME_CYCLE.map(({ value, label, Icon }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="flex w-full min-w-0 gap-1.5 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
+                >
+                  <Icon weight="bold" className="size-3.5" />
+                  <span>{label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
 
         <DropdownMenuSeparator />
@@ -203,16 +220,18 @@ function ProfileMenu({
 
         <DropdownMenuSeparator />
 
-        <div className="p-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full justify-start rounded-lg"
-            onClick={() => void clerk.signOut({ redirectUrl: "/" })}
-          >
-            Sign out
-          </Button>
-        </div>
+        {isSignedIn ? (
+          <div className="p-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full justify-start rounded-lg"
+              onClick={() => void clerk.signOut({ redirectUrl: "/" })}
+            >
+              Sign out
+            </Button>
+          </div>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -241,6 +260,14 @@ export function AppNavbar({
   defaultView,
   onToggleAddFeed,
 }: AppNavbarProps) {
+  useHotkeySequence(["G", "B"], () => {
+    if (typeof document !== "undefined" && isEditableElement(document.activeElement)) {
+      return;
+    }
+
+    onBookmarksClick();
+  });
+
   return (
     <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-2 px-4 py-2 md:px-6 md:py-1.5">
@@ -275,20 +302,19 @@ export function AppNavbar({
               <span className="hidden min-[420px]:inline">Add feed</span>
             </Button>
           ) : null}
-          {isSignedIn ? (
-            <ProfileMenu
-              defaultView={defaultView}
-              isSavingPreferences={isPreferencesPending}
-              pollingIntervalMinutes={pollingIntervalMinutes}
-              onDefaultViewChange={onDefaultViewChange}
-              onPollingIntervalMinutesChange={onPollingIntervalMinutesChange}
-            />
-          ) : (
+          {!isSignedIn ? (
             <Button type="button" variant="outline" className="rounded-full" onClick={onSignIn}>
               Sign in
             </Button>
-          )}
-          <ThemeToggle />
+          ) : null}
+          <ProfileMenu
+            isSignedIn={isSignedIn}
+            defaultView={defaultView}
+            isSavingPreferences={isPreferencesPending}
+            pollingIntervalMinutes={pollingIntervalMinutes}
+            onDefaultViewChange={onDefaultViewChange}
+            onPollingIntervalMinutesChange={onPollingIntervalMinutesChange}
+          />
         </div>
       </div>
     </header>
@@ -436,6 +462,16 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
 
     toast.info("Sign in to view your bookmarks.");
   };
+
+  useHotkey(
+    "Escape",
+    () => {
+      handleCloseDetailPanel();
+    },
+    {
+      enabled: detailPanelOpen,
+    },
+  );
 
   useEffect(() => {
     setIsClientReady(true);
@@ -588,6 +624,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
               value={sourceInput}
               error={addSourceError}
               isSubmitting={isAddingSource}
+              isOpen={showAddForm}
               onChange={setSourceInput}
               onSubmit={handleAddSource}
               onCancel={() => setShowAddForm(false)}

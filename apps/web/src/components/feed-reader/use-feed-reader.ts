@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConvexAuth } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { startTransition, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   addSourceSuccessAtom,
   applyLoadMoreSourceItemsAtom,
@@ -127,6 +128,9 @@ export function useFeedReader() {
           }),
         ),
       ),
+    onMutate: () => {
+      toast.loading("Checking feed...", { id: "add-feed" });
+    },
     onSuccess: async (discovery) => {
       startTransition(() => {
         addSourceSuccess(discovery);
@@ -142,6 +146,12 @@ export function useFeedReader() {
           pollIntervalMs: discovery.source.pollIntervalMs,
         });
       }
+      toast.success(`Added ${discovery.source.label}.`, { id: "add-feed" });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Could not add feed.", {
+        id: "add-feed",
+      });
     },
   });
 
