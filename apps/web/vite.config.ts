@@ -40,8 +40,8 @@ const config = defineConfig({
         start_url: "/",
         scope: "/",
         display: "standalone",
-        background_color: "#faf8f8",
-        theme_color: "#faf8f8",
+        background_color: "#f9f9f9",
+        theme_color: "#f9f9f9",
         icons: [
           {
             src: "/icons/icon-192.png",

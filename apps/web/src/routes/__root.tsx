@@ -41,12 +41,12 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
       },
       {
         name: "theme-color",
-        content: "#faf8f8",
+        content: "#f9f9f9",
         media: "(prefers-color-scheme: light)",
       },
       {
         name: "theme-color",
-        content: "#2a2629",
+        content: "#0e0e0e",
         media: "(prefers-color-scheme: dark)",
       },
       {

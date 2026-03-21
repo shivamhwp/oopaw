@@ -397,6 +397,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
   const clerk = useClerk();
   const navigate = useNavigate({ from: "/" });
   const autoOpenAuthKeyRef = useRef<string | null>(null);
+  const itemListScrollPositionsRef = useRef<Record<string, number>>({});
   const {
     state,
     sourceInput,
@@ -551,6 +552,18 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           isItemBookmarked={isItemBookmarked}
           isSignedIn={isSignedIn}
           isBookmarkPending={isBookmarkPending}
+          scrollTop={
+            detailPanelSourceSummary?.source
+              ? (itemListScrollPositionsRef.current[detailPanelSourceSummary.source.id] ?? 0)
+              : 0
+          }
+          onScrollTopChange={(scrollTop) => {
+            if (!detailPanelSourceSummary?.source) {
+              return;
+            }
+
+            itemListScrollPositionsRef.current[detailPanelSourceSummary.source.id] = scrollTop;
+          }}
         />
       )}
 

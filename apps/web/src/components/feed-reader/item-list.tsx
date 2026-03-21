@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { XIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,8 @@ type ItemListProps = {
   isItemBookmarked?: (item: FeedItem) => boolean;
   isSignedIn?: boolean;
   isBookmarkPending?: boolean;
+  scrollTop?: number;
+  onScrollTopChange?: (scrollTop: number) => void;
 };
 
 const formatDate = (value: string | undefined) =>
@@ -50,10 +53,23 @@ export function ItemList({
   isItemBookmarked,
   isSignedIn = false,
   isBookmarkPending = false,
+  scrollTop = 0,
+  onScrollTopChange,
 }: ItemListProps) {
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const restoredSourceIdRef = useRef<string | undefined>(undefined);
   const unreadCount = items.filter((item) => !item.isRead).length;
   const readCount = items.length - unreadCount;
   const hasContextMenuActions = (onMarkUnread || onBookmarkItem) && source;
+
+  useLayoutEffect(() => {
+    if (!scrollElementRef.current || restoredSourceIdRef.current === source?.id) {
+      return;
+    }
+
+    scrollElementRef.current.scrollTop = scrollTop;
+    restoredSourceIdRef.current = source?.id;
+  }, [scrollTop, source?.id]);
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -70,7 +86,11 @@ export function ItemList({
       </div>
 
       {/* List */}
-      <div className="pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={scrollElementRef}
+        className="pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] min-h-0 flex-1 overflow-y-auto"
+        onScroll={(event) => onScrollTopChange?.(event.currentTarget.scrollTop)}
+      >
         {items.length > 0 ? (
           <>
             <ul>
