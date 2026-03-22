@@ -262,9 +262,11 @@ function BookmarksRoute() {
         <AppNavbar
           isPreferencesPending={isPreferencesPending}
           isSignedIn={isSignedIn}
+          isRefreshingAll={false}
           onBookmarksClick={() => void navigate({ to: "/bookmarks" })}
           onDefaultViewChange={setDefaultArticleViewMode}
           onPollingIntervalMinutesChange={setPollingIntervalMinutes}
+          onRefreshAll={() => {}}
           onSignIn={() => {}}
           pollingIntervalMinutes={preferences.pollingIntervalMinutes}
           defaultView={preferences.defaultView}

@@ -237,10 +237,26 @@ export function useFeedReader() {
   };
 
   const handleRefreshAll = async () => {
+    if (isRefreshingAll) {
+      return;
+    }
+
     setIsRefreshingAll(true);
+    const sourceCount = state.sources.length;
+    const loadingMessage =
+      sourceCount > 0
+        ? `Refreshing ${sourceCount} feed${sourceCount === 1 ? "" : "s"}...`
+        : "Refreshing feeds...";
+
+    toast.loading(loadingMessage, { id: "refresh-all-feeds" });
 
     try {
       await queryClient.invalidateQueries({ queryKey: ["source-items"] });
+      toast.success("Feeds refreshed.", { id: "refresh-all-feeds" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not refresh feeds.", {
+        id: "refresh-all-feeds",
+      });
     } finally {
       setIsRefreshingAll(false);
     }

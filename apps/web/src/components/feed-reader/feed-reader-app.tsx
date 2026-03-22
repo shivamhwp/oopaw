@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/tanstack-react-start";
 import {
+  ArrowClockwiseIcon,
   CowIcon,
   DesktopIcon,
   EyeIcon,
   EyeSlashIcon,
   MoonIcon,
   PlusIcon,
+  SignOutIcon,
   SlidersHorizontalIcon,
   SpinnerIcon,
   SunIcon,
@@ -15,7 +17,6 @@ import { useHotkey, useHotkeySequence } from "@tanstack/react-hotkeys";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAtom, useAtomValue } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
-import { toast } from "sonner";
 import { ItemList } from "@/components/feed-reader/item-list";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
 import { SourceForm } from "@/components/feed-reader/source-form";
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/components/theme-provider";
 import type { ArticleViewMode } from "@/lib/types";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -88,16 +90,22 @@ function ProfileMenu({
   isSignedIn,
   defaultView,
   isSavingPreferences,
+  isRefreshingAll,
   pollingIntervalMinutes,
   onDefaultViewChange,
   onPollingIntervalMinutesChange,
+  onRefreshAll,
+  onSignIn,
 }: {
   isSignedIn: boolean;
   defaultView: ArticleViewMode;
   isSavingPreferences: boolean;
+  isRefreshingAll: boolean;
   pollingIntervalMinutes: number;
   onDefaultViewChange: (mode: ArticleViewMode) => Promise<void>;
   onPollingIntervalMinutesChange: (minutes: number) => Promise<void>;
+  onRefreshAll: () => void;
+  onSignIn: () => void;
 }) {
   const clerk = useClerk();
   const { user } = useUser();
@@ -220,18 +228,45 @@ function ProfileMenu({
 
         <DropdownMenuSeparator />
 
-        {isSignedIn ? (
-          <div className="p-1.5">
+        <div className="space-y-1.5 p-1.5">
+          {!isSignedIn ? (
             <Button
               type="button"
               variant="ghost"
-              className="w-full justify-start rounded-lg"
+              size="default"
+              className="w-full cursor-pointer justify-start rounded-lg text-sm text-muted-foreground"
+              onClick={onSignIn}
+            >
+              Sign in
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="default"
+            className="w-full cursor-pointer justify-start rounded-lg text-sm text-muted-foreground"
+            onClick={onRefreshAll}
+            disabled={isRefreshingAll}
+          >
+            <ArrowClockwiseIcon
+              weight="bold"
+              className={cn("size-3.5", isRefreshingAll && "animate-spin")}
+            />
+            Refresh all
+          </Button>
+          {isSignedIn ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              className="w-full cursor-pointer justify-start rounded-lg text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive/80"
               onClick={() => void clerk.signOut({ redirectUrl: "/" })}
             >
+              <SignOutIcon weight="bold" className="size-3.5" />
               Sign out
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -240,9 +275,11 @@ function ProfileMenu({
 type AppNavbarProps = {
   isPreferencesPending: boolean;
   isSignedIn: boolean;
+  isRefreshingAll: boolean;
   onBookmarksClick: () => void;
   onDefaultViewChange: (mode: ArticleViewMode) => Promise<void>;
   onPollingIntervalMinutesChange: (minutes: number) => Promise<void>;
+  onRefreshAll: () => void;
   onSignIn: () => void;
   pollingIntervalMinutes: number;
   defaultView: ArticleViewMode;
@@ -252,20 +289,45 @@ type AppNavbarProps = {
 export function AppNavbar({
   isPreferencesPending,
   isSignedIn,
+  isRefreshingAll,
   onBookmarksClick,
   onDefaultViewChange,
   onPollingIntervalMinutesChange,
+  onRefreshAll,
   onSignIn,
   pollingIntervalMinutes,
   defaultView,
   onToggleAddFeed,
 }: AppNavbarProps) {
+  const [isGuestBookmarksTooltipOpen, setIsGuestBookmarksTooltipOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isGuestBookmarksTooltipOpen) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setIsGuestBookmarksTooltipOpen(false);
+    }, 2200);
+
+    return () => window.clearTimeout(timeout);
+  }, [isGuestBookmarksTooltipOpen]);
+
+  const handleBookmarksAction = () => {
+    if (isSignedIn) {
+      onBookmarksClick();
+      return;
+    }
+
+    setIsGuestBookmarksTooltipOpen(true);
+  };
+
   useHotkeySequence(["G", "B"], () => {
     if (typeof document !== "undefined" && isEditableElement(document.activeElement)) {
       return;
     }
 
-    onBookmarksClick();
+    handleBookmarksAction();
   });
 
   return (
@@ -281,20 +343,36 @@ export function AppNavbar({
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
-          {isSignedIn ? (
-            <Button asChild variant="ghost" className="rounded-full">
-              <Link to="/bookmarks">Bookmarks</Link>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              className="rounded-full"
-              onClick={onBookmarksClick}
-            >
-              Bookmarks
-            </Button>
-          )}
+          <TooltipProvider delayDuration={0}>
+            <Tooltip open={!isSignedIn && isGuestBookmarksTooltipOpen}>
+              <TooltipTrigger asChild>
+                {isSignedIn ? (
+                  <Button asChild variant="ghost" className="rounded-full">
+                    <Link to="/bookmarks">Bookmarks</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-full"
+                    onClick={handleBookmarksAction}
+                  >
+                    Bookmarks
+                  </Button>
+                )}
+              </TooltipTrigger>
+              {!isSignedIn ? (
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={8}
+                  className="bg-secondary text-secondary-foreground"
+                  arrowClassName="bg-secondary fill-secondary"
+                >
+                  need to sign in to save bookmarks
+                </TooltipContent>
+              ) : null}
+            </Tooltip>
+          </TooltipProvider>
           {onToggleAddFeed ? (
             <Button type="button" className="cursor-pointer rounded-full" onClick={onToggleAddFeed}>
               <PlusIcon weight="bold" />
@@ -302,18 +380,16 @@ export function AppNavbar({
               <span className="hidden min-[420px]:inline">Add feed</span>
             </Button>
           ) : null}
-          {!isSignedIn ? (
-            <Button type="button" variant="outline" className="rounded-full" onClick={onSignIn}>
-              Sign in
-            </Button>
-          ) : null}
           <ProfileMenu
             isSignedIn={isSignedIn}
             defaultView={defaultView}
             isSavingPreferences={isPreferencesPending}
+            isRefreshingAll={isRefreshingAll}
             pollingIntervalMinutes={pollingIntervalMinutes}
             onDefaultViewChange={onDefaultViewChange}
             onPollingIntervalMinutesChange={onPollingIntervalMinutesChange}
+            onRefreshAll={onRefreshAll}
+            onSignIn={onSignIn}
           />
         </div>
       </div>
@@ -456,12 +532,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
   };
 
   const handleBookmarksClick = () => {
-    if (isSignedIn) {
-      void navigate({ to: "/bookmarks" });
-      return;
-    }
-
-    toast.info("Sign in to view your bookmarks.");
+    void navigate({ to: "/bookmarks" });
   };
 
   useHotkey(
@@ -617,9 +688,11 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
         <AppNavbar
           isPreferencesPending={isPreferencesPending}
           isSignedIn={isSignedIn}
+          isRefreshingAll={isRefreshingAll}
           onBookmarksClick={handleBookmarksClick}
           onDefaultViewChange={setDefaultArticleViewMode}
           onPollingIntervalMinutesChange={setPollingIntervalMinutes}
+          onRefreshAll={handleRefreshAll}
           onSignIn={() => void openSignInModal()}
           pollingIntervalMinutes={preferences.pollingIntervalMinutes}
           defaultView={preferences.defaultView}
@@ -641,8 +714,6 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
               onChange={setSourceInput}
               onSubmit={handleAddSource}
               onCancel={() => setShowAddForm(false)}
-              onRefreshAll={handleRefreshAll}
-              isRefreshing={isRefreshingAll}
             />
           </div>
         </div>

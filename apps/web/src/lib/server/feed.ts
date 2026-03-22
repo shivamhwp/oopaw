@@ -17,7 +17,6 @@ const FEED_NOT_SUPPORTED_ERROR =
   "Paste a direct RSS or Atom feed URL. Homepages and JSON feeds are not supported.";
 const FEED_XML_UNSAFE_ERROR =
   "This feed uses XML DTD/entities that are not supported for safety reasons.";
-const MAX_FEED_DOCUMENT_BYTES = 1_500_000;
 const FEED_FETCH_TIMEOUT_MS = 12_000;
 
 type FeedIngestionErrorCode =
@@ -64,10 +63,6 @@ const inspectFeedDocument = (body: string) => {
   const trimmed = body.trimStart();
   const loweredPrefix = trimmed.slice(0, 4_096).toLowerCase();
 
-  if (body.length > MAX_FEED_DOCUMENT_BYTES) {
-    throwFeedError("too_large", "This feed is too large to import.");
-  }
-
   if (loweredPrefix.includes("<!doctype") || loweredPrefix.includes("<!entity")) {
     throwFeedError("unsafe_xml", FEED_XML_UNSAFE_ERROR);
   }
@@ -84,19 +79,12 @@ const createTimeoutSignal = (timeoutMs: number) => {
 };
 
 const readResponseBody = async (response: Response) => {
-  const contentLength = Number(response.headers.get("content-length"));
-
-  if (Number.isFinite(contentLength) && contentLength > MAX_FEED_DOCUMENT_BYTES) {
-    throwFeedError("too_large", "This feed is too large to import.");
-  }
-
   if (!response.body) {
     return response.text();
   }
 
   const decoder = new TextDecoder();
   const reader = response.body.getReader();
-  let totalBytes = 0;
   let body = "";
 
   try {
@@ -106,12 +94,6 @@ const readResponseBody = async (response: Response) => {
       if (done) {
         body += decoder.decode();
         return body;
-      }
-
-      totalBytes += value.byteLength;
-
-      if (totalBytes > MAX_FEED_DOCUMENT_BYTES) {
-        throwFeedError("too_large", "This feed is too large to import.");
       }
 
       body += decoder.decode(value, { stream: true });
