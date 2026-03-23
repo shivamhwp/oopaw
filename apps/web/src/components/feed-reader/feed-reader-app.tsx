@@ -118,8 +118,13 @@ function ProfileMenu({
   const displayName = getUserDisplayName(user);
   const email = getUserEmail(user);
   const [isEmailVisible, setIsEmailVisible] = useState(false);
+  const [lockedSettingsTooltip, setLockedSettingsTooltip] = useState<"polling" | "view" | null>(
+    null,
+  );
+  const lockedSettingsTooltipTimeoutRef = useRef<number | null>(null);
   const EmailVisibilityIcon = isEmailVisible ? EyeSlashIcon : EyeIcon;
-  const areMenuControlsDisabled = !isAuthLoaded || isSavingPreferences;
+  const areThemeControlsDisabled = !isAuthLoaded || isSavingPreferences;
+  const arePreferenceControlsDisabled = !isAuthLoaded || !isSignedIn || isSavingPreferences;
   const shouldShowProfileSection = isSignedIn || !isAuthLoaded;
   const profileName = isAuthLoaded && isSignedIn ? displayName : AUTH_LOADING_NAME;
   const profileEmail = isAuthLoaded && isSignedIn ? email : AUTH_LOADING_EMAIL;
@@ -129,6 +134,41 @@ function ProfileMenu({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+  const showLockedSettingsTooltip = (section: "polling" | "view") => {
+    if (!isAuthLoaded || isSignedIn) {
+      return;
+    }
+
+    if (lockedSettingsTooltipTimeoutRef.current) {
+      window.clearTimeout(lockedSettingsTooltipTimeoutRef.current);
+    }
+
+    setLockedSettingsTooltip(section);
+    lockedSettingsTooltipTimeoutRef.current = window.setTimeout(() => {
+      setLockedSettingsTooltip(null);
+      lockedSettingsTooltipTimeoutRef.current = null;
+    }, 1800);
+  };
+  const createLockedSettingsHandlers = (section: "polling" | "view") => ({
+    onClick: () => showLockedSettingsTooltip(section),
+    onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      showLockedSettingsTooltip(section);
+    },
+  });
+
+  useEffect(
+    () => () => {
+      if (lockedSettingsTooltipTimeoutRef.current) {
+        window.clearTimeout(lockedSettingsTooltipTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   return (
     <DropdownMenu>
@@ -191,7 +231,7 @@ function ProfileMenu({
                   key={value}
                   value={value}
                   className="flex w-full min-w-0 gap-1.5 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
-                  disabled={areMenuControlsDisabled}
+                  disabled={areThemeControlsDisabled}
                 >
                   <Icon weight="bold" className="size-3.5" />
                   <span>{label}</span>
@@ -204,50 +244,92 @@ function ProfileMenu({
         <DropdownMenuSeparator />
 
         <DropdownMenuLabel>Polling</DropdownMenuLabel>
-        <div className="px-1.5 pb-1">
-          <Tabs
-            value={String(pollingIntervalMinutes)}
-            onValueChange={(value) => void onPollingIntervalMinutesChange(Number(value))}
-            className="gap-0"
-          >
-            <TabsList className="grid h-auto w-full grid-cols-4">
-              {pollingOptions.map((option) => (
-                <TabsTrigger
-                  key={option.value}
-                  value={String(option.value)}
-                  className="w-full min-w-0 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
-                  disabled={areMenuControlsDisabled}
+        <TooltipProvider delayDuration={0}>
+          <Tooltip open={lockedSettingsTooltip === "polling"}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn("px-1.5 pb-1", arePreferenceControlsDisabled && "cursor-not-allowed")}
+                role={arePreferenceControlsDisabled ? "button" : undefined}
+                tabIndex={arePreferenceControlsDisabled ? 0 : undefined}
+                {...(arePreferenceControlsDisabled
+                  ? createLockedSettingsHandlers("polling")
+                  : undefined)}
+              >
+                <Tabs
+                  value={String(pollingIntervalMinutes)}
+                  onValueChange={(value) => void onPollingIntervalMinutesChange(Number(value))}
+                  className="gap-0"
                 >
-                  {option.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
+                  <TabsList className="grid h-auto w-full grid-cols-4">
+                    {pollingOptions.map((option) => (
+                      <TabsTrigger
+                        key={option.value}
+                        value={String(option.value)}
+                        className="w-full min-w-0 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
+                        disabled={arePreferenceControlsDisabled}
+                      >
+                        {option.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              sideOffset={8}
+              className="bg-secondary text-secondary-foreground"
+              arrowClassName="bg-secondary fill-secondary"
+            >
+              sign in to change this
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <DropdownMenuSeparator />
 
         <DropdownMenuLabel>Article View</DropdownMenuLabel>
-        <div className="px-1.5 pb-1">
-          <Tabs
-            value={defaultView}
-            onValueChange={(value) => void onDefaultViewChange(value as ArticleViewMode)}
-            className="gap-0"
-          >
-            <TabsList className="grid h-auto w-full grid-cols-2">
-              {articleViewOptions.map((view) => (
-                <TabsTrigger
-                  key={view}
-                  value={view}
-                  className="w-full min-w-0 px-3 py-2 text-xs capitalize sm:min-w-0 sm:flex-1"
-                  disabled={areMenuControlsDisabled}
+        <TooltipProvider delayDuration={0}>
+          <Tooltip open={lockedSettingsTooltip === "view"}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn("px-1.5 pb-1", arePreferenceControlsDisabled && "cursor-not-allowed")}
+                role={arePreferenceControlsDisabled ? "button" : undefined}
+                tabIndex={arePreferenceControlsDisabled ? 0 : undefined}
+                {...(arePreferenceControlsDisabled
+                  ? createLockedSettingsHandlers("view")
+                  : undefined)}
+              >
+                <Tabs
+                  value={defaultView}
+                  onValueChange={(value) => void onDefaultViewChange(value as ArticleViewMode)}
+                  className="gap-0"
                 >
-                  {view}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
+                  <TabsList className="grid h-auto w-full grid-cols-2">
+                    {articleViewOptions.map((view) => (
+                      <TabsTrigger
+                        key={view}
+                        value={view}
+                        className="w-full min-w-0 px-3 py-2 text-xs capitalize sm:min-w-0 sm:flex-1"
+                        disabled={arePreferenceControlsDisabled}
+                      >
+                        {view}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              sideOffset={8}
+              className="bg-secondary text-secondary-foreground"
+              arrowClassName="bg-secondary fill-secondary"
+            >
+              sign in to change this
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <DropdownMenuSeparator />
 

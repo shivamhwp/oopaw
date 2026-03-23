@@ -1,6 +1,6 @@
-import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useConvexAuth } from "convex/react";
+import { useConvexMutation } from "@convex-dev/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
+import { useConvexAuth, useQuery as useConvexQuery } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { startTransition, useState } from "react";
 import { toast } from "sonner";
@@ -76,16 +76,18 @@ export function useFeedReader() {
   const removeFeedSource = useSetAtom(removeSourceAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const canReadUserData = !convexAuth.isLoading && convexAuth.isAuthenticated;
-  const preferencesQuery = useQuery(
-    convexQuery(api.preferences.queries.getForCurrentUser, canReadUserData ? {} : "skip"),
+  const preferences = useConvexQuery(
+    api.preferences.queries.getForCurrentUser,
+    canReadUserData ? {} : "skip",
   );
-  const bookmarksQuery = useQuery(
-    convexQuery(api.bookmarks.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
+  const bookmarks = useConvexQuery(
+    api.bookmarks.queries.listForCurrentUser,
+    canReadUserData ? {} : "skip",
   );
-  const feedSubscriptionsQuery = useQuery({
-    ...convexQuery(api.feedSubscriptions.queries.listForCurrentUser, canReadUserData ? {} : "skip"),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const feedSubscriptions = useConvexQuery(
+    api.feedSubscriptions.queries.listForCurrentUser,
+    canReadUserData ? {} : "skip",
+  );
   const upsertPreferences = useConvexMutation(api.preferences.mutations.upsertForCurrentUser);
   const addFeedSubscription = useConvexMutation(api.feedSubscriptions.mutations.addForCurrentUser);
   const removeFeedSubscription = useConvexMutation(
@@ -94,11 +96,11 @@ export function useFeedReader() {
   const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
-  const effectivePreferences = preferencesQuery.data ?? defaultUserPreferences;
+  const effectivePreferences = preferences ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
   const syncedState =
-    canReadUserData && feedSubscriptionsQuery.data
-      ? syncSourcesFromConvex(baseState, feedSubscriptionsQuery.data)
+    canReadUserData && feedSubscriptions
+      ? syncSourcesFromConvex(baseState, feedSubscriptions)
       : baseState;
   const sourceRefreshQueries = useQueries({
     queries: syncedState.sources.map((source) => ({
@@ -176,7 +178,7 @@ export function useFeedReader() {
     detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
   const selectedSource =
     detailPanel.mode === "closed" ? undefined : detailPanelSourceSummary?.source;
-  const bookmarkedUrls = new Set(bookmarksQuery.data?.map((bookmark) => bookmark.url) ?? []);
+  const bookmarkedUrls = new Set(bookmarks?.map((bookmark) => bookmark.url) ?? []);
   const articleViewMode =
     detailPanel.mode === "reader" && currentBlogViewMode
       ? currentBlogViewMode
@@ -185,8 +187,8 @@ export function useFeedReader() {
   const updateFeedReaderState = (updater: (state: FeedReaderState) => FeedReaderState) => {
     setFeedReaderState((currentState) =>
       updater(
-        canReadUserData && feedSubscriptionsQuery.data
-          ? syncSourcesFromConvex(currentState, feedSubscriptionsQuery.data)
+        canReadUserData && feedSubscriptions
+          ? syncSourcesFromConvex(currentState, feedSubscriptions)
           : currentState,
       ),
     );

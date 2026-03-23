@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useConvexAuth } from "convex/react";
+import { useConvexMutation } from "@convex-dev/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useConvexAuth, useQuery as useConvexQuery } from "convex/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAtomValue, useSetAtom } from "jotai";
 import { CowIcon, SpinnerIcon, TrashIcon } from "@phosphor-icons/react";
@@ -81,10 +81,11 @@ function BookmarksRoute() {
   const openBookmark = useSetAtom(openBookmarkAtom);
   const closeBookmarkPanel = useSetAtom(closeBookmarkPanelAtom);
   const setCurrentBlogViewMode = useSetAtom(setCurrentBlogViewModeAtom);
-  const bookmarksQuery = useQuery(
-    convexQuery(api.bookmarks.queries.listForCurrentUser, canReadBookmarks ? {} : "skip"),
+  const bookmarks = useConvexQuery(
+    api.bookmarks.queries.listForCurrentUser,
+    canReadBookmarks ? {} : "skip",
   );
-  const bookmarks = bookmarksQuery.data ?? [];
+  const hasBookmarksLoaded = !convexAuth.isLoading && bookmarks !== undefined;
   const {
     isPreferencesPending,
     isSignedIn,
@@ -102,9 +103,9 @@ function BookmarksRoute() {
     currentBookmarks.panel === "reader" ? currentBookmarks.bookmarkId : null;
   const hasSelectedBookmark =
     selectedBookmarkId !== null &&
-    bookmarksQuery.data?.some((bookmark) => bookmark._id === selectedBookmarkId) === true;
+    bookmarks?.some((bookmark) => bookmark._id === selectedBookmarkId) === true;
   const selectedBookmark =
-    bookmarks.find((bookmark) => bookmark._id === selectedBookmarkId) ?? null;
+    bookmarks?.find((bookmark) => bookmark._id === selectedBookmarkId) ?? null;
   const selectedItem = selectedBookmark ? toBookmarkItem(selectedBookmark) : undefined;
   const isDetailPanelOpen = Boolean(selectedBookmarkId);
   const selectedBookmarkView =
@@ -130,7 +131,7 @@ function BookmarksRoute() {
     }
   }, [bookmarkMutation.isPending, closeBookmarkPanel, hasSelectedBookmark, selectedBookmarkId]);
 
-  const handleRemoveBookmark = async (bookmark: (typeof bookmarks)[number]) => {
+  const handleRemoveBookmark = async (bookmark: NonNullable<typeof bookmarks>[number]) => {
     await bookmarkMutation.mutateAsync({
       url: bookmark.url,
       title: bookmark.title,
@@ -161,22 +162,14 @@ function BookmarksRoute() {
       )}
       data-scroll-restoration-id="bookmarks-grid"
     >
-      {convexAuth.isLoading || bookmarksQuery.isPending ? (
+      {!hasBookmarksLoaded ? (
         <div className="flex h-full min-h-[18rem] items-center justify-center">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <SpinnerIcon className="size-4 animate-spin" weight="bold" />
             <span>Loading bookmarks…</span>
           </div>
         </div>
-      ) : bookmarksQuery.isError ? (
-        <div className="flex h-full min-h-[18rem] items-center justify-center">
-          <p className="max-w-sm text-center text-sm text-muted-foreground">
-            {bookmarksQuery.error instanceof Error
-              ? bookmarksQuery.error.message
-              : "Could not load bookmarks."}
-          </p>
-        </div>
-      ) : bookmarks.length === 0 ? (
+      ) : (bookmarks?.length ?? 0) === 0 ? (
         <div className="flex h-full min-h-[18rem] items-center justify-center">
           <div className="max-w-xs text-center text-muted-foreground">
             <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -194,7 +187,7 @@ function BookmarksRoute() {
               : "grid-cols-[repeat(auto-fill,minmax(18rem,18rem))] justify-start",
           )}
         >
-          {bookmarks.map((bookmark) => {
+          {bookmarks?.map((bookmark) => {
             const isSelected = bookmark._id === selectedBookmarkId;
             const isRemovingSelectedBookmark =
               bookmarkMutation.isPending && bookmarkMutation.variables?.url === bookmark.url;
