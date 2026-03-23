@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-const legacySourceKindSchema = z.enum(["feed", "scrape"]);
-
 export const articleViewModeSchema = z.enum(["site", "reader"]);
 
 export const savedSourceSchema = z.object({
@@ -70,47 +68,6 @@ export const loadMoreSourceItemsResultSchema = z.object({
   nextPageUrl: z.string().url().optional(),
 });
 
-export const feedReaderStateV1Schema = z.object({
-  version: z.literal(1),
-  sources: z.array(
-    z.object({
-      id: z.string().min(1),
-      label: z.string().min(1),
-      inputUrl: z.string().min(1),
-      siteUrl: z.string().url(),
-      feedUrl: z.string().url().optional(),
-      kind: legacySourceKindSchema,
-      pollingEnabled: z.boolean(),
-      pollIntervalMs: z.number().int().positive(),
-      lastCheckedAt: z.string().datetime().optional(),
-      lastError: z.string().optional(),
-    }),
-  ),
-  itemsBySource: z.record(
-    z.string(),
-    z.array(
-      z.object({
-        id: z.string().min(1),
-        sourceId: z.string().min(1),
-        url: z.string().url(),
-        title: z.string().min(1),
-        excerpt: z.string().optional(),
-        publishedAt: z.string().datetime().optional(),
-        author: z.string().optional(),
-        imageUrl: z.string().url().optional(),
-      }),
-    ),
-  ),
-  readItemIds: z.array(z.string()),
-  seenItemIdsBySource: z.record(z.string(), z.array(z.string())),
-  selectedSourceId: z.string().nullable(),
-});
-
-export const feedReaderStateV2Schema = feedReaderStateV1Schema.extend({
-  version: z.literal(2),
-  paginationBySource: z.record(z.string(), sourcePaginationSchema),
-});
-
 export const feedReaderStateSchema = z.object({
   version: z.literal(3),
   sources: z.array(savedSourceSchema),
@@ -140,7 +97,6 @@ export const loadMoreSourceItemsInputSchema = z.object({
 export const POLL_INTERVAL_MS = 15 * 60_000;
 export const FEED_READER_STATE_VERSION = 3;
 export const FEED_READER_STATE_STORAGE_KEY = "papertrail.feed-reader.state";
-export const FEED_READER_PANEL_OPEN_STORAGE_KEY = "papertrail.feed-reader.panel-open";
 
 export type ArticleViewMode = z.infer<typeof articleViewModeSchema>;
 export type SavedSource = z.infer<typeof savedSourceSchema>;
@@ -151,6 +107,4 @@ export type FetchedFeedSource = z.infer<typeof fetchedFeedSourceSchema>;
 export type DiscoveryResult = z.infer<typeof discoveryResultSchema>;
 export type RefreshResult = z.infer<typeof refreshResultSchema>;
 export type LoadMoreSourceItemsResult = z.infer<typeof loadMoreSourceItemsResultSchema>;
-export type FeedReaderStateV1 = z.infer<typeof feedReaderStateV1Schema>;
-export type FeedReaderStateV2 = z.infer<typeof feedReaderStateV2Schema>;
 export type FeedReaderState = z.infer<typeof feedReaderStateSchema>;

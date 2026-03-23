@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/tanstack-react-start";
+import { convexQuery } from "@convex-dev/react-query";
 import {
   ArrowClockwiseIcon,
   CowIcon,
@@ -14,22 +15,23 @@ import {
   SunIcon,
 } from "@phosphor-icons/react";
 import { useHotkey, useHotkeySequence } from "@tanstack/react-hotkeys";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
 import { ItemList } from "@/components/feed-reader/item-list";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
 import { SourceForm } from "@/components/feed-reader/source-form";
 import {
-  detailPanelOpenAtom,
   detailPanelSizeAtom,
+  itemListScrollAtom,
   MAX_FEED_READER_PANEL_SIZE,
   MIN_FEED_READER_LIST_PANEL_SIZE,
   MIN_FEED_READER_READER_PANEL_SIZE,
+  setItemListScrollAtom,
   type DetailPanelState,
 } from "@/components/feed-reader/store";
 import { SourceGrid } from "@/components/feed-reader/source-grid";
-import { SourceSyncController } from "@/components/feed-reader/source-sync-controller";
 import { useFeedReader } from "@/components/feed-reader/use-feed-reader";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +45,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/components/theme-provider";
+import { api } from "@/lib/convex";
 import type { ArticleViewMode } from "@/lib/types";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -300,6 +303,8 @@ export function AppNavbar({
   onToggleAddFeed,
 }: AppNavbarProps) {
   const [isGuestBookmarksTooltipOpen, setIsGuestBookmarksTooltipOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const bookmarksQuery = convexQuery(api.bookmarks.queries.listForCurrentUser, {});
 
   useEffect(() => {
     if (!isGuestBookmarksTooltipOpen) {
@@ -320,6 +325,14 @@ export function AppNavbar({
     }
 
     setIsGuestBookmarksTooltipOpen(true);
+  };
+
+  const handlePrefetchBookmarks = () => {
+    if (!isSignedIn) {
+      return;
+    }
+
+    void queryClient.prefetchQuery(bookmarksQuery);
   };
 
   useHotkeySequence(["G", "B"], () => {
@@ -348,7 +361,13 @@ export function AppNavbar({
               <TooltipTrigger asChild>
                 {isSignedIn ? (
                   <Button asChild variant="ghost" className="rounded-full">
-                    <Link to="/bookmarks">Bookmarks</Link>
+                    <Link
+                      to="/bookmarks"
+                      onMouseEnter={handlePrefetchBookmarks}
+                      onFocus={handlePrefetchBookmarks}
+                    >
+                      Bookmarks
+                    </Link>
                   </Button>
                 ) : (
                   <Button
@@ -374,7 +393,12 @@ export function AppNavbar({
             </Tooltip>
           </TooltipProvider>
           {onToggleAddFeed ? (
-            <Button type="button" className="cursor-pointer rounded-full" onClick={onToggleAddFeed}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="cursor-pointer rounded-full"
+              onClick={onToggleAddFeed}
+            >
               <PlusIcon weight="bold" />
               <span className="min-[420px]:hidden">Add</span>
               <span className="hidden min-[420px]:inline">Add feed</span>
@@ -473,9 +497,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
   const clerk = useClerk();
   const navigate = useNavigate({ from: "/" });
   const autoOpenAuthKeyRef = useRef<string | null>(null);
-  const itemListScrollPositionsRef = useRef<Record<string, number>>({});
   const {
-    state,
     sourceInput,
     showAddForm,
     detailPanel,
@@ -513,15 +535,15 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     handleRefreshAll,
     handleRemoveSource,
     handleLoadMoreDetailPanelItems,
-    handleSourceRefresh,
-    handleSourceError,
   } = useFeedReader();
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const detailPanelOpen = useAtomValue(detailPanelOpenAtom);
   const detailPanelRef = useRef<PanelImperativeHandle>(null);
   const wasDetailPanelOpenRef = useRef(false);
   const [isClientReady, setIsClientReady] = useState(false);
   const [detailPanelSize, setDetailPanelSize] = useAtom(detailPanelSizeAtom);
+  const [itemListScroll] = useAtom(itemListScrollAtom);
+  const setItemListScrollTop = useSetAtom(setItemListScrollAtom);
+  const detailPanelOpen = detailPanel.mode !== "closed";
   const detailPanelMinSize = getDetailPanelMinSize(detailPanel);
 
   const openSignInModal = async (redirect = getCurrentHref()) => {
@@ -625,7 +647,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           isBookmarkPending={isBookmarkPending}
           scrollTop={
             detailPanelSourceSummary?.source
-              ? (itemListScrollPositionsRef.current[detailPanelSourceSummary.source.id] ?? 0)
+              ? (itemListScroll[detailPanelSourceSummary.source.id] ?? 0)
               : 0
           }
           onScrollTopChange={(scrollTop) => {
@@ -633,7 +655,10 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
               return;
             }
 
-            itemListScrollPositionsRef.current[detailPanelSourceSummary.source.id] = scrollTop;
+            setItemListScrollTop({
+              sourceId: detailPanelSourceSummary.source.id,
+              scrollTop,
+            });
           }}
         />
       )}
@@ -672,18 +697,6 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
 
   return (
     <>
-      {state.sources.map((source) => (
-        <SourceSyncController
-          key={source.id}
-          source={source}
-          initialItems={state.itemsBySource[source.id] ?? []}
-          seenItemIds={state.seenItemIdsBySource[source.id] ?? []}
-          enabled={true}
-          onRefresh={(result) => handleSourceRefresh(result, source.id)}
-          onError={(message) => handleSourceError(source.id, message)}
-        />
-      ))}
-
       <div className="min-h-svh flex h-svh flex-col overflow-hidden bg-background">
         <AppNavbar
           isPreferencesPending={isPreferencesPending}

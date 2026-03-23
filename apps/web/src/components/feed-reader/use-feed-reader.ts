@@ -1,41 +1,48 @@
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConvexAuth } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useState } from "react";
 import { toast } from "sonner";
 import {
   addSourceSuccessAtom,
   applyLoadMoreSourceItemsAtom,
-  applySourceRefreshAtom,
-  articleViewModeAtom,
   backToFeedListAtom,
-  closeDetailPanelAtom,
+  closeHomePanelAtom,
+  currentBlogViewModeAtom,
   detailPanelAtom,
-  detailPanelItemsAtom,
-  detailPanelSourceSummaryAtom,
   feedReaderStateAtom,
   isReaderFullScreenAtom,
-  markItemUnreadAtom,
   openFeedAtom,
+  openItemAtom,
   removeSourceAtom,
-  selectItemAtom,
-  selectedItemAtom,
-  setSourceErrorAtom,
+  setCurrentBlogViewModeAtom,
   showAddFormAtom,
   sourceInputAtom,
-  sourceSummariesAtom,
-  syncSourcesFromConvexAtom,
   toggleReaderFullScreenAtom,
-  totalNewAtom,
 } from "@/components/feed-reader/store";
+import {
+  applySourceRefresh,
+  getSourceItems,
+  markItemRead,
+  markItemUnread,
+  setSourceError,
+  syncSourcesFromConvex,
+} from "@/lib/feed-reader-state";
 import { api } from "@/lib/convex";
 import { defaultUserPreferences } from "@/lib/preferences";
 import { queryKeys } from "@/lib/query/keys";
 import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import { normalizeInputUrl } from "@/lib/feed/utils";
-import { fetchFeedSource, loadMoreFeedItems } from "@/lib/server/feed";
-import { discoveryResultSchema, type FeedItem, type SavedSource } from "@/lib/types";
+import { fetchFeedSource, loadMoreFeedItems, refreshFeedSource } from "@/lib/server/feed";
+import {
+  discoveryResultSchema,
+  type ArticleViewMode,
+  type FeedItem,
+  type FeedReaderState,
+  type RefreshResult,
+  type SavedSource,
+} from "@/lib/types";
 
 const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
   try {
@@ -52,32 +59,22 @@ export function useFeedReader() {
   const convexAuth = useConvexAuth();
   const queryClient = useQueryClient();
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
-  const state = useAtomValue(feedReaderStateAtom);
+  const baseState = useAtomValue(feedReaderStateAtom);
+  const setFeedReaderState = useSetAtom(feedReaderStateAtom);
   const [sourceInput, setSourceInput] = useAtom(sourceInputAtom);
   const [showAddForm, setShowAddForm] = useAtom(showAddFormAtom);
-  const [articleViewMode, setLocalArticleViewMode] = useAtom(articleViewModeAtom);
   const detailPanel = useAtomValue(detailPanelAtom);
+  const currentBlogViewMode = useAtomValue(currentBlogViewModeAtom);
   const isReaderFullScreen = useAtomValue(isReaderFullScreenAtom);
-  const sourceSummaries = useAtomValue(sourceSummariesAtom);
-  const detailPanelSourceSummary = useAtomValue(detailPanelSourceSummaryAtom);
-  const detailPanelItems = useAtomValue(detailPanelItemsAtom);
-  const selectedItem = useAtomValue(selectedItemAtom);
-  const totalNew = useAtomValue(totalNewAtom);
   const openFeed = useSetAtom(openFeedAtom);
-  const selectItem = useSetAtom(selectItemAtom);
-  const markItemUnread = useSetAtom(markItemUnreadAtom);
+  const openItem = useSetAtom(openItemAtom);
   const backToFeedList = useSetAtom(backToFeedListAtom);
-  const closeDetailPanel = useSetAtom(closeDetailPanelAtom);
+  const closeHomePanel = useSetAtom(closeHomePanelAtom);
+  const setCurrentBlogViewMode = useSetAtom(setCurrentBlogViewModeAtom);
   const toggleReaderFullScreen = useSetAtom(toggleReaderFullScreenAtom);
   const addSourceSuccess = useSetAtom(addSourceSuccessAtom);
   const removeFeedSource = useSetAtom(removeSourceAtom);
-  const syncSourcesFromConvex = useSetAtom(syncSourcesFromConvexAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
-  const applyRefresh = useSetAtom(applySourceRefreshAtom);
-  const setFeedSourceError = useSetAtom(setSourceErrorAtom);
-  const previousSignedInRef = useRef(false);
-  const detailPanelPagination =
-    detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
   const canReadUserData = convexAuth.isAuthenticated;
   const preferencesQuery = useQuery(
     convexQuery(api.preferences.queries.getForCurrentUser, canReadUserData ? {} : "skip"),
@@ -99,22 +96,101 @@ export function useFeedReader() {
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
   const effectivePreferences = preferencesQuery.data ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
+  const syncedState =
+    canReadUserData && feedSubscriptionsQuery.data
+      ? syncSourcesFromConvex(baseState, feedSubscriptionsQuery.data)
+      : baseState;
+  const sourceRefreshQueries = useQueries({
+    queries: syncedState.sources.map((source) => ({
+      queryKey: queryKeys.sourceItems(source.id),
+      queryFn: async () => {
+        try {
+          return await refreshFeedSource({
+            data: {
+              source,
+              seenItemIds: syncedState.seenItemIdsBySource[source.id] ?? [],
+            },
+          });
+        } catch (error) {
+          recoverFromStaleDeployment(error);
+          throw error;
+        }
+      },
+      enabled: true,
+      initialData:
+        source.lastCheckedAt && (syncedState.itemsBySource[source.id] ?? []).length
+          ? {
+              sourceId: source.id,
+              items: syncedState.itemsBySource[source.id] ?? [],
+              newCount: 0,
+              checkedAt: source.lastCheckedAt,
+              nextPageUrl: syncedState.paginationBySource[source.id]?.nextPageUrl,
+            }
+          : undefined,
+      initialDataUpdatedAt: source.lastCheckedAt ? Date.parse(source.lastCheckedAt) : undefined,
+      refetchInterval: source.pollingEnabled ? source.pollIntervalMs : false,
+      refetchIntervalInBackground: false,
+    })),
+  });
+  const refreshedState = sourceRefreshQueries.reduce((currentState, query) => {
+    if (!query.data) {
+      return currentState;
+    }
+
+    return applySourceRefresh(currentState, query.data as RefreshResult);
+  }, syncedState);
+  const state = sourceRefreshQueries.reduce((currentState, query, index) => {
+    if (!query.error) {
+      return currentState;
+    }
+
+    const message =
+      query.error instanceof Error
+        ? query.error.message
+        : "This source could not be refreshed right now.";
+
+    return setSourceError(currentState, syncedState.sources[index]!.id, message);
+  }, refreshedState);
+  const sourceSummaries = state.sources.map((source) => {
+    const items = getSourceItems(state, source.id);
+
+    return {
+      source,
+      items,
+      unreadCount: items.filter((item) => !item.isRead).length,
+      newCount: items.filter((item) => item.isNew).length,
+      itemCount: items.length,
+    };
+  });
+  const totalNew = sourceSummaries.reduce((total, summary) => total + summary.newCount, 0);
+  const detailPanelSourceSummary =
+    detailPanel.mode === "closed"
+      ? undefined
+      : sourceSummaries.find((summary) => summary.source.id === detailPanel.sourceId);
+  const detailPanelItems = detailPanelSourceSummary?.items ?? [];
+  const selectedItem =
+    detailPanel.mode === "reader"
+      ? detailPanelItems.find((item) => item.id === detailPanel.itemId)
+      : undefined;
+  const detailPanelPagination =
+    detailPanel.mode === "closed" ? undefined : state.paginationBySource[detailPanel.sourceId];
   const selectedSource =
     detailPanel.mode === "closed" ? undefined : detailPanelSourceSummary?.source;
   const bookmarkedUrls = new Set(bookmarksQuery.data?.map((bookmark) => bookmark.url) ?? []);
+  const articleViewMode =
+    detailPanel.mode === "reader" && currentBlogViewMode
+      ? currentBlogViewMode
+      : effectivePreferences.defaultView;
 
-  useEffect(() => {
-    if (previousSignedInRef.current && !canReadUserData) {
-      setLocalArticleViewMode(defaultUserPreferences.defaultView);
-    }
-
-    previousSignedInRef.current = canReadUserData;
-  }, [canReadUserData, setLocalArticleViewMode]);
-
-  useEffect(() => {
-    if (!canReadUserData || !feedSubscriptionsQuery.data) return;
-    syncSourcesFromConvex(feedSubscriptionsQuery.data);
-  }, [canReadUserData, feedSubscriptionsQuery.data, syncSourcesFromConvex]);
+  const updateFeedReaderState = (updater: (state: FeedReaderState) => FeedReaderState) => {
+    setFeedReaderState((currentState) =>
+      updater(
+        canReadUserData && feedSubscriptionsQuery.data
+          ? syncSourcesFromConvex(currentState, feedSubscriptionsQuery.data)
+          : currentState,
+      ),
+    );
+  };
 
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) =>
@@ -169,24 +245,24 @@ export function useFeedReader() {
     },
   });
 
-  const refreshingSourceIds = queryClient
-    .getQueryCache()
-    .findAll({ queryKey: ["source-items"] })
-    .filter((query) => query.state.fetchStatus === "fetching")
-    .map((query) => String(query.queryKey[1]));
+  const refreshingSourceIds = syncedState.sources
+    .filter((_, index) => sourceRefreshQueries[index]?.fetchStatus === "fetching")
+    .map((source) => source.id);
 
   const handleAddSource = () => {
-    if (!sourceInput.trim()) return;
+    if (!sourceInput.trim()) {
+      return;
+    }
+
     addSourceMutation.mutate(sourceInput);
   };
 
-  const handleSetCurrentArticleViewMode = (mode: typeof articleViewMode) => {
-    setLocalArticleViewMode(mode);
+  const handleSetCurrentArticleViewMode = (mode: ArticleViewMode) => {
+    setCurrentBlogViewMode({ route: "home", mode });
   };
 
-  const handleSetDefaultArticleViewMode = async (mode: typeof articleViewMode) => {
+  const handleSetDefaultArticleViewMode = async (mode: ArticleViewMode) => {
     if (!canReadUserData) {
-      setLocalArticleViewMode(mode);
       return;
     }
 
@@ -216,8 +292,18 @@ export function useFeedReader() {
   };
 
   const handleSelectItem = (itemId: string) => {
-    setLocalArticleViewMode(effectivePreferences.defaultView);
-    selectItem(itemId);
+    if (detailPanel.mode === "closed") {
+      return;
+    }
+
+    updateFeedReaderState((currentState) =>
+      markItemRead(currentState, detailPanel.sourceId, itemId),
+    );
+    openItem({
+      sourceId: detailPanel.sourceId,
+      itemId,
+      defaultView: effectivePreferences.defaultView,
+    });
   };
 
   const handleBackToList = () => {
@@ -225,7 +311,7 @@ export function useFeedReader() {
   };
 
   const handleCloseDetailPanel = () => {
-    closeDetailPanel();
+    closeHomePanel();
   };
 
   const handleToggleFullScreen = () => {
@@ -242,7 +328,7 @@ export function useFeedReader() {
     }
 
     setIsRefreshingAll(true);
-    const sourceCount = state.sources.length;
+    const sourceCount = syncedState.sources.length;
     const loadingMessage =
       sourceCount > 0
         ? `Refreshing ${sourceCount} feed${sourceCount === 1 ? "" : "s"}...`
@@ -285,14 +371,6 @@ export function useFeedReader() {
     }
 
     await loadMoreSourceItemsMutation.mutateAsync({ source, pageUrl });
-  };
-
-  const handleSourceRefresh = (result: Parameters<typeof applyRefresh>[0], _sourceId: string) => {
-    applyRefresh(result);
-  };
-
-  const handleSourceError = (sourceId: string, message: string) => {
-    setFeedSourceError({ sourceId, message });
   };
 
   const handleToggleBookmark = async () => {
@@ -372,10 +450,9 @@ export function useFeedReader() {
     handleRemoveSource,
     handleLoadMoreDetailPanelItems,
     handleToggleFullScreen,
-    handleSourceRefresh,
-    handleSourceError,
     handleToggleBookmark,
     handleBookmarkItem,
-    handleMarkUnread: (itemId: string) => markItemUnread(itemId),
+    handleMarkUnread: (itemId: string) =>
+      updateFeedReaderState((currentState) => markItemUnread(currentState, itemId)),
   };
 }

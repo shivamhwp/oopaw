@@ -1,16 +1,12 @@
 import {
   FEED_READER_STATE_VERSION,
-  POLL_INTERVAL_MS,
   type DiscoveryResult,
   type FeedItem,
   type FeedReaderState,
-  type FeedReaderStateV1,
-  type FeedReaderStateV2,
   type LoadMoreSourceItemsResult,
   type RefreshResult,
   type SavedSource,
   type SourcePagination,
-  type StoredFeedItem,
 } from "@/lib/types";
 import { dedupeItems, sortItemsNewestFirst } from "@/lib/feed/utils";
 
@@ -44,77 +40,6 @@ const createSourcePagination = (
   loadedPageUrls: [getInitialLoadedPageUrl(source)],
   nextPageUrl,
 });
-
-const isLegacyFeedSource = (
-  source: FeedReaderStateV1["sources"][number] | FeedReaderStateV2["sources"][number],
-): source is SavedSource & { kind: "feed" } =>
-  source.kind === "feed" && typeof source.feedUrl === "string";
-
-const getOptionalString = (value: unknown) => (typeof value === "string" ? value : undefined);
-
-export const migrateFeedReaderState = (
-  state: FeedReaderState | FeedReaderStateV1 | FeedReaderStateV2,
-): FeedReaderState => {
-  if (state.version === FEED_READER_STATE_VERSION) {
-    return state;
-  }
-
-  const sources = state.sources.filter(isLegacyFeedSource).map(
-    (source) =>
-      ({
-        id: source.id,
-        label: source.label,
-        inputUrl: source.inputUrl,
-        siteUrl: source.siteUrl,
-        feedUrl: source.feedUrl,
-        pollingEnabled: source.pollingEnabled,
-        pollIntervalMs: source.pollIntervalMs || POLL_INTERVAL_MS,
-        lastCheckedAt: source.lastCheckedAt,
-        lastError: source.lastError,
-      }) satisfies SavedSource,
-  );
-  const validSourceIds = new Set(sources.map((source) => source.id));
-  const itemsBySource = Object.fromEntries(
-    Object.entries(state.itemsBySource)
-      .filter(([sourceId]) => validSourceIds.has(sourceId))
-      .map(([sourceId, items]) => [
-        sourceId,
-        items.map(
-          (item) =>
-            ({
-              ...item,
-              contentHtml: getOptionalString("contentHtml" in item ? item.contentHtml : undefined),
-              contentText: getOptionalString("contentText" in item ? item.contentText : undefined),
-            }) satisfies StoredFeedItem,
-        ),
-      ]),
-  );
-  const seenItemIdsBySource = Object.fromEntries(
-    Object.entries(state.seenItemIdsBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
-  );
-  const paginationBySource =
-    "paginationBySource" in state
-      ? Object.fromEntries(
-          Object.entries(state.paginationBySource).filter(([sourceId]) =>
-            validSourceIds.has(sourceId),
-          ),
-        )
-      : Object.fromEntries(sources.map((source) => [source.id, createSourcePagination(source)]));
-  const selectedSourceId =
-    state.selectedSourceId && validSourceIds.has(state.selectedSourceId)
-      ? state.selectedSourceId
-      : null;
-
-  return {
-    version: FEED_READER_STATE_VERSION,
-    sources,
-    itemsBySource,
-    readItemIds: state.readItemIds,
-    seenItemIdsBySource,
-    selectedSourceId,
-    paginationBySource,
-  };
-};
 
 export const mergeSourceDiscovery = (state: FeedReaderState, discovery: DiscoveryResult) => {
   const itemIds = discovery.items.map((item) => item.id);

@@ -105,6 +105,7 @@ export function SourceGrid({
         ref={scrollElementRef}
         className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5"
         data-testid="source-grid-mobile"
+        data-scroll-restoration-id="feed-source-grid-mobile"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {sourceSummaries.map(({ source, items, unreadCount, newCount }) => (
@@ -125,7 +126,11 @@ export function SourceGrid({
   }
 
   return (
-    <div ref={scrollElementRef} className="h-full min-w-0 overflow-y-auto px-6 py-6">
+    <div
+      ref={scrollElementRef}
+      className="h-full min-w-0 overflow-y-auto px-6 py-6"
+      data-scroll-restoration-id="feed-source-grid-desktop"
+    >
       <div
         className="relative"
         style={{

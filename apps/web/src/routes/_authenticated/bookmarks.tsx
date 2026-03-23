@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useConvexAuth } from "convex/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { BookmarkSimpleIcon, SpinnerIcon, TrashIcon } from "@phosphor-icons/react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { CowIcon, SpinnerIcon, TrashIcon } from "@phosphor-icons/react";
 import { type PanelImperativeHandle } from "react-resizable-panels";
 import { AppNavbar } from "@/components/feed-reader/feed-reader-app";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
 import {
+  closeBookmarkPanelAtom,
+  currentBookmarksAtom,
   MAX_FEED_READER_PANEL_SIZE,
   MIN_FEED_READER_READER_PANEL_SIZE,
+  openBookmarkAtom,
+  setCurrentBlogViewModeAtom,
 } from "@/components/feed-reader/store";
 import { useFeedReader } from "@/components/feed-reader/use-feed-reader";
 import { Button } from "@/components/ui/button";
@@ -64,39 +70,44 @@ const toBookmarkItem = (bookmark: {
   }) satisfies FeedItem;
 
 export const Route = createFileRoute("/_authenticated/bookmarks")({
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(
-      convexQuery(api.bookmarks.queries.listForCurrentUser, {}),
-    );
-  },
   component: BookmarksRoute,
 });
 
 function BookmarksRoute() {
   const navigate = useNavigate({ from: "/bookmarks" });
-  const { data: bookmarks } = useSuspenseQuery(
-    convexQuery(api.bookmarks.queries.listForCurrentUser, {}),
+  const convexAuth = useConvexAuth();
+  const currentBookmarks = useAtomValue(currentBookmarksAtom);
+  const openBookmark = useSetAtom(openBookmarkAtom);
+  const closeBookmarkPanel = useSetAtom(closeBookmarkPanelAtom);
+  const setCurrentBlogViewMode = useSetAtom(setCurrentBlogViewModeAtom);
+  const bookmarksQuery = useQuery(
+    convexQuery(api.bookmarks.queries.listForCurrentUser, convexAuth.isAuthenticated ? {} : "skip"),
   );
+  const bookmarks = bookmarksQuery.data ?? [];
   const {
     isPreferencesPending,
     isSignedIn,
     preferences,
-    setArticleViewMode,
     setDefaultArticleViewMode,
     setPollingIntervalMinutes,
-    articleViewMode,
   } = useFeedReader();
   const isMobile = useMediaQuery("(max-width: 767px)");
   const detailPanelRef = useRef<PanelImperativeHandle>(null);
-  const [selectedBookmarkId, setSelectedBookmarkId] = useState<string | null>(null);
   const [detailPanelSize, setDetailPanelSize] = useState(MIN_FEED_READER_READER_PANEL_SIZE);
   const [isReaderFullScreen, setIsReaderFullScreen] = useState(false);
   const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
+  const selectedBookmarkId =
+    currentBookmarks.panel === "reader" ? currentBookmarks.bookmarkId : null;
+  const hasSelectedBookmark =
+    selectedBookmarkId !== null &&
+    bookmarksQuery.data?.some((bookmark) => bookmark._id === selectedBookmarkId) === true;
   const selectedBookmark =
     bookmarks.find((bookmark) => bookmark._id === selectedBookmarkId) ?? null;
   const selectedItem = selectedBookmark ? toBookmarkItem(selectedBookmark) : undefined;
   const isDetailPanelOpen = Boolean(selectedBookmarkId);
+  const selectedBookmarkView =
+    currentBookmarks.panel === "reader" ? currentBookmarks.blogViewMode : preferences.defaultView;
 
   useEffect(() => {
     if (isMobile || !detailPanelRef.current) {
@@ -113,14 +124,10 @@ function BookmarksRoute() {
   }, [detailPanelSize, isDetailPanelOpen, isMobile]);
 
   useEffect(() => {
-    if (
-      selectedBookmarkId &&
-      !bookmarks.some((bookmark) => bookmark._id === selectedBookmarkId) &&
-      !bookmarkMutation.isPending
-    ) {
-      setSelectedBookmarkId(null);
+    if (selectedBookmarkId && !hasSelectedBookmark && !bookmarkMutation.isPending) {
+      closeBookmarkPanel();
     }
-  }, [bookmarks, bookmarkMutation.isPending, selectedBookmarkId]);
+  }, [bookmarkMutation.isPending, closeBookmarkPanel, hasSelectedBookmark, selectedBookmarkId]);
 
   const handleRemoveBookmark = async (bookmark: (typeof bookmarks)[number]) => {
     await bookmarkMutation.mutateAsync({
@@ -134,13 +141,15 @@ function BookmarksRoute() {
     });
 
     if (bookmark._id === selectedBookmarkId) {
-      setSelectedBookmarkId(null);
+      closeBookmarkPanel();
     }
   };
 
   const handleOpenBookmark = (bookmarkId: string) => {
-    setArticleViewMode(preferences.defaultView);
-    setSelectedBookmarkId(bookmarkId);
+    openBookmark({
+      bookmarkId,
+      defaultView: preferences.defaultView,
+    });
   };
 
   const bookmarkGrid = (
@@ -149,17 +158,30 @@ function BookmarksRoute() {
         "h-full min-w-0 overflow-y-auto",
         isMobile ? "px-4 py-4 sm:px-5 sm:py-5" : "px-6 py-6",
       )}
+      data-scroll-restoration-id="bookmarks-grid"
     >
-      {bookmarks.length === 0 ? (
+      {!convexAuth.isAuthenticated || bookmarksQuery.isPending ? (
         <div className="flex h-full min-h-[18rem] items-center justify-center">
-          <div className="max-w-xs text-center">
-            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <BookmarkSimpleIcon weight="duotone" className="size-6" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <SpinnerIcon className="size-4 animate-spin" weight="bold" />
+            <span>Loading bookmarks…</span>
+          </div>
+        </div>
+      ) : bookmarksQuery.isError ? (
+        <div className="flex h-full min-h-[18rem] items-center justify-center">
+          <p className="max-w-sm text-center text-sm text-muted-foreground">
+            {bookmarksQuery.error instanceof Error
+              ? bookmarksQuery.error.message
+              : "Could not load bookmarks."}
+          </p>
+        </div>
+      ) : bookmarks.length === 0 ? (
+        <div className="flex h-full min-h-[18rem] items-center justify-center">
+          <div className="max-w-xs text-center text-muted-foreground">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <CowIcon weight="regular" className="size-7" />
             </div>
-            <p className="text-sm font-medium text-foreground">No saved links yet</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Bookmark any article from the reader to keep it here.
-            </p>
+            <p className="text-xl">no bookmarks yet !!</p>
           </div>
         </div>
       ) : (
@@ -241,17 +263,19 @@ function BookmarksRoute() {
     <div className="h-full min-w-0 overflow-hidden md:pl-2">
       <ReaderPane
         item={selectedItem}
-        articleViewMode={articleViewMode}
+        articleViewMode={selectedBookmarkView}
         isBookmarked={true}
         isBookmarkPending={bookmarkMutation.isPending}
         isFullScreen={false}
-        onBack={() => setSelectedBookmarkId(null)}
+        onBack={() => closeBookmarkPanel()}
         onBookmarkToggle={
           selectedBookmark ? () => void handleRemoveBookmark(selectedBookmark) : undefined
         }
-        onClose={() => setSelectedBookmarkId(null)}
+        onClose={() => closeBookmarkPanel()}
         onToggleFullScreen={() => setIsReaderFullScreen((value) => !value)}
-        onArticleViewModeChange={setArticleViewMode}
+        onArticleViewModeChange={(view) =>
+          setCurrentBlogViewMode({ route: "bookmarks", mode: view })
+        }
       />
     </div>
   );
@@ -298,7 +322,7 @@ function BookmarksRoute() {
               maxSize={`${MAX_FEED_READER_PANEL_SIZE}%`}
               onResize={(size) => {
                 if (size.asPercentage === 0 && isDetailPanelOpen) {
-                  setSelectedBookmarkId(null);
+                  closeBookmarkPanel();
                   return;
                 }
 
@@ -323,17 +347,19 @@ function BookmarksRoute() {
         <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background">
           <ReaderPane
             item={selectedItem}
-            articleViewMode={articleViewMode}
+            articleViewMode={selectedBookmarkView}
             isBookmarked={true}
             isBookmarkPending={bookmarkMutation.isPending}
             isFullScreen={true}
-            onBack={() => setSelectedBookmarkId(null)}
+            onBack={() => closeBookmarkPanel()}
             onBookmarkToggle={
               selectedBookmark ? () => void handleRemoveBookmark(selectedBookmark) : undefined
             }
-            onClose={() => setSelectedBookmarkId(null)}
+            onClose={() => closeBookmarkPanel()}
             onToggleFullScreen={() => setIsReaderFullScreen((value) => !value)}
-            onArticleViewModeChange={setArticleViewMode}
+            onArticleViewModeChange={(view) =>
+              setCurrentBlogViewMode({ route: "bookmarks", mode: view })
+            }
           />
         </div>
       )}

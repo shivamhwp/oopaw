@@ -6,7 +6,6 @@ import { Provider } from "jotai";
 import { configure as configureOneDollarStats } from "onedollarstats";
 import { shadcn } from "@clerk/themes";
 import { getOneDollarStatsConfig } from "@/lib/analytics/onedollarstats";
-import { defaultAuthState, fetchClerkAuth } from "@/lib/auth";
 import {
   DEFAULT_THEME,
   THEME_STORAGE_KEY,
@@ -104,19 +103,6 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
       Page not found.
     </div>
   ),
-  beforeLoad: async (ctx) => {
-    const auth = await fetchClerkAuth();
-
-    if (auth.token) {
-      ctx.context.convexQueryClient.serverHttpClient?.setAuth(auth.token);
-    } else {
-      ctx.context.convexQueryClient.serverHttpClient?.clearAuth();
-    }
-
-    return {
-      auth: auth.isSignedIn ? { isSignedIn: true, userId: auth.userId } : defaultAuthState,
-    };
-  },
   shellComponent: RootDocument,
 });
 

@@ -150,7 +150,7 @@ export function ReaderPane({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8 hover:text-primary/80"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground/70"
             onClick={handleCopyOriginalUrl}
             aria-label={
               copyState === "copied"
@@ -168,12 +168,17 @@ export function ReaderPane({
             }
           >
             {copyState === "copied" ? (
-              <CheckIcon weight="bold" className="size-3.5" />
+              <CheckIcon weight="regular" className="size-3.5" />
             ) : (
-              <CopySimpleIcon weight="bold" className="size-3.5" />
+              <CopySimpleIcon weight="regular" className="size-3.5" />
             )}
           </Button>
-          <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8 hover:text-primary/80">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground/70"
+          >
             <a
               href={item.url}
               target="_blank"
@@ -181,7 +186,7 @@ export function ReaderPane({
               aria-label="Open original article"
               title="Open original"
             >
-              <ArrowSquareOutIcon weight="bold" className="size-3.5" />
+              <ArrowSquareOutIcon weight="regular" className="size-3.5" />
             </a>
           </Button>
           <Button

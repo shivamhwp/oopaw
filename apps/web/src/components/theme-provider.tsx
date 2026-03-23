@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { getBrowserStorage } from "@/lib/browser-storage";
 
 type Theme = "dark" | "light" | "system";
 
@@ -23,7 +22,7 @@ const applyTheme = (theme: Theme, root = document.documentElement) => {
 };
 
 const getStoredTheme = (storageKey: string, defaultTheme: Theme) => {
-  const storedTheme = getBrowserStorage()?.getItem(storageKey);
+  const storedTheme = getStorage()?.getItem(storageKey);
 
   return isTheme(storedTheme) ? storedTheme : defaultTheme;
 };
@@ -106,7 +105,7 @@ export function ThemeProvider({
   const value: ThemeProviderState = {
     theme,
     setTheme: (newTheme) => {
-      getBrowserStorage()?.setItem(storageKey, newTheme);
+      getStorage()?.setItem(storageKey, newTheme);
       setTheme(newTheme);
     },
   };
@@ -125,3 +124,14 @@ export function useTheme() {
   }
   return context;
 }
+const getStorage = () => {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+};
