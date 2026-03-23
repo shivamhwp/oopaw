@@ -75,7 +75,7 @@ export function useFeedReader() {
   const addSourceSuccess = useSetAtom(addSourceSuccessAtom);
   const removeFeedSource = useSetAtom(removeSourceAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
-  const canReadUserData = convexAuth.isAuthenticated;
+  const canReadUserData = !convexAuth.isLoading && convexAuth.isAuthenticated;
   const preferencesQuery = useQuery(
     convexQuery(api.preferences.queries.getForCurrentUser, canReadUserData ? {} : "skip"),
   );

@@ -76,12 +76,13 @@ export const Route = createFileRoute("/_authenticated/bookmarks")({
 function BookmarksRoute() {
   const navigate = useNavigate({ from: "/bookmarks" });
   const convexAuth = useConvexAuth();
+  const canReadBookmarks = !convexAuth.isLoading && convexAuth.isAuthenticated;
   const currentBookmarks = useAtomValue(currentBookmarksAtom);
   const openBookmark = useSetAtom(openBookmarkAtom);
   const closeBookmarkPanel = useSetAtom(closeBookmarkPanelAtom);
   const setCurrentBlogViewMode = useSetAtom(setCurrentBlogViewModeAtom);
   const bookmarksQuery = useQuery(
-    convexQuery(api.bookmarks.queries.listForCurrentUser, convexAuth.isAuthenticated ? {} : "skip"),
+    convexQuery(api.bookmarks.queries.listForCurrentUser, canReadBookmarks ? {} : "skip"),
   );
   const bookmarks = bookmarksQuery.data ?? [];
   const {
@@ -160,7 +161,7 @@ function BookmarksRoute() {
       )}
       data-scroll-restoration-id="bookmarks-grid"
     >
-      {!convexAuth.isAuthenticated || bookmarksQuery.isPending ? (
+      {convexAuth.isLoading || bookmarksQuery.isPending ? (
         <div className="flex h-full min-h-[18rem] items-center justify-center">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <SpinnerIcon className="size-4 animate-spin" weight="bold" />

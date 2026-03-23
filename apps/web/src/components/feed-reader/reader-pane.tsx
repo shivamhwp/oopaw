@@ -50,6 +50,17 @@ const formatDate = (value: string | undefined) =>
       })
     : undefined;
 
+const openExternalUrl = (url: string) => {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.target = "_blank";
+  anchor.rel = "external noopener noreferrer";
+  anchor.referrerPolicy = "no-referrer";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+};
+
 export function ReaderPane({
   item,
   articleViewMode,
@@ -67,6 +78,7 @@ export function ReaderPane({
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const resetCopyStateTimeoutRef = useRef<number | null>(null);
+  const readerContentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(
     () => () => {
@@ -109,6 +121,44 @@ export function ReaderPane({
 
     resetCopyState();
   };
+
+  useEffect(() => {
+    const container = readerContentRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const handleReaderContentClick = (event: MouseEvent) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const anchor = target.closest("a[href]");
+
+      if (!(anchor instanceof HTMLAnchorElement) || !anchor.href) {
+        return;
+      }
+
+      anchor.target = "_blank";
+      anchor.rel = "external noopener noreferrer";
+
+      if (!isMobile) {
+        return;
+      }
+
+      event.preventDefault();
+      openExternalUrl(anchor.href);
+    };
+
+    container.addEventListener("click", handleReaderContentClick);
+
+    return () => {
+      container.removeEventListener("click", handleReaderContentClick);
+    };
+  }, [isMobile, item.contentHtml, item.id]);
   const modeToggle = (
     <Tabs
       value={articleViewMode}
@@ -117,11 +167,11 @@ export function ReaderPane({
       <TabsList aria-label="Article view mode">
         <TabsTrigger value="site" aria-label="Site view" className="gap-1">
           <GlobeHemisphereWestIcon weight="duotone" className="size-4" aria-hidden="true" />
-          Site
+          {!isMobile ? "Site" : null}
         </TabsTrigger>
         <TabsTrigger value="reader" aria-label="Reader mode" className="gap-1">
           <BookOpenTextIcon weight="duotone" className="size-4" aria-hidden="true" />
-          Reader
+          {!isMobile ? "Reader" : null}
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -150,7 +200,7 @@ export function ReaderPane({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground/70"
+            className="h-9 w-9 cursor-pointer text-foreground hover:text-foreground/80"
             onClick={handleCopyOriginalUrl}
             aria-label={
               copyState === "copied"
@@ -168,32 +218,32 @@ export function ReaderPane({
             }
           >
             {copyState === "copied" ? (
-              <CheckIcon weight="regular" className="size-3.5" />
+              <CheckIcon weight="regular" className="size-4.5" />
             ) : (
-              <CopySimpleIcon weight="regular" className="size-3.5" />
+              <CopySimpleIcon weight="regular" className="size-4.5" />
             )}
           </Button>
           <Button
             asChild
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground/70"
+            className="h-9 w-9 cursor-pointer text-foreground hover:text-foreground/80"
           >
             <a
               href={item.url}
               target="_blank"
-              rel="noreferrer"
+              rel="external noopener noreferrer"
               aria-label="Open original article"
               title="Open original"
             >
-              <ArrowSquareOutIcon weight="regular" className="size-3.5" />
+              <ArrowSquareOutIcon weight="regular" className="size-4.5" />
             </a>
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-8 hover:text-primary/80"
+            className="h-9 w-9 cursor-pointer text-foreground hover:text-foreground/80"
             disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
             onClick={onBookmarkToggle ?? onRequireSignIn}
             aria-label={
@@ -211,7 +261,7 @@ export function ReaderPane({
                 : "Sign in to bookmark"
             }
           >
-            <BookmarkSimpleIcon weight={isBookmarked ? "fill" : "regular"} className="size-3.5" />
+            <BookmarkSimpleIcon weight={isBookmarked ? "fill" : "regular"} className="size-4.5" />
           </Button>
           {modeToggle}
           {onToggleFullScreen && !isMobile && (
@@ -303,6 +353,7 @@ export function ReaderPane({
           )}
 
           <div
+            ref={readerContentRef}
             className={
               isFullScreen
                 ? "pb-[env(safe-area-inset-bottom,0px)] flex-1 min-h-0 overflow-y-auto px-5 py-5 md:px-8 md:py-6"

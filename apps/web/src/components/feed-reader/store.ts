@@ -18,7 +18,7 @@ const FEED_READER_PANEL_SIZE_STORAGE_KEY = "papertrail.feed-reader.panel-size";
 const FEED_READER_CURRENT_STORAGE_KEY = "papertrail.current";
 const FEED_READER_SCROLL_STORAGE_KEY = "papertrail.feed-reader.scroll";
 
-export const MIN_FEED_READER_READER_PANEL_SIZE = 14;
+export const MIN_FEED_READER_READER_PANEL_SIZE = 40;
 export const MIN_FEED_READER_LIST_PANEL_SIZE = 40;
 const DEFAULT_FEED_READER_PANEL_SIZE = 50;
 export const MAX_FEED_READER_PANEL_SIZE = 70;

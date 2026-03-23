@@ -8,6 +8,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   MoonIcon,
+  PhoneCallIcon,
   PlusIcon,
   SignOutIcon,
   SlidersHorizontalIcon,
@@ -16,6 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { useHotkey, useHotkeySequence } from "@tanstack/react-hotkeys";
 import { useQueryClient } from "@tanstack/react-query";
+import { useConvexAuth } from "convex/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAtom, useSetAtom } from "jotai";
 import { type PanelImperativeHandle } from "react-resizable-panels";
@@ -70,6 +72,8 @@ const pollingOptions = [
   { label: "30", value: 30 },
   { label: "60", value: 60 },
 ];
+const AUTH_LOADING_NAME = "Tyler Durden";
+const AUTH_LOADING_EMAIL = "FMCRec@telnex.com";
 
 const getCurrentHref = () =>
   typeof window === "undefined"
@@ -90,7 +94,6 @@ const isEditableElement = (element: Element | null) =>
     element.tagName === "SELECT");
 
 function ProfileMenu({
-  isSignedIn,
   defaultView,
   isSavingPreferences,
   isRefreshingAll,
@@ -100,7 +103,6 @@ function ProfileMenu({
   onRefreshAll,
   onSignIn,
 }: {
-  isSignedIn: boolean;
   defaultView: ArticleViewMode;
   isSavingPreferences: boolean;
   isRefreshingAll: boolean;
@@ -111,12 +113,22 @@ function ProfileMenu({
   onSignIn: () => void;
 }) {
   const clerk = useClerk();
-  const { user } = useUser();
+  const { user, isLoaded: isAuthLoaded, isSignedIn } = useUser();
   const { theme, setTheme } = useTheme();
   const displayName = getUserDisplayName(user);
   const email = getUserEmail(user);
   const [isEmailVisible, setIsEmailVisible] = useState(false);
   const EmailVisibilityIcon = isEmailVisible ? EyeSlashIcon : EyeIcon;
+  const areMenuControlsDisabled = !isAuthLoaded || isSavingPreferences;
+  const shouldShowProfileSection = isSignedIn || !isAuthLoaded;
+  const profileName = isAuthLoaded && isSignedIn ? displayName : AUTH_LOADING_NAME;
+  const profileEmail = isAuthLoaded && isSignedIn ? email : AUTH_LOADING_EMAIL;
+  const profileInitials = profileName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 
   return (
     <DropdownMenu>
@@ -127,32 +139,39 @@ function ProfileMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-[16rem]">
-        {isSignedIn ? (
+        {shouldShowProfileSection ? (
           <>
-            <div className="space-y-1 px-2.5 py-2">
-              <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
-              {email ? (
+            <div className="flex items-start gap-3 px-2.5 py-2">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+                {profileInitials}
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="truncate text-sm font-medium text-foreground">{profileName}</p>
                 <div className="flex items-center gap-1.5">
                   <p
                     className={cn(
                       "min-w-0 flex-1 truncate text-xs text-muted-foreground transition-all",
-                      !isEmailVisible && "blur-sm",
+                      isAuthLoaded && isSignedIn && !isEmailVisible && "blur-sm",
                     )}
                   >
-                    {email}
+                    {profileEmail}
                   </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 rounded-md"
-                    onClick={() => setIsEmailVisible((current) => !current)}
-                    aria-label={isEmailVisible ? "Hide email" : "Show email"}
-                  >
-                    <EmailVisibilityIcon weight="bold" className="size-4" />
-                  </Button>
+                  {isAuthLoaded && isSignedIn && email ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0 rounded-md"
+                      onClick={() => setIsEmailVisible((current) => !current)}
+                      aria-label={isEmailVisible ? "Hide email" : "Show email"}
+                    >
+                      <EmailVisibilityIcon weight="bold" className="size-4" />
+                    </Button>
+                  ) : (
+                    <div className="size-7 shrink-0" aria-hidden="true" />
+                  )}
                 </div>
-              ) : null}
+              </div>
             </div>
 
             <DropdownMenuSeparator />
@@ -172,6 +191,7 @@ function ProfileMenu({
                   key={value}
                   value={value}
                   className="flex w-full min-w-0 gap-1.5 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
+                  disabled={areMenuControlsDisabled}
                 >
                   <Icon weight="bold" className="size-3.5" />
                   <span>{label}</span>
@@ -196,7 +216,7 @@ function ProfileMenu({
                   key={option.value}
                   value={String(option.value)}
                   className="w-full min-w-0 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
-                  disabled={isSavingPreferences}
+                  disabled={areMenuControlsDisabled}
                 >
                   {option.label}
                 </TabsTrigger>
@@ -220,7 +240,7 @@ function ProfileMenu({
                   key={view}
                   value={view}
                   className="w-full min-w-0 px-3 py-2 text-xs capitalize sm:min-w-0 sm:flex-1"
-                  disabled={isSavingPreferences}
+                  disabled={areMenuControlsDisabled}
                 >
                   {view}
                 </TabsTrigger>
@@ -232,7 +252,18 @@ function ProfileMenu({
         <DropdownMenuSeparator />
 
         <div className="space-y-1.5 p-1.5">
-          {!isSignedIn ? (
+          {!isAuthLoaded ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              className="w-full cursor-default justify-start rounded-lg text-sm text-muted-foreground"
+              disabled
+            >
+              <PhoneCallIcon weight="bold" className="size-3.5" />
+              On call with auth offices.
+            </Button>
+          ) : !isSignedIn ? (
             <Button
               type="button"
               variant="ghost"
@@ -249,7 +280,7 @@ function ProfileMenu({
             size="default"
             className="w-full cursor-pointer justify-start rounded-lg text-sm text-muted-foreground"
             onClick={onRefreshAll}
-            disabled={isRefreshingAll}
+            disabled={!isAuthLoaded || isRefreshingAll}
           >
             <ArrowClockwiseIcon
               weight="bold"
@@ -264,6 +295,7 @@ function ProfileMenu({
               size="default"
               className="w-full cursor-pointer justify-start rounded-lg text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive/80"
               onClick={() => void clerk.signOut({ redirectUrl: "/" })}
+              disabled={!isAuthLoaded}
             >
               <SignOutIcon weight="bold" className="size-3.5" />
               Sign out
@@ -303,8 +335,12 @@ export function AppNavbar({
   onToggleAddFeed,
 }: AppNavbarProps) {
   const [isGuestBookmarksTooltipOpen, setIsGuestBookmarksTooltipOpen] = useState(false);
+  const convexAuth = useConvexAuth();
   const queryClient = useQueryClient();
-  const bookmarksQuery = convexQuery(api.bookmarks.queries.listForCurrentUser, {});
+  const bookmarksQuery = convexQuery(
+    api.bookmarks.queries.listForCurrentUser,
+    !convexAuth.isLoading && isSignedIn ? {} : "skip",
+  );
 
   useEffect(() => {
     if (!isGuestBookmarksTooltipOpen) {
@@ -328,7 +364,7 @@ export function AppNavbar({
   };
 
   const handlePrefetchBookmarks = () => {
-    if (!isSignedIn) {
+    if (convexAuth.isLoading || !isSignedIn) {
       return;
     }
 
@@ -405,7 +441,6 @@ export function AppNavbar({
             </Button>
           ) : null}
           <ProfileMenu
-            isSignedIn={isSignedIn}
             defaultView={defaultView}
             isSavingPreferences={isPreferencesPending}
             isRefreshingAll={isRefreshingAll}
