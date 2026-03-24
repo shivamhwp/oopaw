@@ -301,7 +301,7 @@ export function ReaderPane({
       {topNav}
       {isSiteMode ? (
         <>
-          <div className="h-full w-full">
+          <div className="min-h-0 flex-1">
             <iframe
               key={item.url}
               title={`Original article: ${title}`}
