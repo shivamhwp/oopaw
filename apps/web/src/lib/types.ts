@@ -94,6 +94,30 @@ export const loadMoreSourceItemsInputSchema = z.object({
   pageUrl: z.string().url(),
 });
 
+export const extractReaderArticleInputSchema = z.object({
+  item: storedFeedItemSchema.pick({
+    id: true,
+    url: true,
+    title: true,
+    excerpt: true,
+    contentHtml: true,
+    contentText: true,
+    publishedAt: true,
+    author: true,
+    imageUrl: true,
+  }),
+});
+
+export const extractedReaderArticleSchema = z.object({
+  title: z.string().min(1),
+  excerpt: z.string().optional(),
+  contentHtml: z.string().optional(),
+  contentText: z.string().optional(),
+  publishedAt: z.string().datetime().optional(),
+  author: z.string().optional(),
+  imageUrl: z.string().url().optional(),
+});
+
 export const POLL_INTERVAL_MS = 15 * 60_000;
 export const FEED_READER_STATE_VERSION = 3;
 export const FEED_READER_STATE_STORAGE_KEY = "papertrail.feed-reader.state";
@@ -108,3 +132,5 @@ export type DiscoveryResult = z.infer<typeof discoveryResultSchema>;
 export type RefreshResult = z.infer<typeof refreshResultSchema>;
 export type LoadMoreSourceItemsResult = z.infer<typeof loadMoreSourceItemsResultSchema>;
 export type FeedReaderState = z.infer<typeof feedReaderStateSchema>;
+export type ExtractReaderArticleInput = z.infer<typeof extractReaderArticleInputSchema>;
+export type ExtractedReaderArticle = z.infer<typeof extractedReaderArticleSchema>;

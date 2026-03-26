@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeftIcon,
   ArrowSquareOutIcon,
@@ -22,8 +23,10 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { queryKeys } from "@/lib/query/keys";
 import type { ArticleViewMode, FeedItem } from "@/lib/types";
 import { stripHtml } from "@/lib/feed/utils";
+import { loadReaderArticle } from "@/lib/server/article";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 type ReaderPaneProps = {
@@ -89,15 +92,30 @@ export function ReaderPane({
     [],
   );
 
-  if (!item) return null;
+  const readerArticleQuery = useQuery({
+    queryKey: item ? queryKeys.readerArticle(item.id) : ["reader-article", "idle"],
+    queryFn: async () => loadReaderArticle({ data: { item: item! } }),
+    enabled: articleViewMode === "reader" && Boolean(item),
+    staleTime: 1000 * 60 * 60 * 6,
+    retry: 1,
+  });
+  const resolvedItem =
+    item && readerArticleQuery.data
+      ? {
+          ...item,
+          ...readerArticleQuery.data,
+        }
+      : item;
+
+  if (!resolvedItem) return null;
 
   const hasContextMenuActions = onMarkUnread || onBookmarkToggle || onRequireSignIn;
   const isSiteMode = articleViewMode === "site";
   const showReaderHeader = isMobile || isFullScreen;
-  const title = item.title;
-  const author = item.author;
-  const date = formatDate(item.publishedAt);
-  const readerText = item.contentText ?? stripHtml(item.contentHtml);
+  const title = resolvedItem.title;
+  const author = resolvedItem.author;
+  const date = formatDate(resolvedItem.publishedAt);
+  const readerText = resolvedItem.contentText ?? stripHtml(resolvedItem.contentHtml);
   const readTimeMinutes = readerText
     ? Math.max(1, Math.ceil(readerText.split(/\s+/).length / 220))
     : undefined;
@@ -113,7 +131,7 @@ export function ReaderPane({
   };
   const handleCopyOriginalUrl = async () => {
     try {
-      await navigator.clipboard.writeText(item.url);
+      await navigator.clipboard.writeText(resolvedItem.url);
       setCopyState("copied");
     } catch {
       setCopyState("error");
@@ -158,7 +176,7 @@ export function ReaderPane({
     return () => {
       container.removeEventListener("click", handleReaderContentClick);
     };
-  }, [isMobile, item.contentHtml, item.id]);
+  }, [isMobile, resolvedItem.contentHtml, resolvedItem.id]);
   const modeToggle = (
     <Tabs
       value={articleViewMode}
@@ -230,7 +248,7 @@ export function ReaderPane({
             className="h-9 w-9 cursor-pointer text-foreground hover:text-foreground/80"
           >
             <a
-              href={item.url}
+              href={resolvedItem.url}
               target="_blank"
               rel="external noopener noreferrer"
               aria-label="Open original article"
@@ -303,9 +321,9 @@ export function ReaderPane({
         <>
           <div className="min-h-0 flex-1">
             <iframe
-              key={item.url}
+              key={resolvedItem.url}
               title={`Original article: ${title}`}
-              src={item.url}
+              src={resolvedItem.url}
               className="h-full w-full border-0 bg-background"
             />
           </div>
@@ -360,31 +378,40 @@ export function ReaderPane({
                 : "pb-[env(safe-area-inset-bottom,0px)] flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-5 md:py-5"
             }
           >
-            {item.contentHtml ? (
+            {resolvedItem.contentHtml ? (
               <div className="mx-auto w-full max-w-[52rem]">
                 <article
                   className="reader-prose"
                   // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: item.contentHtml }}
+                  dangerouslySetInnerHTML={{ __html: resolvedItem.contentHtml }}
                 />
               </div>
-            ) : item.contentText ? (
+            ) : resolvedItem.contentText ? (
               <div className="mx-auto w-full max-w-[52rem]">
-                <article className="reader-prose whitespace-pre-wrap">{item.contentText}</article>
+                <article className="reader-prose whitespace-pre-wrap">
+                  {resolvedItem.contentText}
+                </article>
               </div>
             ) : (
               <div className="mx-auto w-full max-w-[52rem]">
                 <div className="space-y-3 rounded-xl border border-dashed border-border/70 bg-muted/25 p-5">
                   <div className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <BookOpenTextIcon weight="fill" className="size-3.5" />
-                    Fallback mode
+                    {readerArticleQuery.isLoading ? "Parsing article" : "Fallback mode"}
                   </div>
                   <p className="text-sm leading-7 text-muted-foreground">
-                    This feed does not include full article content. Open the original page for the
-                    complete story.
+                    {readerArticleQuery.isLoading
+                      ? "Fetching the original page and extracting the article body."
+                      : readerArticleQuery.error
+                        ? readerArticleQuery.error instanceof Error
+                          ? readerArticleQuery.error.message
+                          : "This article could not be parsed right now. Open the original page for the complete story."
+                        : "This feed does not include full article content. Open the original page for the complete story."}
                   </p>
-                  {item.excerpt && (
-                    <p className="font-display text-xl leading-8 text-foreground">{item.excerpt}</p>
+                  {resolvedItem.excerpt && (
+                    <p className="font-display text-xl leading-8 text-foreground">
+                      {resolvedItem.excerpt}
+                    </p>
                   )}
                 </div>
               </div>

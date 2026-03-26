@@ -65,17 +65,54 @@ const resolveTagAttributes = (
   return nextAttribs;
 };
 
-const createSanitizeFeedHtmlOptions = (baseUrl: string | undefined) =>
+const createSanitizeHtmlOptions = (baseUrl: string | undefined) =>
   ({
     allowedTags: mergeValues(sanitizeHtml.defaults.allowedTags, [
+      // Media
       "audio",
-      "details",
       "img",
       "picture",
       "source",
-      "summary",
       "track",
       "video",
+      // Semantic blocks
+      "article",
+      "aside",
+      "details",
+      "figcaption",
+      "figure",
+      "footer",
+      "header",
+      "hgroup",
+      "main",
+      "mark",
+      "section",
+      "summary",
+      // Inline semantics commonly used in blogs
+      "abbr",
+      "cite",
+      "data",
+      "del",
+      "dfn",
+      "ins",
+      "kbd",
+      "ruby",
+      "rp",
+      "rt",
+      "samp",
+      "sub",
+      "sup",
+      "var",
+      "wbr",
+      // Definition lists (docs / tech blogs)
+      "dl",
+      "dt",
+      "dd",
+      // Embedded content
+      "iframe",
+      // Other
+      "hr",
+      "time",
     ]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
@@ -90,6 +127,22 @@ const createSanitizeFeedHtmlOptions = (baseUrl: string | undefined) =>
         "sizes",
         "srcset",
       ]),
+      del: ["cite", "datetime"],
+      figure: [],
+      figcaption: [],
+      iframe: [
+        "allow",
+        "allowfullscreen",
+        "frameborder",
+        "height",
+        "loading",
+        "referrerpolicy",
+        "sandbox",
+        "src",
+        "title",
+        "width",
+      ],
+      ins: ["cite", "datetime"],
       q: ["cite"],
       source: ["media", "sizes", "src", "srcset", "type"],
       td: ["abbr", "colspan", "headers", "rowspan"],
@@ -117,10 +170,31 @@ const createSanitizeFeedHtmlOptions = (baseUrl: string | undefined) =>
     ),
     allowedSchemesByTag: {
       ...sanitizeHtml.defaults.allowedSchemesByTag,
+      iframe: ["https"],
       img: ["data", "http", "https"],
       source: ["data", "http", "https"],
       video: ["http", "https"],
     },
+    allowedIframeHostnames: [
+      // Video
+      "www.youtube.com",
+      "www.youtube-nocookie.com",
+      "player.vimeo.com",
+      // Code
+      "codepen.io",
+      "codesandbox.io",
+      "stackblitz.com",
+      "jsfiddle.net",
+      // Social / embeds
+      "open.spotify.com",
+      "bandcamp.com",
+      "w.soundcloud.com",
+      "embed.podcasts.apple.com",
+      // Misc
+      "www.google.com",
+      "docs.google.com",
+      "gist.github.com",
+    ],
     transformTags: {
       a: (tagName: string, attribs: Record<string, string>) => ({
         tagName,
@@ -139,6 +213,15 @@ const createSanitizeFeedHtmlOptions = (baseUrl: string | undefined) =>
       blockquote: (tagName: string, attribs: Record<string, string>) => ({
         tagName,
         attribs: resolveTagAttributes(attribs, baseUrl, ["cite"]),
+      }),
+      iframe: (tagName: string, attribs: Record<string, string>) => ({
+        tagName,
+        attribs: {
+          ...resolveTagAttributes(attribs, baseUrl, ["src"]),
+          loading: "lazy",
+          referrerpolicy: "no-referrer",
+          sandbox: "allow-scripts allow-same-origin allow-popups",
+        },
       }),
       img: (tagName: string, attribs: Record<string, string>) => ({
         tagName,
@@ -167,16 +250,16 @@ const createSanitizeFeedHtmlOptions = (baseUrl: string | undefined) =>
     },
   }) satisfies NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 
-const sanitizeFeedHtml = (value: string | undefined, baseUrl?: string) => {
+export const sanitizeReaderHtml = (value: string | undefined, baseUrl?: string) => {
   if (!value) {
     return undefined;
   }
 
-  return trimSanitizedHtml(sanitizeHtml(value, createSanitizeFeedHtmlOptions(baseUrl)));
+  return trimSanitizedHtml(sanitizeHtml(value, createSanitizeHtmlOptions(baseUrl)));
 };
 
 export const sanitizeFeedItems = (items: StoredFeedItem[]) =>
   items.map((item) => ({
     ...item,
-    contentHtml: sanitizeFeedHtml(item.contentHtml, item.url),
+    contentHtml: sanitizeReaderHtml(item.contentHtml, item.url),
   }));
