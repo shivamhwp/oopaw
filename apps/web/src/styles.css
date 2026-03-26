@@ -122,6 +122,7 @@
 
   html {
     @apply font-sans text-base;
+    height: 100%;
     background:
       radial-gradient(
         circle at top left,
@@ -135,12 +136,15 @@
       ),
       var(--background);
     overflow-x: clip;
+    overscroll-behavior: none;
   }
 
   body {
     @apply bg-transparent text-foreground antialiased;
+    height: 100%;
     min-height: 100svh;
     overflow-x: clip;
+    overscroll-behavior: none;
     font-feature-settings:
       "liga" 1,
       "calt" 1;
@@ -208,6 +212,11 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .app-scroll-y {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .reader-prose {

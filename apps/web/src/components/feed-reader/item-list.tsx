@@ -204,7 +204,7 @@ export function ItemList({
       {/* List */}
       <div
         ref={scrollElementRef}
-        className="pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] min-h-0 flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
+        className="app-scroll-y pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] min-h-0 flex-1 overflow-y-auto [touch-action:pan-y]"
         data-scroll-restoration-id={source ? `feed-item-list:${source.id}` : "feed-item-list"}
         onScroll={(event) => onScrollTopChange?.(event.currentTarget.scrollTop)}
       >

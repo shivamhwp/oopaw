@@ -157,7 +157,7 @@ function BookmarksRoute() {
   const bookmarkGrid = (
     <div
       className={cn(
-        "h-full min-w-0 overflow-y-auto",
+        "app-scroll-y h-full min-w-0 overflow-y-auto",
         isMobile ? "px-4 py-4 sm:px-5 sm:py-5" : "px-6 py-6",
       )}
       data-scroll-restoration-id="bookmarks-grid"

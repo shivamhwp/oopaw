@@ -553,7 +553,7 @@ export function FeedReaderBootScreen() {
 
 function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
   return (
-    <div className="h-full min-w-0 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
+    <div className="app-scroll-y h-full min-w-0 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
       <div className="relative flex h-full items-center justify-center">
         <div className="pointer-events-none absolute inset-0 hidden select-none items-center justify-center overflow-hidden md:flex">
           {(
@@ -814,7 +814,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
 
   return (
     <>
-      <div className="min-h-svh flex h-svh flex-col overflow-hidden bg-background">
+      <div className="min-h-svh flex h-svh flex-col overflow-hidden overscroll-none bg-background">
         <AppNavbar
           isPreferencesPending={isPreferencesPending}
           isSignedIn={isSignedIn}

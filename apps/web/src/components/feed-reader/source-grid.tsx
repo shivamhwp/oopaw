@@ -103,7 +103,7 @@ export function SourceGrid({
     return (
       <div
         ref={scrollElementRef}
-        className="h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5"
+        className="app-scroll-y h-full min-w-0 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5"
         data-testid="source-grid-mobile"
         data-scroll-restoration-id="feed-source-grid-mobile"
       >
@@ -128,7 +128,7 @@ export function SourceGrid({
   return (
     <div
       ref={scrollElementRef}
-      className="h-full min-w-0 overflow-y-auto px-6 py-6"
+      className="app-scroll-y h-full min-w-0 overflow-y-auto px-6 py-6"
       data-scroll-restoration-id="feed-source-grid-desktop"
     >
       <div
