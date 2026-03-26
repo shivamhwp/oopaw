@@ -12,6 +12,7 @@ import {
   CornersInIcon,
   CornersOutIcon,
   GlobeHemisphereWestIcon,
+  SpinnerIcon,
   UserIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -111,7 +112,8 @@ export function ReaderPane({
 
   const hasContextMenuActions = onMarkUnread || onBookmarkToggle || onRequireSignIn;
   const isSiteMode = articleViewMode === "site";
-  const showReaderHeader = isMobile || isFullScreen;
+  const isReaderLoading = articleViewMode === "reader" && readerArticleQuery.isPending;
+  const showReaderHeader = (isMobile || isFullScreen) && !isReaderLoading;
   const title = resolvedItem.title;
   const author = resolvedItem.author;
   const date = formatDate(resolvedItem.publishedAt);
@@ -378,7 +380,18 @@ export function ReaderPane({
                 : "pb-[env(safe-area-inset-bottom,0px)] flex-1 min-h-0 overflow-y-auto px-4 py-4 md:px-5 md:py-5"
             }
           >
-            {resolvedItem.contentHtml ? (
+            {isReaderLoading ? (
+              <div className="flex min-h-full items-center justify-center">
+                <div
+                  role="status"
+                  aria-label="Parsing article"
+                  className="flex flex-col items-center gap-3 text-muted-foreground"
+                >
+                  <SpinnerIcon className="size-6 animate-spin" weight="bold" />
+                  <span className="text-sm">Parsing article</span>
+                </div>
+              </div>
+            ) : resolvedItem.contentHtml ? (
               <div className="mx-auto w-full max-w-[52rem]">
                 <article
                   className="reader-prose"
