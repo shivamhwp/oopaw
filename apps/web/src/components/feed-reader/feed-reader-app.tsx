@@ -793,7 +793,6 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
           onClose={handleCloseDetailPanel}
           onToggleFullScreen={handleToggleFullScreen}
           onArticleViewModeChange={setArticleViewMode}
-          onMarkUnread={selectedItem?.isRead ? () => handleMarkUnread(selectedItem.id) : undefined}
         />
       )}
     </div>
@@ -915,7 +914,6 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
             onClose={handleCloseDetailPanel}
             onToggleFullScreen={handleToggleFullScreen}
             onArticleViewModeChange={setArticleViewMode}
-            onMarkUnread={selectedItem.isRead ? () => handleMarkUnread(selectedItem.id) : undefined}
           />
         </div>
       )}

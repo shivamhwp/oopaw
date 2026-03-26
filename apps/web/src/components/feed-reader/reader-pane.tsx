@@ -17,12 +17,6 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/lib/query/keys";
 import type { ArticleViewMode, FeedItem } from "@/lib/types";
@@ -41,7 +35,6 @@ type ReaderPaneProps = {
   onRequireSignIn?: () => void;
   onClose?: () => void;
   onToggleFullScreen?: () => void;
-  onMarkUnread?: () => void;
   onArticleViewModeChange: (mode: ArticleViewMode) => void;
 };
 
@@ -76,7 +69,6 @@ export function ReaderPane({
   onRequireSignIn,
   onClose,
   onToggleFullScreen,
-  onMarkUnread,
   onArticleViewModeChange,
 }: ReaderPaneProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -110,7 +102,6 @@ export function ReaderPane({
 
   if (!resolvedItem) return null;
 
-  const hasContextMenuActions = onMarkUnread || onBookmarkToggle || onRequireSignIn;
   const isSiteMode = articleViewMode === "site";
   const isReaderLoading = articleViewMode === "reader" && readerArticleQuery.isPending;
   const showReaderHeader = (isMobile || isFullScreen) && !isReaderLoading;
@@ -394,14 +385,14 @@ export function ReaderPane({
             ) : resolvedItem.contentHtml ? (
               <div className="mx-auto w-full max-w-[52rem]">
                 <article
-                  className="reader-prose"
+                  className="reader-prose select-text"
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: resolvedItem.contentHtml }}
                 />
               </div>
             ) : resolvedItem.contentText ? (
               <div className="mx-auto w-full max-w-[52rem]">
-                <article className="reader-prose whitespace-pre-wrap">
+                <article className="reader-prose select-text whitespace-pre-wrap">
                   {resolvedItem.contentText}
                 </article>
               </div>
@@ -434,29 +425,6 @@ export function ReaderPane({
       )}
     </div>
   );
-
-  if (hasContextMenuActions) {
-    return (
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{content}</ContextMenuTrigger>
-        <ContextMenuContent>
-          {onMarkUnread && (
-            <ContextMenuItem onSelect={onMarkUnread}>Mark as unread</ContextMenuItem>
-          )}
-          <ContextMenuItem
-            onSelect={onBookmarkToggle ?? onRequireSignIn}
-            disabled={(!onBookmarkToggle && !onRequireSignIn) || isBookmarkPending}
-          >
-            {onBookmarkToggle
-              ? isBookmarked
-                ? "Remove bookmark"
-                : "Add bookmark"
-              : "Sign in to bookmark"}
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    );
-  }
 
   return content;
 }

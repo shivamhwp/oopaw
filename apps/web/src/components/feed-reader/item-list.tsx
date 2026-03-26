@@ -222,7 +222,7 @@ export function ItemList({
                     type="button"
                     onClick={() => onSelect(item.id)}
                     className={cn(
-                      "group w-full px-5 py-3.5 text-left transition-colors",
+                      "group w-full select-none px-5 py-3.5 text-left transition-colors",
                       isSelected ? "bg-primary/[0.04]" : "hover:bg-primary/10",
                     )}
                   >
