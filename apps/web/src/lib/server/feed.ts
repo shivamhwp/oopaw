@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { Result, TaggedError } from "better-result";
 import {
   discoveryResultSchema,
   fetchFeedSourceInputSchema,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/types";
 import { sanitizeFeedItems } from "@/lib/feed/content";
 import { looksLikeFeedDocument, parseFeedDocument } from "@/lib/feed/parser";
+import { unwrapOrThrow } from "@/lib/result";
 import { createSourceId } from "@/lib/feed/utils";
 
 const FEED_NOT_SUPPORTED_ERROR =
@@ -29,17 +31,12 @@ type FeedIngestionErrorCode =
   | "parse_failed"
   | "network_error";
 
-class FeedIngestionError extends Error {
+class FeedIngestionError extends TaggedError("FeedIngestionError")<{
   code: FeedIngestionErrorCode;
+  message: string;
   status?: number;
-
-  constructor(code: FeedIngestionErrorCode, message: string, options?: { status?: number }) {
-    super(message);
-    this.name = "FeedIngestionError";
-    this.code = code;
-    this.status = options?.status;
-  }
-}
+  cause?: unknown;
+}>() {}
 
 type FeedDocument = {
   body: string;
@@ -56,7 +53,30 @@ const throwFeedError = (
   message: string,
   options?: { status?: number },
 ): never => {
-  throw new FeedIngestionError(code, message, options);
+  throw new FeedIngestionError({ code, message, status: options?.status });
+};
+
+const toFeedIngestionError = (cause: unknown) => {
+  if (FeedIngestionError.is(cause)) {
+    return cause;
+  }
+
+  if (cause instanceof Error && cause.name === "AbortError") {
+    return new FeedIngestionError({
+      code: "network_timeout",
+      message: "The feed took too long to respond.",
+      cause,
+    });
+  }
+
+  return new FeedIngestionError({
+    code: "network_error",
+    message:
+      cause instanceof Error && cause.message
+        ? cause.message
+        : "The feed could not be reached right now.",
+    cause,
+  });
 };
 
 const inspectFeedDocument = (body: string) => {
@@ -107,37 +127,44 @@ const fetchRemoteDocument = async (url: string): Promise<FeedDocument> => {
   const { signal, dispose } = createTimeoutSignal(FEED_FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      headers: feedRequestHeaders,
-      redirect: "follow",
-      signal,
-    });
+    return unwrapOrThrow(
+      await Result.tryPromise(
+        {
+          try: async () => {
+            const response = await fetch(url, {
+              headers: feedRequestHeaders,
+              redirect: "follow",
+              signal,
+            });
 
-    if (!response.ok) {
-      throwFeedError("http_error", `The feed request failed with status ${response.status}.`, {
-        status: response.status,
-      });
-    }
+            if (!response.ok) {
+              throwFeedError(
+                "http_error",
+                `The feed request failed with status ${response.status}.`,
+                {
+                  status: response.status,
+                },
+              );
+            }
 
-    return {
-      body: await readResponseBody(response),
-      finalUrl: response.url,
-      contentType: response.headers.get("content-type") ?? "",
-    };
-  } catch (error) {
-    if (error instanceof FeedIngestionError) {
-      throw error;
-    }
-
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new FeedIngestionError("network_timeout", "The feed took too long to respond.");
-    }
-
-    throw new FeedIngestionError(
-      "network_error",
-      error instanceof Error && error.message
-        ? error.message
-        : "The feed could not be reached right now.",
+            return {
+              body: await readResponseBody(response),
+              finalUrl: response.url,
+              contentType: response.headers.get("content-type") ?? "",
+            };
+          },
+          catch: toFeedIngestionError,
+        },
+        {
+          retry: {
+            times: 1,
+            delayMs: 150,
+            backoff: "constant",
+            shouldRetry: (error) =>
+              error.code === "network_error" || error.code === "network_timeout",
+          },
+        },
+      ),
     );
   } finally {
     dispose();
@@ -153,25 +180,37 @@ const validateFeedDocument = (document: FeedDocument) => {
 };
 
 const parseFetchedFeedDocument = (document: FeedDocument, sourceId?: string) => {
-  try {
-    return parseFeedDocument({
-      body: document.body,
-      baseUrl: document.finalUrl,
-      sourceId: sourceId ?? createSourceId(document.finalUrl),
-    });
-  } catch (error) {
-    if (error instanceof FeedIngestionError) {
-      throw error;
-    }
+  return unwrapOrThrow(
+    Result.try({
+      try: () =>
+        parseFeedDocument({
+          body: document.body,
+          baseUrl: document.finalUrl,
+          sourceId: sourceId ?? createSourceId(document.finalUrl),
+        }),
+      catch: (cause) => {
+        if (FeedIngestionError.is(cause)) {
+          return cause;
+        }
 
-    const message = error instanceof Error ? error.message : "";
+        const message = cause instanceof Error ? cause.message : "";
 
-    if (message === FEED_NOT_SUPPORTED_ERROR) {
-      throw new FeedIngestionError("unsupported_feed", FEED_NOT_SUPPORTED_ERROR);
-    }
+        if (message === FEED_NOT_SUPPORTED_ERROR) {
+          return new FeedIngestionError({
+            code: "unsupported_feed",
+            message: FEED_NOT_SUPPORTED_ERROR,
+            cause,
+          });
+        }
 
-    throw new FeedIngestionError("parse_failed", "This feed could not be parsed.");
-  }
+        return new FeedIngestionError({
+          code: "parse_failed",
+          message: "This feed could not be parsed.",
+          cause,
+        });
+      },
+    }),
+  );
 };
 
 const normalizeFeedSource = async (document: FeedDocument, sourceId?: string) => {

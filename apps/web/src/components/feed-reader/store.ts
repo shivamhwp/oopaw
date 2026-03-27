@@ -8,7 +8,6 @@ import {
   setSelectedSource,
 } from "@/lib/feed-reader-state";
 import {
-  FEED_READER_STATE_STORAGE_KEY,
   type ArticleViewMode,
   type DiscoveryResult,
   type LoadMoreSourceItemsResult,
@@ -45,12 +44,7 @@ export type DetailPanelState =
   | { mode: "list"; sourceId: string }
   | { mode: "reader"; sourceId: string; itemId: string };
 
-export const feedReaderStateAtom = atomWithStorage(
-  FEED_READER_STATE_STORAGE_KEY,
-  createEmptyFeedReaderState(),
-  undefined,
-  { getOnInit: true },
-);
+export const feedReaderStateAtom = atom(createEmptyFeedReaderState());
 
 export const sourceInputAtom = atom("");
 export const showAddFormAtom = atom(false);

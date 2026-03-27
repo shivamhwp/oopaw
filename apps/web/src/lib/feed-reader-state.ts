@@ -14,8 +14,6 @@ export const createEmptyFeedReaderState = (): FeedReaderState => ({
   version: FEED_READER_STATE_VERSION,
   sources: [],
   itemsBySource: {},
-  readItemIds: [],
-  seenItemIdsBySource: {},
   selectedSourceId: null,
   paginationBySource: {},
 });
@@ -42,18 +40,12 @@ const createSourcePagination = (
 });
 
 export const mergeSourceDiscovery = (state: FeedReaderState, discovery: DiscoveryResult) => {
-  const itemIds = discovery.items.map((item) => item.id);
-
   return {
     ...state,
     sources: upsertSource(state.sources, discovery.source),
     itemsBySource: {
       ...state.itemsBySource,
       [discovery.source.id]: dedupeItems(discovery.items),
-    },
-    seenItemIdsBySource: {
-      ...state.seenItemIdsBySource,
-      [discovery.source.id]: itemIds,
     },
     selectedSourceId: discovery.source.id,
     paginationBySource: {
@@ -149,28 +141,6 @@ export const setSourceError = (state: FeedReaderState, sourceId: string, message
   ),
 });
 
-export const markItemRead = (state: FeedReaderState, sourceId: string, itemId: string) => {
-  const readItemIds = state.readItemIds.includes(itemId)
-    ? state.readItemIds
-    : [...state.readItemIds, itemId];
-  const sourceSeenIds = state.seenItemIdsBySource[sourceId] ?? [];
-  const seenItemIds = sourceSeenIds.includes(itemId) ? sourceSeenIds : [...sourceSeenIds, itemId];
-
-  return {
-    ...state,
-    readItemIds,
-    seenItemIdsBySource: {
-      ...state.seenItemIdsBySource,
-      [sourceId]: seenItemIds,
-    },
-  };
-};
-
-export const markItemUnread = (state: FeedReaderState, itemId: string) => ({
-  ...state,
-  readItemIds: state.readItemIds.filter((id) => id !== itemId),
-});
-
 export const setSelectedSource = (state: FeedReaderState, sourceId: string | null) => ({
   ...state,
   selectedSourceId: sourceId,
@@ -182,14 +152,12 @@ export const removeSource = (state: FeedReaderState, sourceId: string) => {
     state.selectedSourceId === sourceId ? (sources[0]?.id ?? null) : state.selectedSourceId;
 
   const { [sourceId]: _, ...itemsBySource } = state.itemsBySource;
-  const { [sourceId]: __, ...seenItemIdsBySource } = state.seenItemIdsBySource;
-  const { [sourceId]: ___, ...paginationBySource } = state.paginationBySource;
+  const { [sourceId]: __, ...paginationBySource } = state.paginationBySource;
 
   return {
     ...state,
     sources,
     itemsBySource,
-    seenItemIdsBySource,
     selectedSourceId: nextSelectedSourceId,
     paginationBySource,
   };
@@ -226,14 +194,8 @@ export const syncSourcesFromConvex = (
   const itemsBySource = Object.fromEntries(
     Object.entries(state.itemsBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
   );
-  const seenItemIdsBySource = Object.fromEntries(
-    Object.entries(state.seenItemIdsBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
-  );
   const paginationBySource = Object.fromEntries(
     Object.entries(state.paginationBySource).filter(([sourceId]) => validSourceIds.has(sourceId)),
-  );
-  const readItemIds = state.readItemIds.filter((id) =>
-    Object.values(itemsBySource).some((items) => items.some((item) => item.id === id)),
   );
   const selectedSourceId =
     state.selectedSourceId && validSourceIds.has(state.selectedSourceId)
@@ -244,20 +206,20 @@ export const syncSourcesFromConvex = (
     ...state,
     sources,
     itemsBySource,
-    seenItemIdsBySource,
-    readItemIds,
     paginationBySource,
     selectedSourceId,
   };
 };
 
-export const getSourceItems = (state: FeedReaderState, sourceId: string): FeedItem[] => {
-  const readIds = new Set(state.readItemIds);
-  const seenIds = new Set(state.seenItemIdsBySource[sourceId] ?? []);
+export type FeedItemStateMap = Record<string, { isRead: boolean; isSeen: boolean }>;
 
-  return sortItemsNewestFirst(state.itemsBySource[sourceId] ?? []).map((item) => ({
+export const getSourceItems = (
+  state: FeedReaderState,
+  sourceId: string,
+  itemStateMap: FeedItemStateMap = {},
+): FeedItem[] =>
+  sortItemsNewestFirst(state.itemsBySource[sourceId] ?? []).map((item) => ({
     ...item,
-    isNew: !seenIds.has(item.id),
-    isRead: readIds.has(item.id),
+    isNew: !itemStateMap[item.id]?.isSeen,
+    isRead: Boolean(itemStateMap[item.id]?.isRead),
   }));
-};

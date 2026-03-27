@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Readability } from "@mozilla/readability";
+import { Result, TaggedError } from "better-result";
 import { parseHTML } from "linkedom";
 import { sanitizeReaderHtml } from "@/lib/feed/content";
+import { unwrapOrThrow } from "@/lib/result";
 import { createExcerpt, normalizeOptionalDate, resolveUrl, stripHtml } from "@/lib/feed/utils";
 import { extractReaderArticleInputSchema, extractedReaderArticleSchema } from "@/lib/types";
 
@@ -64,6 +66,12 @@ const LAZY_SRC_ATTRS = [
 
 const LAZY_SRCSET_ATTRS = ["data-srcset", "data-lazy-srcset", "data-sizes-srcset"] as const;
 
+class ArticleLoadError extends TaggedError("ArticleLoadError")<{
+  message: string;
+  status?: number;
+  cause?: unknown;
+}>() {}
+
 const readResponseBody = async (response: Response) => {
   if (!response.body) {
     return response.text();
@@ -105,26 +113,59 @@ const fetchArticleHtml = async (url: string) => {
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      headers: FETCH_HEADERS,
-      redirect: "follow",
-      signal: controller.signal,
-    });
+    return unwrapOrThrow(
+      await Result.tryPromise(
+        {
+          try: async () => {
+            const response = await fetch(url, {
+              headers: FETCH_HEADERS,
+              redirect: "follow",
+              signal: controller.signal,
+            });
 
-    if (!response.ok) {
-      throw new Error(`The article request failed with status ${response.status}.`);
-    }
+            if (!response.ok) {
+              throw new ArticleLoadError({
+                message: `The article request failed with status ${response.status}.`,
+                status: response.status,
+              });
+            }
 
-    return {
-      html: await readResponseBody(response),
-      finalUrl: response.url,
-    };
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("The article took too long to respond.");
-    }
+            return {
+              html: await readResponseBody(response),
+              finalUrl: response.url,
+            };
+          },
+          catch: (cause) => {
+            if (ArticleLoadError.is(cause)) {
+              return cause;
+            }
 
-    throw error instanceof Error ? error : new Error("The article could not be loaded.");
+            if (cause instanceof Error && cause.name === "AbortError") {
+              return new ArticleLoadError({
+                message: "The article took too long to respond.",
+                cause,
+              });
+            }
+
+            return new ArticleLoadError({
+              message:
+                cause instanceof Error && cause.message
+                  ? cause.message
+                  : "The article could not be loaded.",
+              cause,
+            });
+          },
+        },
+        {
+          retry: {
+            times: 1,
+            delayMs: 150,
+            backoff: "constant",
+            shouldRetry: (error) => error.status !== 404,
+          },
+        },
+      ),
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -419,29 +460,43 @@ const extractReaderArticle = async (input: {
     imageUrl: item.imageUrl,
   });
 
-  try {
-    const fetched = await fetchArticleHtml(item.url);
-    const readable = extractWithReadability(fetched.html, fetched.finalUrl);
+  const extractedArticle = await Result.tryPromise({
+    try: async () => {
+      const fetched = await fetchArticleHtml(item.url);
+      const readable = extractWithReadability(fetched.html, fetched.finalUrl);
 
-    if (!readable) {
-      return fallbackArticle;
-    }
+      if (!readable) {
+        return fallbackArticle;
+      }
 
-    return extractedReaderArticleSchema.parse({
-      title: readable.title || item.title,
-      excerpt: readable.excerpt ?? item.excerpt,
-      contentHtml: readable.contentHtml,
-      publishedAt: readable.publishedAt ?? item.publishedAt,
-      author: readable.author || item.author,
-      imageUrl: readable.imageUrl ?? item.imageUrl,
-    });
-  } catch (error) {
-    if (fallbackArticle.contentHtml || fallbackArticle.contentText) {
-      return fallbackArticle;
-    }
+      return extractedReaderArticleSchema.parse({
+        title: readable.title || item.title,
+        excerpt: readable.excerpt ?? item.excerpt,
+        contentHtml: readable.contentHtml,
+        publishedAt: readable.publishedAt ?? item.publishedAt,
+        author: readable.author || item.author,
+        imageUrl: readable.imageUrl ?? item.imageUrl,
+      });
+    },
+    catch: (cause) =>
+      ArticleLoadError.is(cause)
+        ? cause
+        : new ArticleLoadError({
+            message: "The article could not be extracted.",
+            cause,
+          }),
+  });
 
-    throw error;
-  }
+  return extractedArticle.match({
+    ok: (article) => article,
+    err: (error) => {
+      if (fallbackArticle.contentHtml || fallbackArticle.contentText) {
+        return fallbackArticle;
+      }
+
+      throw error;
+    },
+  });
 };
 
 export const loadReaderArticle = createServerFn({ method: "POST" })

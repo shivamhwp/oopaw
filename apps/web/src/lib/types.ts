@@ -69,11 +69,9 @@ export const loadMoreSourceItemsResultSchema = z.object({
 });
 
 export const feedReaderStateSchema = z.object({
-  version: z.literal(3),
+  version: z.literal(4),
   sources: z.array(savedSourceSchema),
   itemsBySource: z.record(z.string(), z.array(storedFeedItemSchema)),
-  readItemIds: z.array(z.string()),
-  seenItemIdsBySource: z.record(z.string(), z.array(z.string())),
   selectedSourceId: z.string().nullable(),
   paginationBySource: z.record(z.string(), sourcePaginationSchema),
 });
@@ -119,8 +117,7 @@ export const extractedReaderArticleSchema = z.object({
 });
 
 export const POLL_INTERVAL_MS = 15 * 60_000;
-export const FEED_READER_STATE_VERSION = 3;
-export const FEED_READER_STATE_STORAGE_KEY = "papertrail.feed-reader.state";
+export const FEED_READER_STATE_VERSION = 4;
 
 export type ArticleViewMode = z.infer<typeof articleViewModeSchema>;
 export type SavedSource = z.infer<typeof savedSourceSchema>;

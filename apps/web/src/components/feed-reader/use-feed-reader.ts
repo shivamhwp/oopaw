@@ -1,8 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import { useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useConvexAuth, useQuery as useConvexQuery } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { startTransition, useState } from "react";
+import { startTransition } from "react";
 import { toast } from "sonner";
 import {
   addSourceSuccessAtom,
@@ -22,18 +23,27 @@ import {
   toggleReaderFullScreenAtom,
 } from "@/components/feed-reader/store";
 import {
-  applySourceRefresh,
-  getSourceItems,
+  getCachedFeedReaderData,
   markItemRead,
   markItemUnread,
+  markItemsSeen,
+  pruneRemovedSources,
+  shouldRefreshSource,
+  SOURCE_STALE_TTL_MS,
+  upsertSourceItems,
+  upsertSourceMeta,
+} from "@/lib/feed-reader-db";
+import {
+  applySourceRefresh,
+  getSourceItems,
   setSourceError,
   syncSourcesFromConvex,
+  type FeedItemStateMap,
 } from "@/lib/feed-reader-state";
 import { api } from "@/lib/convex";
-import { defaultUserPreferences } from "@/lib/preferences";
-import { queryKeys } from "@/lib/query/keys";
-import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import { normalizeInputUrl } from "@/lib/feed/utils";
+import { defaultUserPreferences } from "@/lib/preferences";
+import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
 import { fetchFeedSource, loadMoreFeedItems, refreshFeedSource } from "@/lib/server/feed";
 import {
   discoveryResultSchema,
@@ -55,10 +65,55 @@ const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) =>
 
 const assertDiscoveryResult = (value: unknown) => discoveryResultSchema.parse(value);
 
+const mergeCachedState = (
+  state: FeedReaderState,
+  metaBySource: Record<
+    string,
+    {
+      lastCheckedAt?: string;
+      lastError?: string;
+      loadedPageUrls: string[];
+      nextPageUrl?: string;
+    }
+  >,
+  itemsBySource: FeedReaderState["itemsBySource"],
+) => ({
+  ...state,
+  sources: state.sources.map((source) => ({
+    ...source,
+    lastCheckedAt: metaBySource[source.id]?.lastCheckedAt ?? source.lastCheckedAt,
+    lastError: metaBySource[source.id]?.lastError,
+  })),
+  itemsBySource,
+  paginationBySource: Object.fromEntries(
+    state.sources.map((source) => [
+      source.id,
+      {
+        loadedPageUrls: metaBySource[source.id]?.loadedPageUrls ?? [source.feedUrl],
+        nextPageUrl: metaBySource[source.id]?.nextPageUrl,
+      },
+    ]),
+  ),
+});
+
+const setItemStateEntry = (
+  itemStateBySource: Record<string, FeedItemStateMap>,
+  sourceId: string,
+  itemId: string,
+  nextState: { isRead: boolean; isSeen: boolean },
+) => ({
+  ...itemStateBySource,
+  [sourceId]: {
+    ...(itemStateBySource[sourceId] ?? {}),
+    [itemId]: nextState,
+  },
+});
+
 export function useFeedReader() {
   const convexAuth = useConvexAuth();
-  const queryClient = useQueryClient();
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const [refreshingSourceIds, setRefreshingSourceIds] = useState<string[]>([]);
+  const [itemStateBySource, setItemStateBySource] = useState<Record<string, FeedItemStateMap>>({});
   const baseState = useAtomValue(feedReaderStateAtom);
   const setFeedReaderState = useSetAtom(feedReaderStateAtom);
   const [sourceInput, setSourceInput] = useAtom(sourceInputAtom);
@@ -98,63 +153,145 @@ export function useFeedReader() {
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
   const effectivePreferences = preferences ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
-  const syncedState =
+  const state =
     canReadUserData && feedSubscriptions
       ? syncSourcesFromConvex(baseState, feedSubscriptions)
       : baseState;
-  const sourceRefreshQueries = useQueries({
-    queries: syncedState.sources.map((source) => ({
-      queryKey: queryKeys.sourceItems(source.id),
-      queryFn: async () => {
-        try {
-          return await refreshFeedSource({
-            data: {
-              source,
-              seenItemIds: syncedState.seenItemIdsBySource[source.id] ?? [],
-            },
-          });
-        } catch (error) {
-          recoverFromStaleDeployment(error);
-          throw error;
-        }
-      },
-      enabled: true,
-      initialData:
-        source.lastCheckedAt && (syncedState.itemsBySource[source.id] ?? []).length
-          ? {
-              sourceId: source.id,
-              items: syncedState.itemsBySource[source.id] ?? [],
-              newCount: 0,
-              checkedAt: source.lastCheckedAt,
-              nextPageUrl: syncedState.paginationBySource[source.id]?.nextPageUrl,
-            }
-          : undefined,
-      initialDataUpdatedAt: source.lastCheckedAt ? Date.parse(source.lastCheckedAt) : undefined,
-      refetchInterval: source.pollingEnabled ? source.pollIntervalMs : false,
-      refetchIntervalInBackground: false,
-    })),
-  });
-  const refreshedState = sourceRefreshQueries.reduce((currentState, query) => {
-    if (!query.data) {
-      return currentState;
+  const stateRef = useRef(state);
+  const itemStateBySourceRef = useRef(itemStateBySource);
+  const refreshSourceNowRef = useRef<(source: SavedSource, force?: boolean) => Promise<void>>(
+    async () => {},
+  );
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    itemStateBySourceRef.current = itemStateBySource;
+  }, [itemStateBySource]);
+
+  const hydrateSourceIds = canReadUserData
+    ? (feedSubscriptions ?? []).map((source) => source.id)
+    : state.sources.map((source) => source.id);
+  const hydrateSources = canReadUserData && feedSubscriptions ? feedSubscriptions : state.sources;
+  const hydrateSourceKey = hydrateSourceIds.join("|");
+
+  const persistRefreshResult = async (source: SavedSource, result: RefreshResult) => {
+    const loadedPageUrls = stateRef.current.paginationBySource[source.id]?.loadedPageUrls ?? [
+      source.feedUrl,
+    ];
+
+    await Promise.all([
+      upsertSourceItems(source.id, result.items),
+      upsertSourceMeta({
+        sourceId: source.id,
+        lastFetchedAt: Date.now(),
+        lastCheckedAt: result.checkedAt,
+        nextPageUrl: result.nextPageUrl,
+        loadedPageUrls,
+      }),
+    ]);
+
+    setFeedReaderState((currentState) => applySourceRefresh(currentState, result));
+  };
+
+  const refreshSourceNow = async (source: SavedSource, force = false) => {
+    setRefreshingSourceIds((current) =>
+      current.includes(source.id) ? current : [...current, source.id],
+    );
+
+    try {
+      if (!force && !(await shouldRefreshSource(source.id, SOURCE_STALE_TTL_MS))) {
+        return;
+      }
+
+      const seenItemIds = Object.entries(itemStateBySourceRef.current[source.id] ?? {})
+        .filter(([, entry]) => entry.isSeen)
+        .map(([itemId]) => itemId);
+      const result = await withStaleDeploymentRecovery(() =>
+        refreshFeedSource({
+          data: {
+            source,
+            seenItemIds,
+          },
+        }),
+      );
+
+      await persistRefreshResult(source, result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "This source could not be refreshed right now.";
+      const pagination = stateRef.current.paginationBySource[source.id];
+
+      await upsertSourceMeta({
+        sourceId: source.id,
+        lastFetchedAt:
+          (await getCachedFeedReaderData([source.id])).metaBySource[source.id]?.lastFetchedAt ?? 0,
+        lastCheckedAt:
+          stateRef.current.sources.find((entry) => entry.id === source.id)?.lastCheckedAt ??
+          undefined,
+        nextPageUrl: pagination?.nextPageUrl,
+        loadedPageUrls: pagination?.loadedPageUrls ?? [source.feedUrl],
+        lastError: message,
+      });
+      setFeedReaderState((currentState) => setSourceError(currentState, source.id, message));
+    } finally {
+      setRefreshingSourceIds((current) => current.filter((sourceId) => sourceId !== source.id));
+    }
+  };
+  refreshSourceNowRef.current = refreshSourceNow;
+
+  useEffect(() => {
+    if (convexAuth.isLoading || (canReadUserData && feedSubscriptions === undefined)) {
+      return;
     }
 
-    return applySourceRefresh(currentState, query.data as RefreshResult);
-  }, syncedState);
-  const state = sourceRefreshQueries.reduce((currentState, query, index) => {
-    if (!query.error) {
-      return currentState;
-    }
+    let isCancelled = false;
 
-    const message =
-      query.error instanceof Error
-        ? query.error.message
-        : "This source could not be refreshed right now.";
+    void (async () => {
+      await pruneRemovedSources(hydrateSourceIds);
+      const cached = await getCachedFeedReaderData(hydrateSourceIds);
 
-    return setSourceError(currentState, syncedState.sources[index]!.id, message);
-  }, refreshedState);
+      if (isCancelled) {
+        return;
+      }
+
+      setItemStateBySource(cached.itemStateBySource);
+      setFeedReaderState((currentState) =>
+        mergeCachedState(
+          canReadUserData && feedSubscriptions
+            ? syncSourcesFromConvex(currentState, feedSubscriptions)
+            : currentState,
+          cached.metaBySource,
+          cached.itemsBySource,
+        ),
+      );
+
+      await Promise.all(
+        hydrateSources.map(async (source) => {
+          if (await shouldRefreshSource(source.id, SOURCE_STALE_TTL_MS)) {
+            await refreshSourceNowRef.current(source);
+          }
+        }),
+      );
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    canReadUserData,
+    convexAuth.isLoading,
+    feedSubscriptions,
+    hydrateSourceIds,
+    hydrateSourceKey,
+    hydrateSources,
+    setFeedReaderState,
+  ]);
+
   const sourceSummaries = state.sources.map((source) => {
-    const items = getSourceItems(state, source.id);
+    const items = getSourceItems(state, source.id, itemStateBySource[source.id]);
 
     return {
       source,
@@ -184,16 +321,6 @@ export function useFeedReader() {
       ? currentBlogViewMode
       : effectivePreferences.defaultView;
 
-  const updateFeedReaderState = (updater: (state: FeedReaderState) => FeedReaderState) => {
-    setFeedReaderState((currentState) =>
-      updater(
-        canReadUserData && feedSubscriptions
-          ? syncSourcesFromConvex(currentState, feedSubscriptions)
-          : currentState,
-      ),
-    );
-  };
-
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) =>
       assertDiscoveryResult(
@@ -210,9 +337,32 @@ export function useFeedReader() {
       toast.loading("Checking feed...", { id: "add-feed" });
     },
     onSuccess: async (discovery) => {
+      await Promise.all([
+        upsertSourceItems(discovery.source.id, discovery.items),
+        upsertSourceMeta({
+          sourceId: discovery.source.id,
+          lastFetchedAt: Date.now(),
+          lastCheckedAt: discovery.checkedAt,
+          nextPageUrl: discovery.nextPageUrl,
+          loadedPageUrls: [discovery.source.feedUrl],
+        }),
+        markItemsSeen(
+          discovery.source.id,
+          discovery.items.map((item) => item.id),
+        ),
+      ]);
+
+      setItemStateBySource((current) => ({
+        ...current,
+        [discovery.source.id]: Object.fromEntries(
+          discovery.items.map((item) => [item.id, { isRead: false, isSeen: true }]),
+        ),
+      }));
+
       startTransition(() => {
         addSourceSuccess(discovery);
       });
+
       if (canReadUserData) {
         await addFeedSubscription({
           sourceId: discovery.source.id,
@@ -224,6 +374,7 @@ export function useFeedReader() {
           pollIntervalMs: discovery.source.pollIntervalMs,
         });
       }
+
       toast.success(`Added ${discovery.source.label}.`, { id: "add-feed" });
     },
     onError: (error) => {
@@ -240,16 +391,31 @@ export function useFeedReader() {
           data: { source, pageUrl },
         }),
       ),
-    onSuccess: (result) => {
+    onSuccess: async (result, variables) => {
+      await Promise.all([
+        upsertSourceItems(result.sourceId, result.items),
+        upsertSourceMeta({
+          sourceId: result.sourceId,
+          lastFetchedAt:
+            (await getCachedFeedReaderData([result.sourceId])).metaBySource[result.sourceId]
+              ?.lastFetchedAt ?? Date.now(),
+          lastCheckedAt: stateRef.current.sources.find((source) => source.id === result.sourceId)
+            ?.lastCheckedAt,
+          nextPageUrl: result.nextPageUrl,
+          loadedPageUrls: [
+            ...(stateRef.current.paginationBySource[result.sourceId]?.loadedPageUrls ?? [
+              variables.source.feedUrl,
+            ]),
+            result.pageUrl,
+          ].filter((value, index, values) => values.indexOf(value) === index),
+        }),
+      ]);
+
       startTransition(() => {
         applyLoadMore(result);
       });
     },
   });
-
-  const refreshingSourceIds = syncedState.sources
-    .filter((_, index) => sourceRefreshQueries[index]?.fetchStatus === "fetching")
-    .map((source) => source.id);
 
   const handleAddSource = () => {
     if (!sourceInput.trim()) {
@@ -298,9 +464,13 @@ export function useFeedReader() {
       return;
     }
 
-    updateFeedReaderState((currentState) =>
-      markItemRead(currentState, detailPanel.sourceId, itemId),
+    setItemStateBySource((current) =>
+      setItemStateEntry(current, detailPanel.sourceId, itemId, {
+        isRead: true,
+        isSeen: true,
+      }),
     );
+    void markItemRead(detailPanel.sourceId, itemId);
     openItem({
       sourceId: detailPanel.sourceId,
       itemId,
@@ -321,7 +491,13 @@ export function useFeedReader() {
   };
 
   const handleRefreshSource = async (sourceId: string) => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.sourceItems(sourceId) });
+    const source = state.sources.find((entry) => entry.id === sourceId);
+
+    if (!source) {
+      return;
+    }
+
+    await refreshSourceNow(source, true);
   };
 
   const handleRefreshAll = async () => {
@@ -330,7 +506,7 @@ export function useFeedReader() {
     }
 
     setIsRefreshingAll(true);
-    const sourceCount = syncedState.sources.length;
+    const sourceCount = state.sources.length;
     const loadingMessage =
       sourceCount > 0
         ? `Refreshing ${sourceCount} feed${sourceCount === 1 ? "" : "s"}...`
@@ -339,7 +515,7 @@ export function useFeedReader() {
     toast.loading(loadingMessage, { id: "refresh-all-feeds" });
 
     try {
-      await queryClient.invalidateQueries({ queryKey: ["source-items"] });
+      await Promise.all(state.sources.map((source) => refreshSourceNow(source, true)));
       toast.success("Feeds refreshed.", { id: "refresh-all-feeds" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not refresh feeds.", {
@@ -352,7 +528,15 @@ export function useFeedReader() {
 
   const handleRemoveSource = async (sourceId: string) => {
     removeFeedSource(sourceId);
-    void queryClient.removeQueries({ queryKey: queryKeys.sourceItems(sourceId) });
+    setItemStateBySource((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([currentSourceId]) => currentSourceId !== sourceId),
+      ),
+    );
+    await pruneRemovedSources(
+      state.sources.filter((source) => source.id !== sourceId).map((source) => source.id),
+    );
+
     if (canReadUserData) {
       await removeFeedSubscription({ sourceId });
     }
@@ -410,6 +594,20 @@ export function useFeedReader() {
     });
   };
 
+  const handleMarkUnread = (itemId: string) => {
+    if (detailPanel.mode === "closed") {
+      return;
+    }
+
+    setItemStateBySource((current) =>
+      setItemStateEntry(current, detailPanel.sourceId, itemId, {
+        isRead: false,
+        isSeen: true,
+      }),
+    );
+    void markItemUnread(detailPanel.sourceId, itemId);
+  };
+
   return {
     state,
     sourceInput,
@@ -454,7 +652,6 @@ export function useFeedReader() {
     handleToggleFullScreen,
     handleToggleBookmark,
     handleBookmarkItem,
-    handleMarkUnread: (itemId: string) =>
-      updateFeedReaderState((currentState) => markItemUnread(currentState, itemId)),
+    handleMarkUnread,
   };
 }

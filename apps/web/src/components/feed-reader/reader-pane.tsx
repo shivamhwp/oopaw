@@ -99,19 +99,8 @@ export function ReaderPane({
           ...readerArticleQuery.data,
         }
       : item;
-
-  if (!resolvedItem) return null;
-
-  const isSiteMode = articleViewMode === "site";
-  const isReaderLoading = articleViewMode === "reader" && readerArticleQuery.isPending;
-  const showReaderHeader = (isMobile || isFullScreen) && !isReaderLoading;
-  const title = resolvedItem.title;
-  const author = resolvedItem.author;
-  const date = formatDate(resolvedItem.publishedAt);
-  const readerText = resolvedItem.contentText ?? stripHtml(resolvedItem.contentHtml);
-  const readTimeMinutes = readerText
-    ? Math.max(1, Math.ceil(readerText.split(/\s+/).length / 220))
-    : undefined;
+  const resolvedItemId = resolvedItem?.id;
+  const resolvedItemContentHtml = resolvedItem?.contentHtml;
   const resetCopyState = () => {
     if (resetCopyStateTimeoutRef.current) {
       window.clearTimeout(resetCopyStateTimeoutRef.current);
@@ -123,6 +112,10 @@ export function ReaderPane({
     }, 1800);
   };
   const handleCopyOriginalUrl = async () => {
+    if (!resolvedItem) {
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(resolvedItem.url);
       setCopyState("copied");
@@ -134,6 +127,10 @@ export function ReaderPane({
   };
 
   useEffect(() => {
+    if (!resolvedItemId) {
+      return;
+    }
+
     const container = readerContentRef.current;
 
     if (!container) {
@@ -169,7 +166,20 @@ export function ReaderPane({
     return () => {
       container.removeEventListener("click", handleReaderContentClick);
     };
-  }, [isMobile, resolvedItem.contentHtml, resolvedItem.id]);
+  }, [isMobile, resolvedItemContentHtml, resolvedItemId]);
+
+  if (!resolvedItem) return null;
+
+  const isSiteMode = articleViewMode === "site";
+  const isReaderLoading = articleViewMode === "reader" && readerArticleQuery.isPending;
+  const showReaderHeader = (isMobile || isFullScreen) && !isReaderLoading;
+  const title = resolvedItem.title;
+  const author = resolvedItem.author;
+  const date = formatDate(resolvedItem.publishedAt);
+  const readerText = resolvedItem.contentText ?? stripHtml(resolvedItem.contentHtml);
+  const readTimeMinutes = readerText
+    ? Math.max(1, Math.ceil(readerText.split(/\s+/).length / 220))
+    : undefined;
   const modeToggle = (
     <Tabs
       value={articleViewMode}
