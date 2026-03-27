@@ -320,6 +320,8 @@ export function useFeedReader() {
     detailPanel.mode === "reader" && currentBlogViewMode
       ? currentBlogViewMode
       : effectivePreferences.defaultView;
+  const isSourcesLoading =
+    convexAuth.isLoading || (canReadUserData && feedSubscriptions === undefined);
 
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) =>
@@ -627,6 +629,7 @@ export function useFeedReader() {
     isBookmarked: selectedItem ? bookmarkedUrls.has(selectedItem.url) : false,
     isItemBookmarked: (item: FeedItem) => bookmarkedUrls.has(item.url),
     isBookmarkPending: bookmarkMutation.isPending,
+    isSourcesLoading,
     refreshingSourceIds,
     isRefreshingAll,
     isLoadingMoreDetailPanelItems: loadMoreSourceItemsMutation.isPending,

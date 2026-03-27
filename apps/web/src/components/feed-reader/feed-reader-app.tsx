@@ -551,7 +551,7 @@ export function FeedReaderBootScreen() {
   );
 }
 
-function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
+function EmptyFeedState({ isMobile, isLoading }: { isMobile: boolean; isLoading: boolean }) {
   return (
     <div className="app-scroll-y h-full min-w-0 overflow-y-auto px-4 py-5 md:px-6 md:py-6">
       <div className="relative flex h-full items-center justify-center">
@@ -583,23 +583,45 @@ function EmptyFeedState({ isMobile }: { isMobile: boolean }) {
           ))}
         </div>
 
-        <div className="relative z-10 flex max-w-sm flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div
-            className={cn(
-              "mb-5 flex items-center justify-center rounded-full text-muted-foreground",
-              isMobile ? "size-16" : "size-18",
-            )}
-            style={{
-              background: "color-mix(in oklab, var(--muted-foreground) 10%, transparent)",
-              boxShadow: "0 0 0 10px color-mix(in oklab, var(--muted-foreground) 5%, transparent)",
-            }}
-          >
-            <CowIcon weight="duotone" className={cn(isMobile ? "size-8" : "size-9")} />
+        {isLoading ? (
+          <div className="relative z-10 flex max-w-md animate-in items-center gap-4 rounded-2xl border border-border/60 bg-background/85 px-5 py-4 text-left backdrop-blur-sm fade-in slide-in-from-bottom-2 duration-500">
+            <div
+              className="flex size-12 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+              style={{
+                background: "color-mix(in oklab, var(--muted-foreground) 10%, transparent)",
+              }}
+            >
+              <PhoneCallIcon weight="duotone" className="size-6" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-display text-lg leading-none text-foreground">
+                calling the convex database offices.
+              </p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Waiting for your feed subscriptions to pick up the phone.
+              </p>
+            </div>
           </div>
-          <p className="font-display text-[0.92rem] tracking-[0.08em] text-muted-foreground md:text-[1.05rem]">
-            no feeds yet
-          </p>
-        </div>
+        ) : (
+          <div className="relative z-10 flex max-w-sm flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div
+              className={cn(
+                "mb-5 flex items-center justify-center rounded-full text-muted-foreground",
+                isMobile ? "size-16" : "size-18",
+              )}
+              style={{
+                background: "color-mix(in oklab, var(--muted-foreground) 10%, transparent)",
+                boxShadow:
+                  "0 0 0 10px color-mix(in oklab, var(--muted-foreground) 5%, transparent)",
+              }}
+            >
+              <CowIcon weight="duotone" className={cn(isMobile ? "size-8" : "size-9")} />
+            </div>
+            <p className="font-display text-[0.92rem] tracking-[0.08em] text-muted-foreground md:text-[1.05rem]">
+              no feeds yet
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -631,6 +653,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     isBookmarked,
     isBookmarkPending,
     isRefreshingAll,
+    isSourcesLoading,
     addSourceError,
     isAddingSource,
     isLoadingMoreDetailPanelItems,
@@ -808,7 +831,7 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
         onRemoveSource={handleRemoveSource}
       />
     ) : (
-      <EmptyFeedState isMobile={isMobile} />
+      <EmptyFeedState isMobile={isMobile} isLoading={isSourcesLoading} />
     );
 
   return (

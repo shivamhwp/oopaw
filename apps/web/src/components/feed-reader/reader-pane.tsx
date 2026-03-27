@@ -321,19 +321,30 @@ export function ReaderPane({
     <div className="flex h-full flex-col bg-background">
       {topNav}
       {isSiteMode ? (
-        <>
-          <div className="min-h-0 flex-1">
-            <iframe
-              key={resolvedItem.url}
-              title={`Original article: ${title}`}
-              src={resolvedItem.url}
-              className="h-full w-full border-0 bg-background"
-            />
+        <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 md:px-5">
+          <div className="w-full max-w-xl rounded-2xl border border-border/60 bg-muted/20 p-6 text-left md:p-7">
+            <div className="inline-flex items-center gap-2 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+              <GlobeHemisphereWestIcon weight="duotone" className="size-4" />
+              Site view
+            </div>
+
+            <h3 className="mt-4 font-display text-2xl leading-tight text-foreground">
+              Open the original page in a new tab
+            </h3>
+
+            <p className="mt-3 text-sm leading-7 text-muted-foreground">
+              Site view now opens the article outside the app so links do not keep navigating inside
+              an embedded frame.
+            </p>
+
+            <div className="mt-5">
+              <Button type="button" onClick={() => openExternalUrl(resolvedItem.url)}>
+                <ArrowSquareOutIcon weight="bold" className="size-4" />
+                Open original article
+              </Button>
+            </div>
           </div>
-          <div className="border-t border-border/40 px-4 py-3 text-sm text-muted-foreground md:px-5">
-            If this page does not load in the panel, open the original article in a new tab.
-          </div>
-        </>
+        </div>
       ) : (
         <>
           {showReaderHeader && (
