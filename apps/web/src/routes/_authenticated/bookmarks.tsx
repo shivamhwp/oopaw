@@ -167,7 +167,7 @@ function BookmarksRoute() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(18rem,18rem))] md:justify-start">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))]">
               {bookmarks?.map((bookmark) => {
                 const isSelected = bookmark._id === selectedBookmarkId;
                 const isRemovingSelectedBookmark =
@@ -186,7 +186,7 @@ function BookmarksRoute() {
                         }
                       }}
                       className={cn(
-                        "h-full cursor-pointer gap-0 py-0 pr-14 transition-colors duration-150 md:pr-0",
+                        "h-full cursor-pointer gap-0 overflow-hidden py-0 pr-14 transition-colors duration-150 md:pr-0",
                         isSelected ? "bg-primary/[0.02] ring-primary/40" : "hover:bg-muted/30",
                       )}
                     >

@@ -219,6 +219,26 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  .feed-source-grid-list {
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    align-content: start;
+    gap: var(--feed-source-grid-gap, 1rem);
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, var(--feed-source-card-min-width, 15rem)), 1fr)
+    );
+    overflow-x: clip;
+  }
+
+  .feed-source-grid-item {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
   .reader-prose {
     @apply max-w-none text-[0.98rem] leading-8 text-foreground/88;
     overflow-wrap: anywhere;

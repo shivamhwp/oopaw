@@ -26,13 +26,13 @@ export function FeedCard({
   const latestItems = items.slice(0, 4);
 
   return (
-    <div className="group relative min-h-[13rem] md:h-[13rem]">
+    <div className="group relative min-w-0 w-full min-h-[13rem] md:h-[13rem]">
       <Card
         tabIndex={0}
         onClick={onSelect}
         onKeyDown={(e) => e.key === "Enter" && onSelect()}
         className={cn(
-          "h-full cursor-pointer gap-0 py-0 transition-colors duration-150",
+          "h-full cursor-pointer gap-0 overflow-hidden py-0 transition-colors duration-150",
           isSelected ? "ring-primary/40 bg-primary/[0.02]" : "md:hover:bg-muted/30",
         )}
       >
