@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Readability } from "@mozilla/readability";
 import { Result, TaggedError } from "better-result";
 import { parseHTML } from "linkedom";
+import { z } from "zod";
 import { sanitizeReaderHtml } from "@/lib/feed/content";
 import { unwrapOrThrow } from "@/lib/result";
 import { createExcerpt, normalizeOptionalDate, resolveUrl, stripHtml } from "@/lib/feed/utils";
@@ -71,6 +72,10 @@ class ArticleLoadError extends TaggedError("ArticleLoadError")<{
   status?: number;
   cause?: unknown;
 }>() {}
+
+const siteViewDocumentInputSchema = z.object({
+  url: z.string().url(),
+});
 
 const readResponseBody = async (response: Response) => {
   if (!response.body) {
@@ -170,6 +175,86 @@ const fetchArticleHtml = async (url: string) => {
     clearTimeout(timeout);
   }
 };
+
+const SITE_VIEW_STYLE = `
+html {
+  height: 100%;
+  overscroll-behavior: none;
+  background: transparent;
+}
+
+body {
+  min-height: 100%;
+  overscroll-behavior: none;
+  background: transparent;
+}
+`;
+
+const SITE_VIEW_SCRIPT = `
+(() => {
+  const rootScroller =
+    document.scrollingElement instanceof HTMLElement
+      ? document.scrollingElement
+      : document.documentElement;
+
+  const findScrollableParent = (target) => {
+    let node = target instanceof Element ? target : null;
+
+    while (node && node !== document.body) {
+      const style = window.getComputedStyle(node);
+      const overflowY = style.overflowY;
+      const canScroll =
+        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+        node.scrollHeight > node.clientHeight;
+
+      if (canScroll) {
+        return node;
+      }
+
+      node = node.parentElement;
+    }
+
+    return rootScroller;
+  };
+
+  let lastTouchY = 0;
+
+  document.addEventListener(
+    "touchstart",
+    (event) => {
+      lastTouchY = event.touches[0]?.clientY ?? 0;
+    },
+    { passive: true },
+  );
+
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      const touchY = event.touches[0]?.clientY ?? lastTouchY;
+      const deltaY = touchY - lastTouchY;
+      lastTouchY = touchY;
+      const scroller = findScrollableParent(event.target);
+
+      if (!(scroller instanceof HTMLElement)) {
+        return;
+      }
+
+      if (scroller.scrollHeight <= scroller.clientHeight) {
+        event.preventDefault();
+        return;
+      }
+
+      const atTop = scroller.scrollTop <= 0;
+      const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+
+      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+        event.preventDefault();
+      }
+    },
+    { passive: false },
+  );
+})();
+`;
 
 const pickAttribute = (
   element: Element,
@@ -425,6 +510,53 @@ const extractWithReadability = (html: string, url: string) => {
   };
 };
 
+const buildSiteViewDocument = ({ html, finalUrl }: { html: string; finalUrl: string }) => {
+  const { document } = parseHTML(html);
+  const head = document.head ?? document.createElement("head");
+  const body = document.body ?? document.createElement("body");
+
+  if (!document.head) {
+    document.documentElement.prepend(head);
+  }
+
+  if (!document.body) {
+    document.documentElement.append(body);
+  }
+
+  for (const element of document.querySelectorAll("base")) {
+    element.remove();
+  }
+
+  for (const element of document.querySelectorAll("meta[http-equiv]")) {
+    const httpEquiv = element.getAttribute("http-equiv")?.trim().toLowerCase();
+
+    if (
+      httpEquiv === "content-security-policy" ||
+      httpEquiv === "x-frame-options" ||
+      httpEquiv === "refresh"
+    ) {
+      element.remove();
+    }
+  }
+
+  const base = document.createElement("base");
+  base.setAttribute("href", finalUrl);
+  head.prepend(base);
+
+  const style = document.createElement("style");
+  style.textContent = SITE_VIEW_STYLE;
+  head.append(style);
+
+  const script = document.createElement("script");
+  script.textContent = SITE_VIEW_SCRIPT;
+  body.append(script);
+
+  return {
+    html: `<!DOCTYPE html>${document.documentElement.outerHTML}`,
+    finalUrl,
+  };
+};
+
 const extractReaderArticle = async (input: {
   item: {
     title: string;
@@ -502,3 +634,7 @@ const extractReaderArticle = async (input: {
 export const loadReaderArticle = createServerFn({ method: "POST" })
   .inputValidator(extractReaderArticleInputSchema)
   .handler(async ({ data }) => extractReaderArticle(data));
+
+export const loadSiteViewDocument = createServerFn({ method: "POST" })
+  .inputValidator(siteViewDocumentInputSchema)
+  .handler(async ({ data }) => buildSiteViewDocument(await fetchArticleHtml(data.url)));

@@ -21,7 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/lib/query/keys";
 import type { ArticleViewMode, FeedItem } from "@/lib/types";
 import { stripHtml } from "@/lib/feed/utils";
-import { loadReaderArticle } from "@/lib/server/article";
+import { loadReaderArticle, loadSiteViewDocument } from "@/lib/server/article";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 type ReaderPaneProps = {
@@ -73,6 +73,7 @@ export function ReaderPane({
 }: ReaderPaneProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [isSiteFrameLoading, setIsSiteFrameLoading] = useState(true);
   const resetCopyStateTimeoutRef = useRef<number | null>(null);
   const readerContentRef = useRef<HTMLDivElement | null>(null);
 
@@ -90,6 +91,13 @@ export function ReaderPane({
     queryFn: async () => loadReaderArticle({ data: { item: item! } }),
     enabled: articleViewMode === "reader" && Boolean(item),
     staleTime: 1000 * 60 * 60 * 6,
+    retry: 1,
+  });
+  const siteViewQuery = useQuery({
+    queryKey: item ? queryKeys.siteViewDocument(item.id) : ["site-view-document", "idle"],
+    queryFn: async () => loadSiteViewDocument({ data: { url: item!.url } }),
+    enabled: articleViewMode === "site" && Boolean(item),
+    staleTime: 1000 * 60 * 30,
     retry: 1,
   });
   const resolvedItem =
@@ -125,6 +133,10 @@ export function ReaderPane({
 
     resetCopyState();
   };
+
+  useEffect(() => {
+    setIsSiteFrameLoading(true);
+  }, [resolvedItem?.id, resolvedItem?.url, articleViewMode]);
 
   useEffect(() => {
     if (!resolvedItemId) {
@@ -321,29 +333,59 @@ export function ReaderPane({
     <div className="flex h-full flex-col bg-background">
       {topNav}
       {isSiteMode ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 md:px-5">
-          <div className="w-full max-w-xl rounded-2xl border border-border/60 bg-muted/20 p-6 text-left md:p-7">
-            <div className="inline-flex items-center gap-2 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
-              <GlobeHemisphereWestIcon weight="duotone" className="size-4" />
-              Site view
+        <div
+          className="relative min-h-0 flex-1 overflow-hidden bg-muted/10"
+          style={{ overscrollBehavior: "none" }}
+        >
+          {isSiteFrameLoading || siteViewQuery.isPending ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/88 backdrop-blur-sm">
+              <div
+                role="status"
+                aria-label="Loading original site"
+                className="flex flex-col items-center gap-3 text-muted-foreground"
+              >
+                <SpinnerIcon className="size-6 animate-spin" weight="bold" />
+                <span className="text-sm">Loading original site</span>
+              </div>
             </div>
+          ) : null}
 
-            <h3 className="mt-4 font-display text-2xl leading-tight text-foreground">
-              Open the original page in a new tab
-            </h3>
+          {siteViewQuery.data?.html ? (
+            <iframe
+              key={resolvedItem.url}
+              title="Site view"
+              srcDoc={siteViewQuery.data.html}
+              sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts"
+              className="h-full w-full border-0 bg-background"
+              onLoad={() => setIsSiteFrameLoading(false)}
+              style={{ overscrollBehavior: "none" }}
+            />
+          ) : siteViewQuery.isError ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 md:px-5">
+              <div className="w-full max-w-xl rounded-2xl border border-border/60 bg-muted/20 p-6 text-left md:p-7">
+                <div className="inline-flex items-center gap-2 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+                  <GlobeHemisphereWestIcon weight="duotone" className="size-4" />
+                  Site view
+                </div>
 
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              Site view now opens the article outside the app so links do not keep navigating inside
-              an embedded frame.
-            </p>
+                <h3 className="mt-4 font-display text-2xl leading-tight text-foreground">
+                  This page could not be embedded here
+                </h3>
 
-            <div className="mt-5">
-              <Button type="button" onClick={() => openExternalUrl(resolvedItem.url)}>
-                <ArrowSquareOutIcon weight="bold" className="size-4" />
-                Open original article
-              </Button>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                  The original page failed to load into the in-app site view. Open it directly as a
+                  fallback.
+                </p>
+
+                <div className="mt-5">
+                  <Button type="button" onClick={() => openExternalUrl(resolvedItem.url)}>
+                    <ArrowSquareOutIcon weight="bold" className="size-4" />
+                    Open original article
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       ) : (
         <>
