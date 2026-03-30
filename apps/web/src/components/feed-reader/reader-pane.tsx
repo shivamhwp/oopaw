@@ -333,10 +333,7 @@ export function ReaderPane({
     <div className="flex h-full flex-col bg-background">
       {topNav}
       {isSiteMode ? (
-        <div
-          className="relative min-h-0 flex-1 overflow-hidden bg-muted/10"
-          style={{ overscrollBehavior: "none" }}
-        >
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-muted/10">
           {isSiteFrameLoading || siteViewQuery.isPending ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/88 backdrop-blur-sm">
               <div
@@ -356,9 +353,8 @@ export function ReaderPane({
               title="Site view"
               srcDoc={siteViewQuery.data.html}
               sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts"
-              className="h-full w-full border-0 bg-background"
+              className="h-full w-full border-0 bg-background overscroll-none [-webkit-overflow-scrolling:auto]"
               onLoad={() => setIsSiteFrameLoading(false)}
-              style={{ overscrollBehavior: "none" }}
             />
           ) : siteViewQuery.isError ? (
             <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-6 md:px-5">

@@ -176,86 +176,6 @@ const fetchArticleHtml = async (url: string) => {
   }
 };
 
-const SITE_VIEW_STYLE = `
-html {
-  height: 100%;
-  overscroll-behavior: none;
-  background: transparent;
-}
-
-body {
-  min-height: 100%;
-  overscroll-behavior: none;
-  background: transparent;
-}
-`;
-
-const SITE_VIEW_SCRIPT = `
-(() => {
-  const rootScroller =
-    document.scrollingElement instanceof HTMLElement
-      ? document.scrollingElement
-      : document.documentElement;
-
-  const findScrollableParent = (target) => {
-    let node = target instanceof Element ? target : null;
-
-    while (node && node !== document.body) {
-      const style = window.getComputedStyle(node);
-      const overflowY = style.overflowY;
-      const canScroll =
-        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
-        node.scrollHeight > node.clientHeight;
-
-      if (canScroll) {
-        return node;
-      }
-
-      node = node.parentElement;
-    }
-
-    return rootScroller;
-  };
-
-  let lastTouchY = 0;
-
-  document.addEventListener(
-    "touchstart",
-    (event) => {
-      lastTouchY = event.touches[0]?.clientY ?? 0;
-    },
-    { passive: true },
-  );
-
-  document.addEventListener(
-    "touchmove",
-    (event) => {
-      const touchY = event.touches[0]?.clientY ?? lastTouchY;
-      const deltaY = touchY - lastTouchY;
-      lastTouchY = touchY;
-      const scroller = findScrollableParent(event.target);
-
-      if (!(scroller instanceof HTMLElement)) {
-        return;
-      }
-
-      if (scroller.scrollHeight <= scroller.clientHeight) {
-        event.preventDefault();
-        return;
-      }
-
-      const atTop = scroller.scrollTop <= 0;
-      const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
-
-      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
-        event.preventDefault();
-      }
-    },
-    { passive: false },
-  );
-})();
-`;
-
 const pickAttribute = (
   element: Element,
   attributes: readonly string[],
@@ -542,14 +462,6 @@ const buildSiteViewDocument = ({ html, finalUrl }: { html: string; finalUrl: str
   const base = document.createElement("base");
   base.setAttribute("href", finalUrl);
   head.prepend(base);
-
-  const style = document.createElement("style");
-  style.textContent = SITE_VIEW_STYLE;
-  head.append(style);
-
-  const script = document.createElement("script");
-  script.textContent = SITE_VIEW_SCRIPT;
-  body.append(script);
 
   return {
     html: `<!DOCTYPE html>${document.documentElement.outerHTML}`,
