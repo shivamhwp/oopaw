@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { CopyIcon, InfoIcon, SpinnerIcon, XIcon } from "@phosphor-icons/react";
+import { Virtuoso } from "react-virtuoso";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,7 +82,7 @@ export function ItemList({
   scrollTop = 0,
   onScrollTopChange,
 }: ItemListProps) {
-  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const scrollElementRef = useRef<HTMLElement | null>(null);
   const restoredSourceIdRef = useRef<string | undefined>(undefined);
   const unreadCount = items.filter((item) => !item.isRead).length;
   const readCount = items.length - unreadCount;
@@ -95,6 +96,74 @@ export function ItemList({
     scrollElementRef.current.scrollTop = scrollTop;
     restoredSourceIdRef.current = source?.id;
   }, [scrollTop, source?.id]);
+
+  const renderItem = (item: FeedItem) => {
+    const date = formatDate(item.publishedAt);
+    const isSelected = selectedItemId === item.id;
+    const itemHasContextMenu =
+      hasContextMenuActions && ((item.isRead && onMarkUnread) || onBookmarkItem);
+
+    const button = (
+      <button
+        type="button"
+        onClick={() => onSelect(item.id)}
+        className={cn(
+          "group w-full select-none px-5 py-3.5 text-left transition-colors",
+          isSelected ? "bg-primary/[0.04]" : "hover:bg-primary/10",
+        )}
+      >
+        <div className="min-w-0">
+          <div className="min-w-0 flex-1">
+            <h3
+              className={cn(
+                "font-display text-[0.95rem] leading-snug text-pretty",
+                item.isRead ? "text-foreground/40" : "text-foreground",
+              )}
+            >
+              {item.title}
+            </h3>
+
+            {(date || item.author) && (
+              <p className="mt-1 text-[0.65rem] text-muted-foreground/55">
+                {[date, item.author].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
+        </div>
+      </button>
+    );
+
+    return itemHasContextMenu ? (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
+        <ContextMenuContent>
+          {item.isRead && onMarkUnread && (
+            <ContextMenuItem onSelect={() => onMarkUnread(item.id)}>Mark as unread</ContextMenuItem>
+          )}
+          {onBookmarkItem && (
+            <ContextMenuItem
+              onSelect={
+                isSignedIn
+                  ? () => onBookmarkItem(item)
+                  : onRequireSignIn
+                    ? () => onRequireSignIn()
+                    : undefined
+              }
+              disabled={isSignedIn && isBookmarkPending}
+            >
+              {isSignedIn
+                ? isItemBookmarked?.(item)
+                  ? "Remove bookmark"
+                  : "Add bookmark"
+                : "Sign in to bookmark"}
+            </ContextMenuItem>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+    ) : (
+      button
+    );
+  };
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -202,117 +271,45 @@ export function ItemList({
       </div>
 
       {/* List */}
-      <div
-        ref={scrollElementRef}
-        className="app-scroll-y pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] min-h-0 flex-1 overflow-y-auto [touch-action:pan-y]"
-        data-scroll-restoration-id={source ? `feed-item-list:${source.id}` : "feed-item-list"}
-        onScroll={(event) => onScrollTopChange?.(event.currentTarget.scrollTop)}
-      >
+      <div className="min-h-0 flex-1">
         {items.length > 0 ? (
-          <>
-            <ul>
-              {items.map((item) => {
-                const date = formatDate(item.publishedAt);
-                const isSelected = selectedItemId === item.id;
-                const itemHasContextMenu =
-                  hasContextMenuActions && ((item.isRead && onMarkUnread) || onBookmarkItem);
-
-                const button = (
-                  <button
-                    type="button"
-                    onClick={() => onSelect(item.id)}
-                    className={cn(
-                      "group w-full select-none px-5 py-3.5 text-left transition-colors",
-                      isSelected ? "bg-primary/[0.04]" : "hover:bg-primary/10",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h3
-                          className={cn(
-                            "font-display text-[0.95rem] leading-snug text-pretty",
-                            item.isRead ? "text-foreground/40" : "text-foreground",
-                          )}
-                        >
-                          {item.title}
-                        </h3>
-
-                        {(date || item.author) && (
-                          <p className="mt-1 text-[0.65rem] text-muted-foreground/55">
-                            {[date, item.author].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Unread dot — far right, vertically centered with first line */}
-                      <div className="mt-[0.35rem] size-1.5 shrink-0">
-                        {!item.isRead && (
-                          <span className="block size-1.5 rounded-full bg-primary" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-
-                return (
-                  <li key={item.id} className="border-b border-border/25 last:border-0">
-                    {itemHasContextMenu ? (
-                      <ContextMenu>
-                        <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
-                        <ContextMenuContent>
-                          {item.isRead && onMarkUnread && (
-                            <ContextMenuItem onSelect={() => onMarkUnread(item.id)}>
-                              Mark as unread
-                            </ContextMenuItem>
-                          )}
-                          {onBookmarkItem && (
-                            <ContextMenuItem
-                              onSelect={
-                                isSignedIn
-                                  ? () => onBookmarkItem(item)
-                                  : onRequireSignIn
-                                    ? () => onRequireSignIn()
-                                    : undefined
-                              }
-                              disabled={isSignedIn && isBookmarkPending}
-                            >
-                              {isSignedIn
-                                ? isItemBookmarked?.(item)
-                                  ? "Remove bookmark"
-                                  : "Add bookmark"
-                                : "Sign in to bookmark"}
-                            </ContextMenuItem>
-                          )}
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    ) : (
-                      button
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-
-            {isLoadingMore && (
-              <div className="flex items-center justify-center gap-2 px-5 py-4 text-[0.72rem] text-muted-foreground">
-                <SpinnerIcon className="size-3.5 animate-spin" weight="bold" />
-                <span>Loading more posts…</span>
-              </div>
+          <Virtuoso
+            data={items}
+            className="app-scroll-y h-full pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] overflow-y-auto [touch-action:pan-y]"
+            data-scroll-restoration-id={source ? `feed-item-list:${source.id}` : "feed-item-list"}
+            computeItemKey={(_, item) => item.id}
+            defaultItemHeight={78}
+            increaseViewportBy={{ top: 160, bottom: 320 }}
+            overscan={200}
+            scrollerRef={(ref) => {
+              scrollElementRef.current = ref instanceof HTMLElement ? ref : null;
+            }}
+            onScroll={(event) => onScrollTopChange?.(event.currentTarget.scrollTop)}
+            endReached={hasMore ? () => onLoadMore?.() : undefined}
+            itemContent={(_, item) => (
+              <div className="border-b border-border/25">{renderItem(item)}</div>
             )}
-
-            {!isLoadingMore && hasMore && (
-              <div className="px-5 py-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-8 w-full text-[0.72rem] text-muted-foreground hover:text-foreground"
-                  onClick={onLoadMore}
-                >
-                  Load more
-                </Button>
-              </div>
-            )}
-          </>
+            components={{
+              Footer: () =>
+                isLoadingMore ? (
+                  <div className="flex items-center justify-center gap-2 px-5 py-4 text-[0.72rem] text-muted-foreground">
+                    <SpinnerIcon className="size-3.5 animate-spin" weight="bold" />
+                    <span>Loading more posts…</span>
+                  </div>
+                ) : hasMore ? (
+                  <div className="px-5 py-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 w-full text-[0.72rem] text-muted-foreground hover:text-foreground"
+                      onClick={onLoadMore}
+                    >
+                      Load more
+                    </Button>
+                  </div>
+                ) : null,
+            }}
+          />
         ) : (
           <div className="flex items-center justify-center px-6 py-16">
             <p className="text-[0.78rem] text-muted-foreground/50">No posts yet.</p>
