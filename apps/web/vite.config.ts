@@ -20,7 +20,11 @@ const config = defineConfig({
   },
   plugins: [
     ...(enableTanStackDevtools ? [devtools({ eventBusConfig: { enabled: false } })] : []),
-    tanstackStart(),
+    tanstackStart({
+      spa: {
+        enabled: true,
+      },
+    }),
     nitro(),
     viteReact(),
     tailwindcss(),

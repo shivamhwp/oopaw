@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useConvexMutation } from "@convex-dev/react-query";
 import { useMutation } from "@tanstack/react-query";
-import { useConvexAuth, useQuery as useConvexQuery } from "convex/react";
+import { useAction, useConvexAuth, useQuery as useConvexQuery } from "convex/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { startTransition } from "react";
 import { toast } from "sonner";
@@ -43,8 +43,6 @@ import {
 import { api } from "@/lib/convex";
 import { normalizeInputUrl } from "@/lib/feed/utils";
 import { defaultUserPreferences } from "@/lib/preferences";
-import { recoverFromStaleDeployment } from "@/lib/deployment-recovery";
-import { fetchFeedSource, loadMoreFeedItems, refreshFeedSource } from "@/lib/server/feed";
 import {
   discoveryResultSchema,
   type ArticleViewMode,
@@ -53,15 +51,6 @@ import {
   type RefreshResult,
   type SavedSource,
 } from "@/lib/types";
-
-const withStaleDeploymentRecovery = async <Value>(load: () => Promise<Value>) => {
-  try {
-    return await load();
-  } catch (error) {
-    recoverFromStaleDeployment(error);
-    throw error;
-  }
-};
 
 const assertDiscoveryResult = (value: unknown) => discoveryResultSchema.parse(value);
 
@@ -149,6 +138,9 @@ export function useFeedReader() {
     api.feedSubscriptions.mutations.removeForCurrentUser,
   );
   const toggleBookmark = useConvexMutation(api.bookmarks.mutations.toggleForCurrentUser);
+  const discoverFeedSource = useAction(api.feed.actions.fetchSource);
+  const refreshFeedSource = useAction(api.feed.actions.refreshSource);
+  const loadMoreFeedItems = useAction(api.feed.actions.loadMoreItems);
   const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
   const effectivePreferences = preferences ?? defaultUserPreferences;
@@ -209,14 +201,11 @@ export function useFeedReader() {
       const seenItemIds = Object.entries(itemStateBySourceRef.current[source.id] ?? {})
         .filter(([, entry]) => entry.isSeen)
         .map(([itemId]) => itemId);
-      const result = await withStaleDeploymentRecovery(() =>
-        refreshFeedSource({
-          data: {
-            source,
-            seenItemIds,
-          },
-        }),
-      );
+      const result = await refreshFeedSource({
+        sourceId: source.id,
+        feedUrl: source.feedUrl,
+        seenItemIds,
+      });
 
       await persistRefreshResult(source, result);
     } catch (error) {
@@ -326,14 +315,10 @@ export function useFeedReader() {
   const addSourceMutation = useMutation({
     mutationFn: async (input: string) =>
       assertDiscoveryResult(
-        await withStaleDeploymentRecovery(() =>
-          fetchFeedSource({
-            data: {
-              url: normalizeInputUrl(input),
-              pollIntervalMs: effectivePollingIntervalMs,
-            },
-          }),
-        ),
+        await discoverFeedSource({
+          url: normalizeInputUrl(input),
+          pollIntervalMs: effectivePollingIntervalMs,
+        }),
       ),
     onMutate: () => {
       toast.loading("Checking feed...", { id: "add-feed" });
@@ -388,11 +373,10 @@ export function useFeedReader() {
 
   const loadMoreSourceItemsMutation = useMutation({
     mutationFn: ({ source, pageUrl }: { source: SavedSource; pageUrl: string }) =>
-      withStaleDeploymentRecovery(() =>
-        loadMoreFeedItems({
-          data: { source, pageUrl },
-        }),
-      ),
+      loadMoreFeedItems({
+        sourceId: source.id,
+        pageUrl,
+      }),
     onSuccess: async (result, variables) => {
       await Promise.all([
         upsertSourceItems(result.sourceId, result.items),

@@ -10,6 +10,7 @@
 
 import type * as bookmarks_mutations from "../bookmarks/mutations.js";
 import type * as bookmarks_queries from "../bookmarks/queries.js";
+import type * as feed_actions from "../feed/actions.js";
 import type * as feedSubscriptions_mutations from "../feedSubscriptions/mutations.js";
 import type * as feedSubscriptions_queries from "../feedSubscriptions/queries.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -25,6 +26,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "bookmarks/mutations": typeof bookmarks_mutations;
   "bookmarks/queries": typeof bookmarks_queries;
+  "feed/actions": typeof feed_actions;
   "feedSubscriptions/mutations": typeof feedSubscriptions_mutations;
   "feedSubscriptions/queries": typeof feedSubscriptions_queries;
   "lib/auth": typeof lib_auth;

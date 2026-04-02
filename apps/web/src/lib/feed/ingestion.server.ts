@@ -1,13 +1,9 @@
-import { createServerFn } from "@tanstack/react-start";
 import { Result, TaggedError } from "better-result";
 import {
   discoveryResultSchema,
-  fetchFeedSourceInputSchema,
   fetchedFeedSourceSchema,
-  loadMoreSourceItemsInputSchema,
   loadMoreSourceItemsResultSchema,
   POLL_INTERVAL_MS,
-  refreshFeedSourceInputSchema,
   refreshResultSchema,
 } from "@/lib/types";
 import { sanitizeFeedItems } from "@/lib/feed/content";
@@ -179,8 +175,8 @@ const validateFeedDocument = (document: FeedDocument) => {
   inspectFeedDocument(document.body);
 };
 
-const parseFetchedFeedDocument = (document: FeedDocument, sourceId?: string) => {
-  return unwrapOrThrow(
+const parseFetchedFeedDocument = (document: FeedDocument, sourceId?: string) =>
+  unwrapOrThrow(
     Result.try({
       try: () =>
         parseFeedDocument({
@@ -211,7 +207,6 @@ const parseFetchedFeedDocument = (document: FeedDocument, sourceId?: string) => 
       },
     }),
   );
-};
 
 const normalizeFeedSource = async (document: FeedDocument, sourceId?: string) => {
   const parsed = parseFetchedFeedDocument(document, sourceId);
@@ -228,7 +223,7 @@ const loadFeedSource = async ({ url, sourceId }: { url: string; sourceId?: strin
   return normalizeFeedSource(document, sourceId);
 };
 
-const fetchFeedSourceResult = async (data: {
+export const fetchFeedSourceResult = async (data: {
   url: string;
   sourceId?: string;
   pollIntervalMs?: number;
@@ -253,19 +248,20 @@ const fetchFeedSourceResult = async (data: {
   });
 };
 
-const refreshFeedSourceResult = async (data: {
-  source: { id: string; feedUrl: string };
+export const refreshFeedSourceResult = async (data: {
+  sourceId: string;
+  feedUrl: string;
   seenItemIds: string[];
 }) => {
   const loaded = await loadFeedSource({
-    url: data.source.feedUrl,
-    sourceId: data.source.id,
+    url: data.feedUrl,
+    sourceId: data.sourceId,
   });
   const checkedAt = new Date().toISOString();
   const seenIds = new Set(data.seenItemIds);
 
   return refreshResultSchema.parse({
-    sourceId: data.source.id,
+    sourceId: data.sourceId,
     items: loaded.items,
     newCount: loaded.items.filter((item) => !seenIds.has(item.id)).length,
     checkedAt,
@@ -273,28 +269,16 @@ const refreshFeedSourceResult = async (data: {
   });
 };
 
-const loadMoreFeedItemsResult = async (data: { source: { id: string }; pageUrl: string }) => {
+export const loadMoreFeedItemsResult = async (data: { sourceId: string; pageUrl: string }) => {
   const loaded = await loadFeedSource({
     url: data.pageUrl,
-    sourceId: data.source.id,
+    sourceId: data.sourceId,
   });
 
   return loadMoreSourceItemsResultSchema.parse({
-    sourceId: data.source.id,
+    sourceId: data.sourceId,
     pageUrl: data.pageUrl,
     items: loaded.items,
     nextPageUrl: loaded.nextPageUrl,
   });
 };
-
-export const fetchFeedSource = createServerFn({ method: "POST" })
-  .inputValidator(fetchFeedSourceInputSchema)
-  .handler(async ({ data }) => fetchFeedSourceResult(data));
-
-export const refreshFeedSource = createServerFn({ method: "POST" })
-  .inputValidator(refreshFeedSourceInputSchema)
-  .handler(async ({ data }) => refreshFeedSourceResult(data));
-
-export const loadMoreFeedItems = createServerFn({ method: "POST" })
-  .inputValidator(loadMoreSourceItemsInputSchema)
-  .handler(async ({ data }) => loadMoreFeedItemsResult(data));
