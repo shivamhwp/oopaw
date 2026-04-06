@@ -126,6 +126,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {import.meta.env.DEV ? (
+          <script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js" />
+        ) : null}
         <script dangerouslySetInnerHTML={{ __html: getThemeInitScript() }} />
         <HeadContent />
       </head>

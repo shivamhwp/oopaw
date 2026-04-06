@@ -149,8 +149,12 @@ export function useFeedReader() {
     canReadUserData && feedSubscriptions
       ? syncSourcesFromConvex(baseState, feedSubscriptions)
       : baseState;
+  const isHydrationPending =
+    convexAuth.isLoading || (canReadUserData && feedSubscriptions === undefined);
   const stateRef = useRef(state);
   const itemStateBySourceRef = useRef(itemStateBySource);
+  const hydrateSourcesRef = useRef<SavedSource[]>([]);
+  const hydrateSourceIdsRef = useRef<string[]>([]);
   const refreshSourceNowRef = useRef<(source: SavedSource, force?: boolean) => Promise<void>>(
     async () => {},
   );
@@ -163,10 +167,10 @@ export function useFeedReader() {
     itemStateBySourceRef.current = itemStateBySource;
   }, [itemStateBySource]);
 
-  const hydrateSourceIds = canReadUserData
-    ? (feedSubscriptions ?? []).map((source) => source.id)
-    : state.sources.map((source) => source.id);
   const hydrateSources = canReadUserData && feedSubscriptions ? feedSubscriptions : state.sources;
+  const hydrateSourceIds = hydrateSources.map((source) => source.id);
+  hydrateSourcesRef.current = hydrateSources;
+  hydrateSourceIdsRef.current = hydrateSourceIds;
   const hydrateSourceKey = hydrateSourceIds.join("|");
 
   const persistRefreshResult = async (source: SavedSource, result: RefreshResult) => {
@@ -232,15 +236,18 @@ export function useFeedReader() {
   refreshSourceNowRef.current = refreshSourceNow;
 
   useEffect(() => {
-    if (convexAuth.isLoading || (canReadUserData && feedSubscriptions === undefined)) {
+    if (isHydrationPending) {
       return;
     }
 
     let isCancelled = false;
 
     void (async () => {
-      await pruneRemovedSources(hydrateSourceIds);
-      const cached = await getCachedFeedReaderData(hydrateSourceIds);
+      const sourcesToHydrate = hydrateSourcesRef.current;
+      const sourceIdsToHydrate = hydrateSourceIdsRef.current;
+
+      await pruneRemovedSources(sourceIdsToHydrate);
+      const cached = await getCachedFeedReaderData(sourceIdsToHydrate);
 
       if (isCancelled) {
         return;
@@ -249,16 +256,14 @@ export function useFeedReader() {
       setItemStateBySource(cached.itemStateBySource);
       setFeedReaderState((currentState) =>
         mergeCachedState(
-          canReadUserData && feedSubscriptions
-            ? syncSourcesFromConvex(currentState, feedSubscriptions)
-            : currentState,
+          canReadUserData ? syncSourcesFromConvex(currentState, sourcesToHydrate) : currentState,
           cached.metaBySource,
           cached.itemsBySource,
         ),
       );
 
       await Promise.all(
-        hydrateSources.map(async (source) => {
+        sourcesToHydrate.map(async (source) => {
           if (await shouldRefreshSource(source.id, SOURCE_STALE_TTL_MS)) {
             await refreshSourceNowRef.current(source);
           }
@@ -269,24 +274,28 @@ export function useFeedReader() {
     return () => {
       isCancelled = true;
     };
-  }, [
-    canReadUserData,
-    convexAuth.isLoading,
-    feedSubscriptions,
-    hydrateSourceIds,
-    hydrateSourceKey,
-    hydrateSources,
-    setFeedReaderState,
-  ]);
+  }, [canReadUserData, hydrateSourceKey, isHydrationPending, setFeedReaderState]);
 
   const sourceSummaries = state.sources.map((source) => {
     const items = getSourceItems(state, source.id, itemStateBySource[source.id]);
+    let unreadCount = 0;
+    let newCount = 0;
+
+    for (const item of items) {
+      if (!item.isRead) {
+        unreadCount += 1;
+      }
+
+      if (item.isNew) {
+        newCount += 1;
+      }
+    }
 
     return {
       source,
       items,
-      unreadCount: items.filter((item) => !item.isRead).length,
-      newCount: items.filter((item) => item.isNew).length,
+      unreadCount,
+      newCount,
       itemCount: items.length,
     };
   });

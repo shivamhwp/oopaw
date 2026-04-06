@@ -129,11 +129,6 @@
         color-mix(in oklab, var(--accent) 26%, transparent),
         transparent 38%
       ),
-      radial-gradient(
-        circle at top right,
-        color-mix(in oklab, var(--primary) 18%, transparent),
-        transparent 32%
-      ),
       var(--background);
     overflow-x: clip;
     overscroll-behavior: none;

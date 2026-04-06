@@ -584,23 +584,12 @@ function EmptyFeedState({ isMobile, isLoading }: { isMobile: boolean; isLoading:
         </div>
 
         {isLoading ? (
-          <div className="relative z-10 flex max-w-md animate-in items-center gap-4 rounded-2xl border border-border/60 bg-background/85 px-5 py-4 text-left backdrop-blur-sm fade-in slide-in-from-bottom-2 duration-500">
-            <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-full text-muted-foreground"
-              style={{
-                background: "color-mix(in oklab, var(--muted-foreground) 10%, transparent)",
-              }}
-            >
-              <PhoneCallIcon weight="duotone" className="size-6" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-display text-lg leading-none text-foreground">
-                calling the convex database offices.
-              </p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Waiting for your feed subscriptions to pick up the phone.
-              </p>
-            </div>
+          <div
+            role="status"
+            aria-label="Loading feeds"
+            className="relative z-10 text-muted-foreground animate-in fade-in slide-in-from-bottom-2 duration-500"
+          >
+            <SpinnerIcon className="size-5 animate-spin" />
           </div>
         ) : (
           <div className="relative z-10 flex max-w-sm flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-500">

@@ -64,7 +64,7 @@ const groupBySourceId = <Value extends { sourceId: string }>(values: Value[]) =>
   const groups: Record<string, Value[]> = {};
 
   for (const value of values) {
-    groups[value.sourceId] = [...(groups[value.sourceId] ?? []), value];
+    (groups[value.sourceId] ??= []).push(value);
   }
 
   return groups;

@@ -218,7 +218,7 @@ export const getSourceItems = (
   sourceId: string,
   itemStateMap: FeedItemStateMap = {},
 ): FeedItem[] =>
-  sortItemsNewestFirst(state.itemsBySource[sourceId] ?? []).map((item) => ({
+  (state.itemsBySource[sourceId] ?? []).map((item) => ({
     ...item,
     isNew: !itemStateMap[item.id]?.isSeen,
     isRead: Boolean(itemStateMap[item.id]?.isRead),
