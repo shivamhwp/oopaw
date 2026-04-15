@@ -2,10 +2,9 @@ import { v } from "convex/values";
 import { mutation } from "../_generated/server";
 import { requireCurrentUser } from "../lib/auth";
 
-export const upsertForCurrentUser = mutation({
+export const setPollingIntervalForCurrentUser = mutation({
   args: {
     pollingIntervalMinutes: v.number(),
-    defaultView: v.union(v.literal("reader"), v.literal("site")),
   },
   handler: async (ctx, args) => {
     const identity = await requireCurrentUser(ctx);
@@ -14,39 +13,75 @@ export const upsertForCurrentUser = mutation({
       throw new Error("Polling interval must be a positive integer.");
     }
 
-    if (!["reader", "site"].includes(args.defaultView)) {
-      throw new Error("Invalid default view.");
-    }
-
     const existing = await ctx.db
       .query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .unique();
     const now = Date.now();
+    const defaultView = existing?.defaultView ?? "reader";
 
     if (existing) {
       await ctx.db.patch(existing._id, {
         pollingIntervalMinutes: args.pollingIntervalMinutes,
-        defaultView: args.defaultView,
         updatedAt: now,
       });
 
       return {
         pollingIntervalMinutes: args.pollingIntervalMinutes,
-        defaultView: args.defaultView,
+        defaultView,
       };
     }
 
     await ctx.db.insert("userPreferences", {
       userId: identity.subject,
       pollingIntervalMinutes: args.pollingIntervalMinutes,
-      defaultView: args.defaultView,
+      defaultView,
       createdAt: now,
       updatedAt: now,
     });
 
     return {
       pollingIntervalMinutes: args.pollingIntervalMinutes,
+      defaultView,
+    };
+  },
+});
+
+export const setDefaultViewForCurrentUser = mutation({
+  args: {
+    defaultView: v.union(v.literal("reader"), v.literal("site")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireCurrentUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+      .unique();
+    const now = Date.now();
+    const pollingIntervalMinutes = existing?.pollingIntervalMinutes ?? 15;
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        defaultView: args.defaultView,
+        updatedAt: now,
+      });
+
+      return {
+        pollingIntervalMinutes,
+        defaultView: args.defaultView,
+      };
+    }
+
+    await ctx.db.insert("userPreferences", {
+      userId: identity.subject,
+      pollingIntervalMinutes,
+      defaultView: args.defaultView,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      pollingIntervalMinutes,
       defaultView: args.defaultView,
     };
   },

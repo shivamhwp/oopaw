@@ -82,7 +82,8 @@ function BookmarksRoute() {
   );
   const hasBookmarksLoaded = !convexAuth.isLoading && bookmarks !== undefined;
   const {
-    isPreferencesPending,
+    isDefaultViewPending,
+    isPollingIntervalPending,
     isSignedIn,
     preferences,
     setDefaultArticleViewMode,
@@ -134,7 +135,8 @@ function BookmarksRoute() {
     <>
       <div className="flex h-svh min-h-svh flex-col overflow-hidden bg-background">
         <AppNavbar
-          isPreferencesPending={isPreferencesPending}
+          isDefaultViewPending={isDefaultViewPending}
+          isPollingIntervalPending={isPollingIntervalPending}
           isSignedIn={isSignedIn}
           isRefreshingAll={false}
           onBookmarksClick={() => void navigate({ to: "/bookmarks" })}

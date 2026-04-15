@@ -95,7 +95,8 @@ const isEditableElement = (element: Element | null) =>
 
 function ProfileMenu({
   defaultView,
-  isSavingPreferences,
+  isDefaultViewPending,
+  isPollingIntervalPending,
   isRefreshingAll,
   pollingIntervalMinutes,
   onDefaultViewChange,
@@ -104,7 +105,8 @@ function ProfileMenu({
   onSignIn,
 }: {
   defaultView: ArticleViewMode;
-  isSavingPreferences: boolean;
+  isDefaultViewPending: boolean;
+  isPollingIntervalPending: boolean;
   isRefreshingAll: boolean;
   pollingIntervalMinutes: number;
   onDefaultViewChange: (mode: ArticleViewMode) => Promise<void>;
@@ -123,8 +125,9 @@ function ProfileMenu({
   );
   const lockedSettingsTooltipTimeoutRef = useRef<number | null>(null);
   const EmailVisibilityIcon = isEmailVisible ? EyeSlashIcon : EyeIcon;
-  const areThemeControlsDisabled = !isAuthLoaded || isSavingPreferences;
-  const arePreferenceControlsDisabled = !isAuthLoaded || !isSignedIn || isSavingPreferences;
+  const arePreferenceControlsLocked = !isAuthLoaded || !isSignedIn;
+  const isPollingIntervalDisabled = arePreferenceControlsLocked || isPollingIntervalPending;
+  const isDefaultViewDisabled = arePreferenceControlsLocked || isDefaultViewPending;
   const shouldShowProfileSection = isSignedIn || !isAuthLoaded;
   const profileName = isAuthLoaded && isSignedIn ? displayName : AUTH_LOADING_NAME;
   const profileEmail = isAuthLoaded && isSignedIn ? email : AUTH_LOADING_EMAIL;
@@ -231,7 +234,6 @@ function ProfileMenu({
                   key={value}
                   value={value}
                   className="flex w-full min-w-0 gap-1.5 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
-                  disabled={areThemeControlsDisabled}
                 >
                   <Icon weight="bold" className="size-3.5" />
                   <span>{label}</span>
@@ -248,10 +250,10 @@ function ProfileMenu({
           <Tooltip open={lockedSettingsTooltip === "polling"}>
             <TooltipTrigger asChild>
               <div
-                className={cn("px-1.5 pb-1", arePreferenceControlsDisabled && "cursor-not-allowed")}
-                role={arePreferenceControlsDisabled ? "button" : undefined}
-                tabIndex={arePreferenceControlsDisabled ? 0 : undefined}
-                {...(arePreferenceControlsDisabled
+                className={cn("px-1.5 pb-1", arePreferenceControlsLocked && "cursor-not-allowed")}
+                role={arePreferenceControlsLocked ? "button" : undefined}
+                tabIndex={arePreferenceControlsLocked ? 0 : undefined}
+                {...(arePreferenceControlsLocked
                   ? createLockedSettingsHandlers("polling")
                   : undefined)}
               >
@@ -266,7 +268,7 @@ function ProfileMenu({
                         key={option.value}
                         value={String(option.value)}
                         className="w-full min-w-0 px-2 py-2 text-xs sm:min-w-0 sm:flex-1"
-                        disabled={arePreferenceControlsDisabled}
+                        disabled={isPollingIntervalDisabled}
                       >
                         {option.label}
                       </TabsTrigger>
@@ -293,10 +295,10 @@ function ProfileMenu({
           <Tooltip open={lockedSettingsTooltip === "view"}>
             <TooltipTrigger asChild>
               <div
-                className={cn("px-1.5 pb-1", arePreferenceControlsDisabled && "cursor-not-allowed")}
-                role={arePreferenceControlsDisabled ? "button" : undefined}
-                tabIndex={arePreferenceControlsDisabled ? 0 : undefined}
-                {...(arePreferenceControlsDisabled
+                className={cn("px-1.5 pb-1", arePreferenceControlsLocked && "cursor-not-allowed")}
+                role={arePreferenceControlsLocked ? "button" : undefined}
+                tabIndex={arePreferenceControlsLocked ? 0 : undefined}
+                {...(arePreferenceControlsLocked
                   ? createLockedSettingsHandlers("view")
                   : undefined)}
               >
@@ -311,7 +313,7 @@ function ProfileMenu({
                         key={view}
                         value={view}
                         className="w-full min-w-0 px-3 py-2 text-xs capitalize sm:min-w-0 sm:flex-1"
-                        disabled={arePreferenceControlsDisabled}
+                        disabled={isDefaultViewDisabled}
                       >
                         {view}
                       </TabsTrigger>
@@ -390,7 +392,8 @@ function ProfileMenu({
 }
 
 type AppNavbarProps = {
-  isPreferencesPending: boolean;
+  isDefaultViewPending: boolean;
+  isPollingIntervalPending: boolean;
   isSignedIn: boolean;
   isRefreshingAll: boolean;
   onBookmarksClick: () => void;
@@ -404,7 +407,8 @@ type AppNavbarProps = {
 };
 
 export function AppNavbar({
-  isPreferencesPending,
+  isDefaultViewPending,
+  isPollingIntervalPending,
   isSignedIn,
   isRefreshingAll,
   onBookmarksClick,
@@ -524,8 +528,9 @@ export function AppNavbar({
           ) : null}
           <ProfileMenu
             defaultView={defaultView}
-            isSavingPreferences={isPreferencesPending}
+            isDefaultViewPending={isDefaultViewPending}
             isRefreshingAll={isRefreshingAll}
+            isPollingIntervalPending={isPollingIntervalPending}
             pollingIntervalMinutes={pollingIntervalMinutes}
             onDefaultViewChange={onDefaultViewChange}
             onPollingIntervalMinutesChange={onPollingIntervalMinutesChange}
@@ -637,7 +642,8 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     selectedItem,
     articleViewMode,
     preferences,
-    isPreferencesPending,
+    isDefaultViewPending,
+    isPollingIntervalPending,
     isSignedIn,
     isBookmarked,
     isBookmarkPending,
@@ -827,7 +833,8 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     <>
       <div className="min-h-svh flex h-svh flex-col overflow-hidden overscroll-none bg-background">
         <AppNavbar
-          isPreferencesPending={isPreferencesPending}
+          isDefaultViewPending={isDefaultViewPending}
+          isPollingIntervalPending={isPollingIntervalPending}
           isSignedIn={isSignedIn}
           isRefreshingAll={isRefreshingAll}
           onBookmarksClick={handleBookmarksClick}

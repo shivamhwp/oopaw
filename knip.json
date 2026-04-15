@@ -1,5 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreDependencies": ["react-scan"],
+  "ignoreIssues": {
+    "apps/web/src/components/ui/popover.tsx": ["exports"],
+    "apps/web/src/lib/deployment-recovery.ts": ["exports"],
+    "apps/web/src/lib/feed-reader-db.ts": ["exports"],
+    "apps/web/src/lib/types.ts": ["exports", "types"]
+  },
   "tags": ["-lintignore"],
   "ignoreExportsUsedInFile": true,
   "workspaces": {

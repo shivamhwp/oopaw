@@ -132,7 +132,12 @@ export function useFeedReader() {
     api.feedSubscriptions.queries.listForCurrentUser,
     canReadUserData ? {} : "skip",
   );
-  const upsertPreferences = useConvexMutation(api.preferences.mutations.upsertForCurrentUser);
+  const setPollingIntervalPreference = useConvexMutation(
+    api.preferences.mutations.setPollingIntervalForCurrentUser,
+  );
+  const setDefaultViewPreference = useConvexMutation(
+    api.preferences.mutations.setDefaultViewForCurrentUser,
+  );
   const addFeedSubscription = useConvexMutation(api.feedSubscriptions.mutations.addForCurrentUser);
   const removeFeedSubscription = useConvexMutation(
     api.feedSubscriptions.mutations.removeForCurrentUser,
@@ -141,7 +146,8 @@ export function useFeedReader() {
   const discoverFeedSource = useAction(api.feed.actions.fetchSource);
   const refreshFeedSource = useAction(api.feed.actions.refreshSource);
   const loadMoreFeedItems = useAction(api.feed.actions.loadMoreItems);
-  const preferenceMutation = useMutation({ mutationFn: upsertPreferences });
+  const pollingIntervalMutation = useMutation({ mutationFn: setPollingIntervalPreference });
+  const defaultViewMutation = useMutation({ mutationFn: setDefaultViewPreference });
   const bookmarkMutation = useMutation({ mutationFn: toggleBookmark });
   const effectivePreferences = preferences ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
@@ -429,8 +435,7 @@ export function useFeedReader() {
       return;
     }
 
-    await preferenceMutation.mutateAsync({
-      pollingIntervalMinutes: effectivePreferences.pollingIntervalMinutes,
+    await defaultViewMutation.mutateAsync({
       defaultView: mode,
     });
   };
@@ -444,9 +449,8 @@ export function useFeedReader() {
       return;
     }
 
-    await preferenceMutation.mutateAsync({
+    await pollingIntervalMutation.mutateAsync({
       pollingIntervalMinutes,
-      defaultView: effectivePreferences.defaultView,
     });
   };
 
@@ -616,7 +620,8 @@ export function useFeedReader() {
     selectedSource,
     articleViewMode,
     preferences: effectivePreferences,
-    isPreferencesPending: preferenceMutation.isPending,
+    isDefaultViewPending: defaultViewMutation.isPending,
+    isPollingIntervalPending: pollingIntervalMutation.isPending,
     effectivePollingIntervalMs,
     isSignedIn: canReadUserData,
     isBookmarked: selectedItem ? bookmarkedUrls.has(selectedItem.url) : false,
