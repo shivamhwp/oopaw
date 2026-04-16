@@ -40,16 +40,7 @@ export function FeedCard({
         <CardContent className="flex flex-1 flex-col gap-0 pl-4 pr-12 pt-4 pb-1 md:px-4">
           {latestItems.length > 0 ? (
             latestItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-baseline gap-2 py-[0.22rem] border-b border-border/20 last:border-0"
-              >
-                <div
-                  className={cn(
-                    "mt-[0.28rem] size-[4px] rounded-full shrink-0",
-                    !item.isRead ? "bg-primary" : "bg-transparent",
-                  )}
-                />
+              <div key={item.id} className="py-[0.22rem] border-b border-border/20 last:border-0">
                 <p
                   className={cn(
                     "text-[0.77rem] leading-snug line-clamp-1",
