@@ -66,9 +66,7 @@ export function FeedCard({
           </div>
           <div className="shrink-0">
             {newCount > 0 ? (
-              <span className="text-[0.62rem] font-semibold text-primary tabular-nums">
-                {newCount} new
-              </span>
+              <span className="text-xs font-semibold tabular-nums text-primary/90">{newCount}</span>
             ) : unreadCount > 0 ? (
               <span className="text-[0.62rem] text-muted-foreground tabular-nums">
                 {unreadCount}
