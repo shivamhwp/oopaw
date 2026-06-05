@@ -4,6 +4,7 @@ import { requireCurrentUser } from "../lib/auth";
 
 export const toggleForCurrentUser = mutation({
   args: {
+    profileId: v.id("profiles"),
     url: v.string(),
     title: v.string(),
     excerpt: v.optional(v.string()),
@@ -14,9 +15,17 @@ export const toggleForCurrentUser = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await requireCurrentUser(ctx);
+    const profile = await ctx.db.get(args.profileId);
+
+    if (!profile || profile.userId !== identity.subject) {
+      throw new Error("Profile not found.");
+    }
+
     const existing = await ctx.db
       .query("bookmarks")
-      .withIndex("by_userId_url", (q) => q.eq("userId", identity.subject).eq("url", args.url))
+      .withIndex("by_userId_profileId_url", (q) =>
+        q.eq("userId", identity.subject).eq("profileId", args.profileId).eq("url", args.url),
+      )
       .unique();
 
     if (existing) {
@@ -28,6 +37,8 @@ export const toggleForCurrentUser = mutation({
 
     await ctx.db.insert("bookmarks", {
       userId: identity.subject,
+      profileId: args.profileId,
+      profile: profile.name,
       url: args.url,
       title: args.title,
       excerpt: args.excerpt,

@@ -22,6 +22,7 @@ import {
   sourceInputAtom,
   toggleReaderFullScreenAtom,
 } from "@/components/feed-reader/store";
+import { useProfiles } from "@/components/feed-reader/use-profiles";
 import {
   getCachedFeedReaderData,
   markItemRead,
@@ -35,12 +36,13 @@ import {
 } from "@/lib/feed-reader-db";
 import {
   applySourceRefresh,
+  createEmptyFeedReaderState,
   getSourceItems,
   setSourceError,
   syncSourcesFromConvex,
   type FeedItemStateMap,
 } from "@/lib/feed-reader-state";
-import { api } from "@/lib/convex";
+import { api, type Id } from "@/lib/convex";
 import { normalizeInputUrl } from "@/lib/feed/utils";
 import { defaultUserPreferences } from "@/lib/preferences";
 import {
@@ -120,17 +122,29 @@ export function useFeedReader() {
   const removeFeedSource = useSetAtom(removeSourceAtom);
   const applyLoadMore = useSetAtom(applyLoadMoreSourceItemsAtom);
   const canReadUserData = !convexAuth.isLoading && convexAuth.isAuthenticated;
+  const {
+    profiles,
+    selectedProfile,
+    selectedProfileId,
+    isProfilesLoading,
+    isCreatingProfile,
+    isRenamingProfile,
+    selectProfile,
+    createNewProfile,
+    renameCurrentProfile,
+  } = useProfiles(canReadUserData);
+  const canReadSelectedProfile = canReadUserData && selectedProfileId !== null;
   const preferences = useConvexQuery(
     api.preferences.queries.getForCurrentUser,
     canReadUserData ? {} : "skip",
   );
   const bookmarks = useConvexQuery(
     api.bookmarks.queries.listForCurrentUser,
-    canReadUserData ? {} : "skip",
+    canReadUserData && selectedProfileId ? { profileId: selectedProfileId } : "skip",
   );
   const feedSubscriptions = useConvexQuery(
     api.feedSubscriptions.queries.listForCurrentUser,
-    canReadUserData ? {} : "skip",
+    canReadUserData && selectedProfileId ? { profileId: selectedProfileId } : "skip",
   );
   const setPollingIntervalPreference = useConvexMutation(
     api.preferences.mutations.setPollingIntervalForCurrentUser,
@@ -152,12 +166,18 @@ export function useFeedReader() {
   const effectivePreferences = preferences ?? defaultUserPreferences;
   const effectivePollingIntervalMs = effectivePreferences.pollingIntervalMinutes * 60_000;
   const state =
-    canReadUserData && feedSubscriptions
+    canReadSelectedProfile && feedSubscriptions
       ? syncSourcesFromConvex(baseState, feedSubscriptions)
-      : baseState;
+      : canReadUserData
+        ? createEmptyFeedReaderState()
+        : baseState;
   const isHydrationPending =
-    convexAuth.isLoading || (canReadUserData && feedSubscriptions === undefined);
+    convexAuth.isLoading ||
+    (canReadUserData &&
+      (isProfilesLoading || selectedProfileId === null || feedSubscriptions === undefined));
   const stateRef = useRef(state);
+  const selectedProfileIdRef = useRef<Id<"profiles"> | null>(selectedProfileId);
+  const previousProfileIdRef = useRef<Id<"profiles"> | null>(null);
   const itemStateBySourceRef = useRef(itemStateBySource);
   const hydrateSourcesRef = useRef<SavedSource[]>([]);
   const hydrateSourceIdsRef = useRef<string[]>([]);
@@ -170,10 +190,29 @@ export function useFeedReader() {
   }, [state]);
 
   useEffect(() => {
+    selectedProfileIdRef.current = selectedProfileId;
+  }, [selectedProfileId]);
+
+  useEffect(() => {
+    if (
+      previousProfileIdRef.current &&
+      selectedProfileId &&
+      previousProfileIdRef.current !== selectedProfileId
+    ) {
+      closeHomePanel();
+      setItemStateBySource({});
+      setFeedReaderState(createEmptyFeedReaderState());
+    }
+
+    previousProfileIdRef.current = selectedProfileId;
+  }, [closeHomePanel, selectedProfileId, setFeedReaderState]);
+
+  useEffect(() => {
     itemStateBySourceRef.current = itemStateBySource;
   }, [itemStateBySource]);
 
-  const hydrateSources = canReadUserData && feedSubscriptions ? feedSubscriptions : state.sources;
+  const hydrateSources =
+    canReadSelectedProfile && feedSubscriptions ? feedSubscriptions : state.sources;
   const hydrateSourceIds = hydrateSources.map((source) => source.id);
   hydrateSourcesRef.current = hydrateSources;
   hydrateSourceIdsRef.current = hydrateSourceIds;
@@ -262,7 +301,9 @@ export function useFeedReader() {
       setItemStateBySource(cached.itemStateBySource);
       setFeedReaderState((currentState) =>
         mergeCachedState(
-          canReadUserData ? syncSourcesFromConvex(currentState, sourcesToHydrate) : currentState,
+          canReadSelectedProfile
+            ? syncSourcesFromConvex(currentState, sourcesToHydrate)
+            : currentState,
           cached.metaBySource,
           cached.itemsBySource,
         ),
@@ -280,7 +321,7 @@ export function useFeedReader() {
     return () => {
       isCancelled = true;
     };
-  }, [canReadUserData, hydrateSourceKey, isHydrationPending, setFeedReaderState]);
+  }, [canReadSelectedProfile, hydrateSourceKey, isHydrationPending, setFeedReaderState]);
 
   const sourceSummaries = state.sources.map((source) => {
     const items = getSourceItems(state, source.id, itemStateBySource[source.id]);
@@ -325,10 +366,12 @@ export function useFeedReader() {
       ? currentBlogViewMode
       : effectivePreferences.defaultView;
   const isSourcesLoading =
-    convexAuth.isLoading || (canReadUserData && feedSubscriptions === undefined);
+    convexAuth.isLoading ||
+    (canReadUserData &&
+      (isProfilesLoading || selectedProfileId === null || feedSubscriptions === undefined));
 
   const addSourceMutation = useMutation({
-    mutationFn: async (input: string) =>
+    mutationFn: async ({ input }: { input: string; profileId: Id<"profiles"> | null }) =>
       assertDiscoveryResult(
         await discoverFeedSource({
           url: normalizeInputUrl(input),
@@ -338,7 +381,7 @@ export function useFeedReader() {
     onMutate: () => {
       toast.loading("Checking feed...", { id: "add-feed" });
     },
-    onSuccess: async (discovery) => {
+    onSuccess: async (discovery, variables) => {
       await Promise.all([
         upsertSourceItems(discovery.source.id, discovery.items),
         upsertSourceMeta({
@@ -361,12 +404,15 @@ export function useFeedReader() {
         ),
       }));
 
-      startTransition(() => {
-        addSourceSuccess(discovery);
-      });
+      if (variables.profileId === selectedProfileIdRef.current || variables.profileId === null) {
+        startTransition(() => {
+          addSourceSuccess(discovery);
+        });
+      }
 
-      if (canReadUserData) {
+      if (variables.profileId) {
         await addFeedSubscription({
+          profileId: variables.profileId,
           sourceId: discovery.source.id,
           label: discovery.source.label,
           inputUrl: discovery.source.inputUrl,
@@ -423,7 +469,16 @@ export function useFeedReader() {
       return;
     }
 
-    addSourceMutation.mutate(sourceInput);
+    const profileId = selectedProfileIdRef.current;
+
+    if (canReadUserData && !profileId) {
+      return;
+    }
+
+    addSourceMutation.mutate({
+      input: sourceInput,
+      profileId,
+    });
   };
 
   const handleSetCurrentArticleViewMode = (mode: ArticleViewMode) => {
@@ -536,8 +591,11 @@ export function useFeedReader() {
       state.sources.filter((source) => source.id !== sourceId).map((source) => source.id),
     );
 
-    if (canReadUserData) {
-      await removeFeedSubscription({ sourceId });
+    if (selectedProfileIdRef.current) {
+      await removeFeedSubscription({
+        profileId: selectedProfileIdRef.current,
+        sourceId,
+      });
     }
   };
 
@@ -559,11 +617,18 @@ export function useFeedReader() {
   };
 
   const handleToggleBookmark = async () => {
-    if (!canReadUserData || !selectedItem || !selectedSource || bookmarkMutation.isPending) {
+    if (
+      !selectedProfileId ||
+      !canReadUserData ||
+      !selectedItem ||
+      !selectedSource ||
+      bookmarkMutation.isPending
+    ) {
       return;
     }
 
     await bookmarkMutation.mutateAsync({
+      profileId: selectedProfileId,
       url: selectedItem.url,
       title: selectedItem.title,
       excerpt: selectedItem.excerpt,
@@ -578,11 +643,12 @@ export function useFeedReader() {
     item: { url: string; title: string; excerpt?: string; imageUrl?: string; publishedAt?: string },
     source: { label: string; siteUrl: string },
   ) => {
-    if (!canReadUserData || bookmarkMutation.isPending) {
+    if (!selectedProfileId || !canReadUserData || bookmarkMutation.isPending) {
       return;
     }
 
     await bookmarkMutation.mutateAsync({
+      profileId: selectedProfileId,
       url: item.url,
       title: item.title,
       excerpt: item.excerpt,
@@ -620,6 +686,12 @@ export function useFeedReader() {
     selectedSource,
     articleViewMode,
     preferences: effectivePreferences,
+    profiles,
+    selectedProfile,
+    selectedProfileId,
+    isProfilesLoading,
+    isCreatingProfile,
+    isRenamingProfile,
     isDefaultViewPending: defaultViewMutation.isPending,
     isPollingIntervalPending: pollingIntervalMutation.isPending,
     effectivePollingIntervalMs,
@@ -641,6 +713,9 @@ export function useFeedReader() {
     setArticleViewMode: handleSetCurrentArticleViewMode,
     setDefaultArticleViewMode: handleSetDefaultArticleViewMode,
     setPollingIntervalMinutes: handleSetPollingIntervalMinutes,
+    selectProfile,
+    createNewProfile,
+    renameCurrentProfile,
     handleAddSource,
     handleOpenFeed,
     handleSelectItem,

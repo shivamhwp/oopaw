@@ -2,8 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  profiles: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_name", ["userId", "name"]),
   feedSubscriptions: defineTable({
     userId: v.string(),
+    profileId: v.optional(v.id("profiles")),
     sourceId: v.string(),
     label: v.string(),
     inputUrl: v.string(),
@@ -15,6 +24,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId", ["userId"])
+    .index("by_userId_profileId", ["userId", "profileId"])
+    .index("by_userId_profileId_sourceId", ["userId", "profileId", "sourceId"])
     .index("by_userId_sourceId", ["userId", "sourceId"]),
   userPreferences: defineTable({
     userId: v.string(),
@@ -25,6 +36,8 @@ export default defineSchema({
   }).index("by_userId", ["userId"]),
   bookmarks: defineTable({
     userId: v.string(),
+    profileId: v.optional(v.id("profiles")),
+    profile: v.optional(v.string()),
     url: v.string(),
     title: v.string(),
     excerpt: v.optional(v.string()),
@@ -36,5 +49,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId", ["userId"])
+    .index("by_userId_profileId", ["userId", "profileId"])
+    .index("by_userId_profileId_url", ["userId", "profileId", "url"])
     .index("by_userId_url", ["userId", "url"]),
 });

@@ -16,6 +16,8 @@ import type * as feedSubscriptions_queries from "../feedSubscriptions/queries.js
 import type * as lib_auth from "../lib/auth.js";
 import type * as preferences_mutations from "../preferences/mutations.js";
 import type * as preferences_queries from "../preferences/queries.js";
+import type * as profiles_mutations from "../profiles/mutations.js";
+import type * as profiles_queries from "../profiles/queries.js";
 
 import type {
   ApiFromModules,
@@ -32,6 +34,8 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "preferences/mutations": typeof preferences_mutations;
   "preferences/queries": typeof preferences_queries;
+  "profiles/mutations": typeof profiles_mutations;
+  "profiles/queries": typeof profiles_queries;
 }>;
 
 /**

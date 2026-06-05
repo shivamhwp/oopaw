@@ -336,14 +336,13 @@ export function ReaderPane({
         <div className="relative min-h-0 flex-1 overflow-hidden bg-muted/10">
           {isSiteFrameLoading || siteViewQuery.isPending ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-background/88 backdrop-blur-sm">
-              <div
-                role="status"
+              <output
                 aria-label="Loading original site"
                 className="flex flex-col items-center gap-3 text-muted-foreground"
               >
                 <SpinnerIcon className="size-6 animate-spin" weight="bold" />
                 <span className="text-sm">Loading original site</span>
-              </div>
+              </output>
             </div>
           ) : null}
 
@@ -432,14 +431,13 @@ export function ReaderPane({
           >
             {isReaderLoading ? (
               <div className="flex min-h-full items-center justify-center">
-                <div
-                  role="status"
+                <output
                   aria-label="Parsing article"
                   className="flex flex-col items-center gap-3 text-muted-foreground"
                 >
                   <SpinnerIcon className="size-6 animate-spin" weight="bold" />
                   <span className="text-sm">Parsing article</span>
-                </div>
+                </output>
               </div>
             ) : resolvedItem.contentHtml ? (
               <div className="mx-auto w-full max-w-[52rem]">

@@ -3,11 +3,13 @@ import { useClerk, useUser } from "@clerk/tanstack-react-start";
 import { convexQuery } from "@convex-dev/react-query";
 import {
   ArrowClockwiseIcon,
+  CheckIcon,
   CowIcon,
   DesktopIcon,
   EyeIcon,
   EyeSlashIcon,
   MoonIcon,
+  PencilSimpleIcon,
   PhoneCallIcon,
   PlusIcon,
   SignOutIcon,
@@ -24,6 +26,7 @@ import { type PanelImperativeHandle } from "react-resizable-panels";
 import { ItemList } from "@/components/feed-reader/item-list";
 import { ReaderPane } from "@/components/feed-reader/reader-pane";
 import { SourceForm } from "@/components/feed-reader/source-form";
+import type { ProfileOption } from "@/components/feed-reader/use-profiles";
 import {
   detailPanelSizeAtom,
   itemListScrollAtom,
@@ -43,11 +46,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/components/theme-provider";
-import { api } from "@/lib/convex";
+import { api, type Id } from "@/lib/convex";
 import type { ArticleViewMode } from "@/lib/types";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -92,6 +104,201 @@ const isEditableElement = (element: Element | null) =>
     element.tagName === "INPUT" ||
     element.tagName === "TEXTAREA" ||
     element.tagName === "SELECT");
+
+const CREATE_PROFILE_VALUE = "__create_profile__";
+
+type ProfileControls = {
+  profiles: ProfileOption[];
+  selectedProfile: ProfileOption | null;
+  selectedProfileId: Id<"profiles"> | null;
+  isProfilesLoading: boolean;
+  isCreatingProfile: boolean;
+  isRenamingProfile: boolean;
+  onSelectProfile: (profileId: Id<"profiles">) => void;
+  onCreateProfile: () => Promise<void>;
+  onRenameProfile: (profileId: Id<"profiles">, name: string) => Promise<void>;
+};
+
+function ProfileSwitcher({
+  profiles,
+  selectedProfile,
+  selectedProfileId,
+  isProfilesLoading,
+  isCreatingProfile,
+  isRenamingProfile,
+  onSelectProfile,
+  onCreateProfile,
+  onRenameProfile,
+}: ProfileControls) {
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<Id<"profiles"> | null>(null);
+  const [draftName, setDraftName] = useState(selectedProfile?.name ?? "");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const editingProfile = profiles.find((profile) => profile._id === editingProfileId) ?? null;
+  const editingProfileName = editingProfile?.name ?? "";
+
+  useEffect(() => {
+    setEditingProfileId(null);
+  }, [selectedProfile?._id]);
+
+  useEffect(() => {
+    if (!editingProfileId) {
+      setDraftName(selectedProfile?.name ?? "");
+    }
+  }, [editingProfileId, selectedProfile?.name]);
+
+  useEffect(() => {
+    if (!editingProfileId) {
+      return;
+    }
+
+    renameInputRef.current?.focus();
+    renameInputRef.current?.select();
+  }, [editingProfileId]);
+
+  const cancelRename = () => {
+    setDraftName(editingProfileName || selectedProfile?.name || "");
+    setEditingProfileId(null);
+  };
+
+  const commitRename = () => {
+    const profileId = editingProfileId;
+    const nextName = draftName.trim();
+
+    if (profileId && nextName && nextName !== editingProfileName) {
+      void onRenameProfile(profileId, nextName);
+    }
+
+    setEditingProfileId(null);
+  };
+
+  const startRename = (profile: ProfileOption) => {
+    setDraftName(profile.name);
+    setEditingProfileId(profile._id);
+    setIsSelectOpen(true);
+  };
+
+  const handleProfileChange = (value: string) => {
+    if (value === CREATE_PROFILE_VALUE) {
+      cancelRename();
+      void onCreateProfile();
+      return;
+    }
+
+    cancelRename();
+    onSelectProfile(value as Id<"profiles">);
+  };
+
+  return (
+    <Select
+      value={selectedProfileId ?? undefined}
+      open={isSelectOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          cancelRename();
+        }
+
+        setIsSelectOpen(open);
+      }}
+      onValueChange={handleProfileChange}
+      disabled={isProfilesLoading}
+    >
+      <SelectTrigger
+        className="w-[7.5rem] border-border/80 sm:w-[9.5rem]"
+        aria-label="Select profile"
+      >
+        <SelectValue placeholder={isProfilesLoading ? "Profiles" : "Default"} />
+      </SelectTrigger>
+      <SelectContent align="start">
+        {profiles.map((profile) =>
+          editingProfileId === profile._id ? (
+            <div
+              key={profile._id}
+              className="relative flex min-h-8 items-center rounded-md py-1 pr-8 pl-1.5"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Input
+                ref={renameInputRef}
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelRename();
+                    return;
+                  }
+
+                  if (event.key !== "Enter") {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  commitRename();
+                }}
+                className="h-7 px-2 py-1 text-sm"
+                aria-label={`Rename ${profile.name}`}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="absolute top-1/2 right-1.5 size-6 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  commitRename();
+                }}
+                aria-label={`Save ${profile.name}`}
+              >
+                <CheckIcon className="size-3.5" weight="bold" />
+              </Button>
+            </div>
+          ) : (
+            <div key={profile._id} className="group/profile-option relative">
+              <SelectItem value={profile._id} showIndicator={false} className="pr-9">
+                {profile.name}
+              </SelectItem>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="pointer-events-none absolute top-1/2 right-1.5 z-10 size-6 -translate-y-1/2 rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/profile-option:pointer-events-auto group-hover/profile-option:opacity-100 group-focus-within/profile-option:pointer-events-auto group-focus-within/profile-option:opacity-100 hover:text-foreground"
+                disabled={isRenamingProfile}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  startRename(profile);
+                }}
+                aria-label={`Rename ${profile.name}`}
+              >
+                <PencilSimpleIcon className="size-3.5" weight="bold" />
+              </Button>
+            </div>
+          ),
+        )}
+        <SelectSeparator />
+        <SelectItem value={CREATE_PROFILE_VALUE} disabled={isCreatingProfile}>
+          <span className="flex items-center gap-2">
+            {isCreatingProfile ? (
+              <SpinnerIcon className="size-3.5 animate-spin" weight="bold" />
+            ) : (
+              <PlusIcon className="size-3.5" weight="bold" />
+            )}
+            Add profile
+          </span>
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
 
 function ProfileMenu({
   defaultView,
@@ -392,6 +599,7 @@ function ProfileMenu({
 }
 
 type AppNavbarProps = {
+  profileControls: ProfileControls;
   isDefaultViewPending: boolean;
   isPollingIntervalPending: boolean;
   isSignedIn: boolean;
@@ -407,6 +615,7 @@ type AppNavbarProps = {
 };
 
 export function AppNavbar({
+  profileControls,
   isDefaultViewPending,
   isPollingIntervalPending,
   isSignedIn,
@@ -468,13 +677,16 @@ export function AppNavbar({
   return (
     <header className="pt-[env(safe-area-inset-top,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] z-20 shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-2 px-4 py-2 md:px-6 md:py-1.5">
-        <div className="flex items-baseline gap-2.5 shrink-0">
+        <div className="flex min-w-0 shrink items-center gap-2.5">
           <Link
             to="/"
-            className="select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground"
+            className="shrink-0 select-none font-logo text-[2.1rem] leading-none tracking-wide text-foreground"
           >
             oopaw
           </Link>
+          {isSignedIn || profileControls.isProfilesLoading ? (
+            <ProfileSwitcher {...profileControls} />
+          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-1.5">
@@ -549,9 +761,9 @@ export const getFeedReaderLayoutMode = (isMobile: boolean) => (isMobile ? "mobil
 export function FeedReaderBootScreen() {
   return (
     <div className="flex h-svh items-center justify-center overflow-hidden bg-background">
-      <div role="status" aria-label="Loading feeds" className="text-muted-foreground">
+      <output aria-label="Loading feeds" className="text-muted-foreground">
         <SpinnerIcon className="size-5 animate-spin" />
-      </div>
+      </output>
     </div>
   );
 }
@@ -589,13 +801,12 @@ function EmptyFeedState({ isMobile, isLoading }: { isMobile: boolean; isLoading:
         </div>
 
         {isLoading ? (
-          <div
-            role="status"
+          <output
             aria-label="Loading feeds"
             className="relative z-10 text-muted-foreground animate-in fade-in slide-in-from-bottom-2 duration-500"
           >
             <SpinnerIcon className="size-5 animate-spin" />
-          </div>
+          </output>
         ) : (
           <div className="relative z-10 flex max-w-sm flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div
@@ -642,6 +853,12 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     selectedItem,
     articleViewMode,
     preferences,
+    profiles,
+    selectedProfile,
+    selectedProfileId,
+    isProfilesLoading,
+    isCreatingProfile,
+    isRenamingProfile,
     isDefaultViewPending,
     isPollingIntervalPending,
     isSignedIn,
@@ -657,6 +874,9 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     setArticleViewMode,
     setDefaultArticleViewMode,
     setPollingIntervalMinutes,
+    selectProfile,
+    createNewProfile,
+    renameCurrentProfile,
     handleAddSource,
     handleOpenFeed,
     handleSelectItem,
@@ -833,6 +1053,17 @@ export function FeedReaderApp({ authIntent, authRedirect }: FeedReaderAppProps) 
     <>
       <div className="min-h-svh flex h-svh flex-col overflow-hidden overscroll-none bg-background">
         <AppNavbar
+          profileControls={{
+            profiles,
+            selectedProfile,
+            selectedProfileId,
+            isProfilesLoading,
+            isCreatingProfile,
+            isRenamingProfile,
+            onSelectProfile: selectProfile,
+            onCreateProfile: createNewProfile,
+            onRenameProfile: renameCurrentProfile,
+          }}
           isDefaultViewPending={isDefaultViewPending}
           isPollingIntervalPending={isPollingIntervalPending}
           isSignedIn={isSignedIn}

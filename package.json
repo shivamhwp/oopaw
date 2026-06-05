@@ -25,12 +25,12 @@
     "knip": "knip"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.1",
     "concurrently": "^9.2.1",
-    "knip": "^6.11.0",
+    "knip": "^6.15.0",
     "oxfmt": "^0.47.0",
-    "oxlint": "^1.62.0",
-    "turbo": "^2.9.8",
+    "oxlint": "^1.68.0",
+    "turbo": "^2.9.16",
     "typescript": "^6.0.3"
   },
   "engines": {

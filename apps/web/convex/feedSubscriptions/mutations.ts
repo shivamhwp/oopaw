@@ -4,6 +4,7 @@ import { requireCurrentUser } from "../lib/auth";
 
 export const addForCurrentUser = mutation({
   args: {
+    profileId: v.id("profiles"),
     sourceId: v.string(),
     label: v.string(),
     inputUrl: v.string(),
@@ -14,11 +15,19 @@ export const addForCurrentUser = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await requireCurrentUser(ctx);
+    const profile = await ctx.db.get(args.profileId);
+
+    if (!profile || profile.userId !== identity.subject) {
+      throw new Error("Profile not found.");
+    }
 
     const existing = await ctx.db
       .query("feedSubscriptions")
-      .withIndex("by_userId_sourceId", (q) =>
-        q.eq("userId", identity.subject).eq("sourceId", args.sourceId),
+      .withIndex("by_userId_profileId_sourceId", (q) =>
+        q
+          .eq("userId", identity.subject)
+          .eq("profileId", args.profileId)
+          .eq("sourceId", args.sourceId),
       )
       .unique();
 
@@ -39,6 +48,7 @@ export const addForCurrentUser = mutation({
     const now = Date.now();
     await ctx.db.insert("feedSubscriptions", {
       userId: identity.subject,
+      profileId: args.profileId,
       sourceId: args.sourceId,
       label: args.label,
       inputUrl: args.inputUrl,
@@ -53,13 +63,25 @@ export const addForCurrentUser = mutation({
 });
 
 export const removeForCurrentUser = mutation({
-  args: { sourceId: v.string() },
+  args: {
+    profileId: v.id("profiles"),
+    sourceId: v.string(),
+  },
   handler: async (ctx, args) => {
     const identity = await requireCurrentUser(ctx);
+    const profile = await ctx.db.get(args.profileId);
+
+    if (!profile || profile.userId !== identity.subject) {
+      throw new Error("Profile not found.");
+    }
+
     const existing = await ctx.db
       .query("feedSubscriptions")
-      .withIndex("by_userId_sourceId", (q) =>
-        q.eq("userId", identity.subject).eq("sourceId", args.sourceId),
+      .withIndex("by_userId_profileId_sourceId", (q) =>
+        q
+          .eq("userId", identity.subject)
+          .eq("profileId", args.profileId)
+          .eq("sourceId", args.sourceId),
       )
       .unique();
 
