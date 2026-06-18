@@ -214,7 +214,7 @@ function ProfileSwitcher({
           editingProfileId === profile._id ? (
             <div
               key={profile._id}
-              className="relative flex min-h-8 items-center rounded-md py-1 pr-8 pl-1.5"
+              className="relative flex min-h-8 items-center rounded-md bg-background/45 py-1 pr-8 pl-1.5 backdrop-blur-md"
               onPointerDown={(event) => event.stopPropagation()}
             >
               <Input
@@ -235,14 +235,14 @@ function ProfileSwitcher({
                   event.preventDefault();
                   commitRename();
                 }}
-                className="h-7 px-2 py-1 text-sm"
+                className="h-7 bg-background/70 px-2 py-1 text-sm backdrop-blur-sm"
                 aria-label={`Rename ${profile.name}`}
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                className="absolute top-1/2 right-1.5 size-6 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground"
+                className="absolute top-1/2 right-1.5 size-6 -translate-y-1/2 rounded-md bg-background/40 text-muted-foreground backdrop-blur-sm hover:text-foreground"
                 onPointerDown={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
